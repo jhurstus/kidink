@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "kidink-server",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "flask", "--app", "app", "run", "--debug", "--port", "5051"],
+      "cwd": "server",
+      "port": 5051
+    }
+  ]
+}

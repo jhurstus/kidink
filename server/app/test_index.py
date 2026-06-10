@@ -7,4 +7,4 @@ def test_index_renders_hello_world() -> None:
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "hello world" in response.text
+    assert "Hello, world!" in response.text
