@@ -1,0 +1,29 @@
+[project]
+name = "kidink-server"
+version = "0.1.0"
+description = "HTTP server for the kidink smart display"
+requires-python = ">=3.14"
+dependencies = [
+    "flask>=3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0",
+    "ruff>=0.15",
+    "ty>=0.0.47",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+
+[tool.pytest.ini_options]
+testpaths = ["app"]
+pythonpath = ["."]

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Pre-commit hook: run all server checks in check-only mode.
+# Enable once per clone with: git config core.hooksPath .githooks
+set -euo pipefail
+
+"$(git rev-parse --show-toplevel)/server/check.sh" --ci
