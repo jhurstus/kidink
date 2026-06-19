@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
-# Pre-commit hook: run all server checks in check-only mode.
+# Pre-commit hook: scan staged changes for secrets, then run all server checks
+# in check-only mode.
 # Enable once per clone with: git config core.hooksPath .githooks
 set -euo pipefail
+
+# Secret scan: the project's API keys and unauthenticated ICS URLs look like
+# ordinary config, so a leak is easy to commit by accident. gitleaks blocks the
+# commit if it finds one. If it isn't installed we warn but don't block.
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact
+else
+  echo "⚠️  gitleaks not installed — skipping secret scan. Install: brew install gitleaks" >&2
+fi
 
 "$(git rev-parse --show-toplevel)/server/check.sh" --ci

@@ -10,6 +10,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=9.0",
+    "pytest-socket>=0.8.0",
     "ruff>=0.15",
     "ty>=0.0.47",
 ]
@@ -27,3 +28,10 @@ select = [
 [tool.pytest.ini_options]
 testpaths = ["app"]
 pythonpath = ["."]
+# Block all real network access by default (pytest-socket): tests must use the
+# Flask test client or fakes, never live I/O. Deselect browser tests by default;
+# run them explicitly with `uv run pytest -m browser`.
+addopts = ["--disable-socket", "-m", "not browser"]
+markers = [
+    "browser: drives headless Chromium via Playwright; slow, deselected by default. Also decorate with @pytest.mark.enable_socket so the browser/internal requests can use sockets.",
+]
