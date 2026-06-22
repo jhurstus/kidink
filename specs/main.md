@@ -158,7 +158,7 @@ is nearly free, since tomorrow's images are already cached.
 | Language | Python 3.14 |
 | HTTP server | Flask |
 | Templating | Jinja2 → plain HTML + CSS, no JS |
-| CSS authoring | Sass (dart-sass); palette as a Sass map, a `halftone()` mixin |
+| CSS authoring | Plain CSS with custom properties; the palette/tones are owned by a central Python class that emits the CSS variables |
 | Headless render | Playwright (Python) driving Chromium |
 | Calendar parsing | ICS parser + a recurring-ICS expansion library |
 | AI images | OpenAI image API (top model, configurable per module) |
@@ -224,8 +224,9 @@ predictably onto what the panel can display.
 - **Authored areas** (backgrounds, panel fills, text, day cells, the temperature bar —
   any large color swath or load-bearing color) are drawn directly in CSS as a real dot
   pattern (e.g. layered radial-gradients of red dots on yellow to make "orange"), with
-  dot size, spacing, and angle under our control via the Sass `halftone()` mixin. They
-  are already near-native colors and survive quantization almost unchanged.
+  dot size, spacing, and angle under our control via a reusable halftone dot pattern
+  driven by the palette's CSS custom properties (§5.1). They are already near-native
+  colors and survive quantization almost unchanged.
 - **Icons and AI images** are carried in the page as full-color, transparent PNGs
   composited onto their cells.
 
@@ -239,11 +240,11 @@ backgrounds (which are already dithered and pass through largely untouched).
 
 ### 5.3 Canonical halftone swatches
 
-A proposed starting set, expressed as native inks plus an approximate dot coverage (the
-`halftone()` mixin's base ink, dot ink, density, and angle). **All densities and angles
-are starting points to tune on the physical panel.** E-ink guidance baked into these
-choices: keep the two inks in a blend high in luminance contrast, use coarse,
-hard-edged dots, and use black sparingly (it darkens a blend fast and muddies it).
+A proposed starting set, expressed as native inks plus an approximate dot
+coverage. **All densities and angles are starting points to tune on the physical
+panel.** E-ink guidance baked into these choices: keep the two inks in a blend
+high in luminance contrast, use coarse, hard-edged dots, and use black sparingly
+(it darkens a blend fast and muddies it).
 
 **Named blends (general palette):**
 
