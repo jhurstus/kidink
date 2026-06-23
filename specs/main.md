@@ -281,6 +281,57 @@ high in luminance contrast, use coarse, hard-edged dots, and use black sparingly
 
 The same color is reused for that day's "today" highlight burst.
 
+### 5.4 Comic-panel rendering primitives (the `comic_panel` macro)
+
+Ben-Day fills (§5.2) and the panel frames are produced by the comic_panel macro:
+
+```jinja
+{% from "macros/comic.html" import comic_panel with context %}
+{{ comic_panel(
+     width=520, height=300, bg='rgb(225,220,202)',
+     halftones=[
+       {'color': 'rgb(70,110,170)', 'origin_angle': '270deg', 'magnitude': '70%'},
+     ],
+     border={'color': 'rgb(40,38,34)', 'radius': 16, 'mid_width': 12,
+             'corner_width': 3, 'seed': day_seed},   {# day_seed derived from the date #}
+     content='<h1>Today</h1>') }}
+```
+
+**Halftone field.** Each dict in `halftones` is one continuous Ben-Day field whose dots
+shrink *smoothly* from an origin edge toward the center (no visible banding). Keys are
+all optional; an omitted key falls back to the `comic.css` / filter default:
+
+| Key | Meaning | Default |
+|---|---|---|
+| `color` | dot ink color | `rgb(187,180,162)` |
+| `dot_size` | lattice pitch (px) | `6` |
+| `origin_angle` | edge the dots are strongest at — CSS angle, `0deg`=top, `90deg`=right, `180deg`=bottom, `270deg`=left | `90deg` |
+| `magnitude` | how far the dots reach in from that edge | `60%` |
+| `max_fill` | peak dot radius as a fraction of the pitch: `0.5` touching, `>0.5` overlapping, `~0.71+` reads solid | `0.42` |
+| `offset` | shift the dot lattice diagonally (px); `~dot_size/2` interleaves two otherwise-coincident fields | `0` |
+| `transparency` | `0..1` dot see-through-ness (`0.8` = 80% transparent) so stacked fields blend | `0` |
+| `uid` | optional stable filter id (only needed for the playground's live editing) | — |
+
+`origin_angle` / `magnitude` / `max_fill` are emitted as CSS custom properties (cheap to
+vary); `color` / `dot_size` / `offset` / `transparency` are baked into a per-field SVG
+filter, and identical fields share one filter.
+
+**Border.** `border` is a dict or `None`. It draws a single filled **vector** frame that
+is thick at the middle of each edge and tapers at the corners, and it **rounds and clips
+the panel** so the background only shows inside the frame. Because it is plain geometry
+(no SVG filter) it stays crisp at any roughness. Keys:
+
+| Key | Meaning | Default |
+|---|---|---|
+| `seed` | **required** — selects the deterministic thickness ripple | — |
+| `color` | frame color | `rgb(40,38,34)` |
+| `radius` | corner radius (px) | `0` |
+| `mid_width` | thickness at edge midpoints (px) | = `corner_width` |
+| `corner_width` | thickness at corners (px) | `4` |
+| `roughness` | px amplitude of a smooth, pen-pressure thickness ripple; `0` = clean | `0` |
+| `frequency` | number of ripple undulations around the perimeter | `6` |
+
+
 ---
 
 ## 6. Data layer

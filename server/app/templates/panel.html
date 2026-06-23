@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>kidink · comic panel playground</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/comic.css') }}" />
+  <style>
+    /* Demo-page chrome only. The panel primitives themselves live in comic.css.
+       JavaScript on this page is a developer convenience, confined to /panel;
+       the device render templates stay pure HTML + CSS. */
+    body {
+      margin: 0;
+      padding: 24px 32px 64px;
+      font: 14px/1.4 system-ui, sans-serif;
+      color: #222;
+      background: #f4f4f2;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: 22px;
+    }
+
+    p.lede {
+      margin: 0 0 20px;
+      color: #555;
+      max-width: 70ch;
+    }
+
+    h2 {
+      margin: 36px 0 12px;
+      font-size: 16px;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 6px;
+    }
+
+    .stage {
+      overflow: auto;
+      padding: 16px;
+      background:
+        repeating-conic-gradient(#e9e9e6 0 25%, #fff 0 50%) 0 0 / 24px 24px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 10px 24px;
+      margin-top: 16px;
+      max-width: 1100px;
+    }
+
+    .ctrl-group {
+      margin-top: 18px;
+    }
+
+    .ctrl-group > h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+    }
+
+    label.ctrl {
+      display: grid;
+      grid-template-columns: 96px 1fr 64px;
+      align-items: center;
+      gap: 8px;
+    }
+
+    label.ctrl .ctrl-name {
+      color: #444;
+    }
+
+    label.ctrl input[type="range"] {
+      width: 100%;
+    }
+
+    label.ctrl input[type="color"] {
+      width: 100%;
+      height: 24px;
+      padding: 0;
+      border: 1px solid #ccc;
+    }
+
+    label.ctrl .val {
+      font-variant-numeric: tabular-nums;
+      color: #666;
+      text-align: right;
+    }
+
+    .gallery {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card .caption {
+      font-size: 12px;
+      color: #555;
+      max-width: 360px;
+    }
+  </style>
+</head>
+
+<body>
+  {% from "macros/comic.html" import comic_panel %}
+
+  <h1>Comic panel playground</h1>
+  <p class="lede">
+    Reusable Ben-Day halftone shading and hand-drawn comic borders, built from
+    <code>comic.css</code> + the <code>comic_panel()</code> Jinja macro. Drag the
+    sliders to dial in the live panel below; the gallery shows the parameter
+    range and multi-halftone layering.
+  </p>
+
+  <h2>Live panel</h2>
+  <div class="stage">
+    <div id="demo">
+      {{ comic_panel(
+           width=width, height=height, bg=bg,
+           halftones=[{
+             'uid': 'demo',
+             'color': dot_color, 'dot_size': dot_size, 'offset': offset,
+             'transparency': transparency, 'max_fill': max_fill,
+             'origin_angle': origin_angle, 'magnitude': magnitude,
+           }],
+           border={'color': border_color, 'radius': radius, 'mid_width': mid_width,
+                   'corner_width': corner_width, 'roughness': roughness,
+                   'frequency': frequency, 'seed': seed}) }}
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <h3>Base</h3>
+      <label class="ctrl">
+        <span class="ctrl-name">Background</span>
+        <input type="color" value="#e1dcca"
+               data-apply="cssvar" data-target="panel" data-prop="--panel-bg" />
+        <span class="val"></span>
+      </label>
+    </div>
+
+    <div class="ctrl-group">
+      <h3>Halftone</h3>
+      <label class="ctrl">
+        <span class="ctrl-name">Dot color</span>
+        <input type="color" value="#bbb4a2"
+               data-apply="attr" data-target="htFlood" data-attr="flood-color" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Dot size</span>
+        <input type="range" min="2" max="28" step="1" value="{{ dot_size }}"
+               data-apply="attr" data-target="htImage" data-attr="wh" data-unit="px" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Offset</span>
+        <input type="range" min="0" max="28" step="1" value="{{ offset }}"
+               data-apply="attr" data-target="htImage" data-attr="xy" data-unit="px" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Transparency</span>
+        <input type="range" min="0" max="1" step="0.05" value="{{ transparency }}"
+               data-apply="trans" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Max fill</span>
+        <input type="range" min="0.05" max="1" step="0.01" value="{{ max_fill }}"
+               data-apply="cssvar" data-target="halftone" data-prop="--max-fill" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Origin angle</span>
+        <input type="range" min="0" max="360" step="5" value="{{ origin_angle[:-3] }}"
+               data-apply="cssvar" data-target="halftone" data-prop="--origin-angle" data-unit="deg" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Magnitude</span>
+        <input type="range" min="5" max="100" step="1" value="{{ magnitude[:-1] }}"
+               data-apply="cssvar" data-target="halftone" data-prop="--magnitude" data-unit="%" />
+        <span class="val"></span>
+      </label>
+    </div>
+
+    <div class="ctrl-group">
+      <h3>Border</h3>
+      <label class="ctrl">
+        <span class="ctrl-name">Color</span>
+        <input type="color" value="#282622"
+               data-apply="attr" data-target="borderPath" data-attr="fill" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Radius</span>
+        <input type="range" min="0" max="80" step="1" value="{{ radius }}"
+               data-apply="geom" data-geom="radius" data-unit="px" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Mid width</span>
+        <input type="range" min="0" max="40" step="1" value="{{ mid_width }}"
+               data-apply="geom" data-geom="mid" data-unit="px" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Corner width</span>
+        <input type="range" min="0" max="40" step="1" value="{{ corner_width }}"
+               data-apply="geom" data-geom="corner" data-unit="px" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Roughness</span>
+        <input type="range" min="0" max="10" step="0.5" value="{{ roughness }}"
+               data-apply="geom" data-geom="roughness" data-unit="px" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Frequency</span>
+        <input type="range" min="1" max="20" step="1" value="{{ frequency }}"
+               data-apply="geom" data-geom="frequency" />
+        <span class="val"></span>
+      </label>
+      <label class="ctrl">
+        <span class="ctrl-name">Seed</span>
+        <input type="range" min="0" max="200" step="1" value="{{ seed }}"
+               data-apply="geom" data-geom="seed" />
+        <span class="val"></span>
+      </label>
+    </div>
+  </div>
+
+  <h2>Gallery</h2>
+  <div class="gallery">
+    <div class="card">
+      {{ comic_panel(width=360, height=220, bg='rgb(225,235,245)',
+           halftones=[{'color':'rgb(70,110,170)','dot_size':8,'max_fill':0.46,
+                       'origin_angle':'270deg','magnitude':'100%'}],
+           border={'color':'rgb(40,38,34)','seed':1001,'radius':18,'mid_width':10,'corner_width':3}) }}
+      <div class="caption">Single halftone from the left edge (origin 270°),
+        reaching all the way across (magnitude 100%). Border fat at the edge
+        midpoints, tapering at the rounded corners.</div>
+    </div>
+
+    <div class="card">
+      {{ comic_panel(width=360, height=220, bg='rgb(228,222,205)',
+           halftones=[
+             {'color':'rgb(225,120,45)','dot_size':7,'offset':0,'transparency':0.8,'max_fill':0.48,'origin_angle':'0deg','magnitude':'55%'},
+             {'color':'rgb(70,150,150)','dot_size':7,'offset':4,'transparency':0.8,'max_fill':0.48,'origin_angle':'270deg','magnitude':'55%'}],
+           border={'color':'rgb(40,38,34)','seed':1002,'radius':0,'mid_width':6,'corner_width':6}) }}
+      <div class="caption">Two halftone groups — orange from the top, teal from the
+        left — with different lattice offsets and 80% transparent dots, so they
+        blend softly where they overlap. Plain uniform square border.</div>
+    </div>
+
+    <div class="card">
+      {{ comic_panel(width=360, height=220, bg='rgb(245,232,232)',
+           halftones=[{'color':'rgb(200,70,70)','dot_size':5,'max_fill':0.45,
+                       'origin_angle':'180deg','magnitude':'70%'}],
+           border={'color':'rgb(40,38,34)','seed':1003,'radius':10,'mid_width':10,'corner_width':3,'roughness':5,'frequency':5}) }}
+      <div class="caption">Origin from the bottom (180°), fine dots (size 5) — a
+        gentle floor shadow. Border thickness ripples like pen pressure
+        (roughness 5).</div>
+    </div>
+
+    <div class="card">
+      {{ comic_panel(width=360, height=220, bg='rgb(230,230,225)',
+           halftones=[{'color':'rgb(60,60,60)','dot_size':16,'max_fill':0.72,
+                       'origin_angle':'90deg','magnitude':'90%'}],
+           border={'color':'rgb(40,38,34)','seed':1004,'radius':12,'mid_width':16,'corner_width':2}) }}
+      <div class="caption">Big chunky dots (size 16) with max fill 0.72, so dots
+        overlap into near-solid ink at the origin and break up toward the center.
+        Heavy mid-edge border with sharply tapered corners.</div>
+    </div>
+
+    <div class="card">
+      {{ comic_panel(width=360, height=220, bg='rgb(255,253,245)',
+           halftones=[],
+           border={'color':'rgb(40,38,34)','seed':1005,'radius':28,'mid_width':6,'corner_width':6}) }}
+      <div class="caption">Zero halftones — just the border on a flat fill (panels
+        can have no shading at all). Very rounded corners (radius 28).</div>
+    </div>
+
+    <div class="card">
+      {{ comic_panel(width=360, height=220, bg='rgb(225,235,245)',
+           halftones=[
+             {'color':'rgb(70,110,170)','dot_size':10,'max_fill':0.42,'origin_angle':'270deg','magnitude':'100%'},
+             {'color':'rgb(70,110,170)','dot_size':10,'max_fill':0.42,'origin_angle':'270deg','magnitude':'100%','offset':5}],
+           border={'color':'rgb(40,38,34)','seed':1006,'radius':14,'mid_width':9,'corner_width':3}) }}
+      <div class="caption">Two identical halftones, the second offset by half a
+        dot (5px), so they interleave into a denser grid instead of overlapping
+        exactly.</div>
+    </div>
+  </div>
+
+  <script>
+    // Dev-only: wire the controls to the live panel. CSS custom properties drive
+    // the halftone tone + base; the dot filter's feImage/feFlood drive dot
+    // size/offset/color; and the border path is rebuilt in JS (mirroring
+    // app/comic.py) for radius/width/roughness/seed/frequency. No markup is
+    // generated here beyond the border <path> d — the macro output is the source
+    // of truth.
+    (function () {
+      const demo = document.getElementById("demo");
+      const htFilter = document.getElementById("ht-demo");
+      const W = {{ width }}, H = {{ height }};
+      const targets = {
+        panel: demo.querySelector(".comic-panel"),
+        halftone: demo.querySelector(".halftone"),
+        borderPath: demo.querySelector(".comic-border path"),
+        htImage: htFilter.querySelector("feImage"), // dot lattice pitch
+        htFlood: htFilter.querySelector("feFlood"), // dot ink color
+      };
+
+      // Mirror of app/comic.py:comic_border_path / _inner_path. Keep in sync.
+      const hash01 = (n) => { const x = Math.sin(n) * 43758.5453; return x - Math.floor(x); };
+      function borderPath(W, H, R, wm, wc, roughness, seed, frequency) {
+        const ov = 6;
+        R = Math.min(R, W / 2, H / 2);
+        wc = Math.min(wc, W / 2, H / 2);
+        const oR = R + ov, x0 = -ov, y0 = -ov, x1 = W + ov, y1 = H + ov;
+        const outer =
+          `M ${x0 + oR},${y0} L ${x1 - oR},${y0} A ${oR},${oR} 0 0 1 ${x1},${y0 + oR} ` +
+          `L ${x1},${y1 - oR} A ${oR},${oR} 0 0 1 ${x1 - oR},${y1} ` +
+          `L ${x0 + oR},${y1} A ${oR},${oR} 0 0 1 ${x0},${y1 - oR} ` +
+          `L ${x0},${y0 + oR} A ${oR},${oR} 0 0 1 ${x0 + oR},${y0} Z`;
+
+        const stH = Math.max(0, W - 2 * R), stV = Math.max(0, H - 2 * R), arc = (Math.PI / 2) * R;
+        const segs = [["lt", stH], ["atr", arc], ["lr", stV], ["abr", arc],
+                      ["lb", stH], ["abl", arc], ["ll", stV], ["atl", arc]];
+        const P = segs.reduce((a, s) => a + s[1], 0);
+        if (P <= 0) return outer;
+        const bow = wm - wc, maxW = Math.min(W, H) / 2, F = Math.max(1, frequency);
+        const harms = [Math.round(F), Math.round(2 * F + 1), Math.round(3 * F + 2)];
+        const amps = [1.0, 0.5, 0.3], aSum = 1.8;
+        const ph = [0, 1, 2].map((i) => 2 * Math.PI * hash01((seed + 1) * 1.3 + (i + 1) * 8.7));
+        const ripple = (t) => {
+          let v = 0;
+          for (let i = 0; i < 3; i++) v += amps[i] * Math.sin(2 * Math.PI * harms[i] * t + ph[i]);
+          return v / aSum;
+        };
+        const at = (s) => {
+          let acc = 0, kind = "atl", u = 1;
+          for (const [k, l] of segs) { if (l > 0 && s < acc + l) { kind = k; u = (s - acc) / l; break; } acc += l; }
+          const eb = wc + bow * Math.sin(Math.PI * u);
+          if (kind === "lt") return [R + stH * u, 0, 0, 1, eb];
+          if (kind === "lr") return [W, R + stV * u, -1, 0, eb];
+          if (kind === "lb") return [W - R - stH * u, H, 0, -1, eb];
+          if (kind === "ll") return [0, H - R - stV * u, 1, 0, eb];
+          let cx, cy, a0;
+          if (kind === "atr") { cx = W - R; cy = R; a0 = -Math.PI / 2; }
+          else if (kind === "abr") { cx = W - R; cy = H - R; a0 = 0; }
+          else if (kind === "abl") { cx = R; cy = H - R; a0 = Math.PI / 2; }
+          else { cx = R; cy = R; a0 = Math.PI; }
+          const ang = a0 + (Math.PI / 2) * u, ca = Math.cos(ang), sa = Math.sin(ang);
+          return [cx + R * ca, cy + R * sa, -ca, -sa, wc];
+        };
+        const n = Math.max(48, Math.min(2000, Math.round(P / 3)));
+        const pts = [];
+        for (let i = 0; i < n; i++) {
+          const [x, y, nx, ny, base] = at(P * i / n);
+          let w = base + roughness * ripple(i / n);
+          w = Math.min(Math.max(0, w), maxW);
+          pts.push(`${x + nx * w},${y + ny * w}`);
+        }
+        return outer + " M " + pts[0] + " L " + pts.slice(1).join(" L ") + " Z";
+      }
+
+      const geom = { radius: 0, mid: 0, corner: 0, roughness: 0, frequency: 6, seed: 0 };
+      function rebuildBorder() {
+        document.querySelectorAll("[data-geom]").forEach((i) => {
+          geom[i.dataset.geom] = +i.value;
+        });
+        targets.borderPath.setAttribute(
+          "d",
+          borderPath(W, H, geom.radius, geom.mid, geom.corner, geom.roughness, geom.seed, geom.frequency),
+        );
+        targets.panel.style.setProperty("--radius", geom.radius + "px");
+      }
+
+      function readout(input) {
+        const r = input.parentElement.querySelector(".val");
+        if (r) r.textContent = input.value + (input.dataset.unit || "");
+      }
+
+      function apply(input) {
+        const kind = input.dataset.apply;
+        if (kind === "geom") {
+          rebuildBorder(); // radius/mid/corner/roughness/seed/frequency rebuild the path
+        } else if (kind === "trans") {
+          // transparency -> dot ink opacity (1 = opaque).
+          targets.htFlood.setAttribute("flood-opacity", (1 - +input.value).toFixed(3));
+        } else {
+          const el = targets[input.dataset.target];
+          if (!el) return;
+          if (kind === "cssvar") {
+            el.style.setProperty(input.dataset.prop, input.value + (input.dataset.unit || ""));
+          } else if (input.dataset.attr === "wh") {
+            el.setAttribute("width", input.value); // dot size (square cell)
+            el.setAttribute("height", input.value);
+          } else if (input.dataset.attr === "xy") {
+            el.setAttribute("x", input.value); // offset (diagonal)
+            el.setAttribute("y", input.value);
+          } else {
+            el.setAttribute(input.dataset.attr, input.value);
+          }
+        }
+        readout(input);
+      }
+
+      document.querySelectorAll("[data-apply]").forEach((input) => {
+        input.addEventListener("input", () => apply(input));
+        apply(input); // sync panel + readouts to the initial slider values
+      });
+    })();
+  </script>
+</body>
+
+</html>
