@@ -64,6 +64,22 @@
       color: #888;
     }
 
+    /* The Halftone 2 header is itself the on/off toggle. */
+    .ctrl-group > h3 > label.ht-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      cursor: pointer;
+      font: inherit;
+      letter-spacing: inherit;
+      text-transform: inherit;
+    }
+
+    .ctrl-group > h3 > label.ht-toggle input {
+      cursor: pointer;
+    }
+
     label.ctrl {
       display: grid;
       grid-template-columns: 96px 1fr 64px;
@@ -90,6 +106,19 @@
       font-variant-numeric: tabular-nums;
       color: #666;
       text-align: right;
+    }
+
+    /* Live macro-invocation printout. */
+    pre.macro-print {
+      margin: 0;
+      padding: 14px 16px;
+      max-width: 1100px;
+      overflow-x: auto;
+      background: #1e1e1c;
+      color: #e8e6df;
+      border-radius: 6px;
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+      white-space: pre;
     }
 
     .gallery {
@@ -119,8 +148,10 @@
   <p class="lede">
     Reusable Ben-Day halftone shading and hand-drawn comic borders, built from
     <code>comic.css</code> + the <code>comic_panel()</code> Jinja macro. Drag the
-    sliders to dial in the live panel below; the gallery shows the parameter
-    range and multi-halftone layering.
+    sliders to dial in the live panel below — flip on a second halftone to layer
+    two fields — and the <em>Macro invocation</em> block updates to show the exact
+    <code>comic_panel()</code> call for the current parameters. The gallery shows
+    the parameter range and multi-halftone layering.
   </p>
 
   <h2>Live panel</h2>
@@ -128,12 +159,16 @@
     <div id="demo">
       {{ comic_panel(
            width=width, height=height, bg=bg,
-           halftones=[{
-             'uid': 'demo',
-             'color': dot_color, 'dot_size': dot_size, 'offset': offset,
-             'transparency': transparency, 'max_fill': max_fill,
-             'origin_angle': origin_angle, 'magnitude': magnitude,
-           }],
+           halftones=[
+             {'uid': 'demo',
+              'color': dot_color, 'dot_size': dot_size, 'offset': offset,
+              'transparency': transparency, 'max_fill': max_fill,
+              'origin_angle': origin_angle, 'magnitude': magnitude},
+             {'uid': 'demo2',
+              'color': '#469696', 'dot_size': 7, 'offset': 4,
+              'transparency': 0.8, 'max_fill': 0.48,
+              'origin_angle': '270deg', 'magnitude': '55%'},
+           ],
            border={'color': border_color, 'radius': radius, 'mid_width': mid_width,
                    'corner_width': corner_width, 'roughness': roughness,
                    'frequency': frequency, 'seed': seed}) }}
@@ -146,55 +181,123 @@
       <label class="ctrl">
         <span class="ctrl-name">Background</span>
         <input type="color" value="#e1dcca"
+               data-section="base" data-key="bg"
                data-apply="cssvar" data-target="panel" data-prop="--panel-bg" />
         <span class="val"></span>
       </label>
     </div>
 
     <div class="ctrl-group">
-      <h3>Halftone</h3>
+      <h3>Halftone 1</h3>
       <label class="ctrl">
         <span class="ctrl-name">Dot color</span>
         <input type="color" value="#bbb4a2"
+               data-section="ht1" data-ht="1" data-key="color"
                data-apply="attr" data-target="htFlood" data-attr="flood-color" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Dot size</span>
         <input type="range" min="2" max="28" step="1" value="{{ dot_size }}"
+               data-section="ht1" data-ht="1" data-key="dot_size"
                data-apply="attr" data-target="htImage" data-attr="wh" data-unit="px" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Offset</span>
         <input type="range" min="0" max="28" step="1" value="{{ offset }}"
+               data-section="ht1" data-ht="1" data-key="offset"
                data-apply="attr" data-target="htImage" data-attr="xy" data-unit="px" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Transparency</span>
         <input type="range" min="0" max="1" step="0.05" value="{{ transparency }}"
+               data-section="ht1" data-ht="1" data-key="transparency"
                data-apply="trans" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Max fill</span>
         <input type="range" min="0.05" max="1" step="0.01" value="{{ max_fill }}"
+               data-section="ht1" data-ht="1" data-key="max_fill"
                data-apply="cssvar" data-target="halftone" data-prop="--max-fill" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Origin angle</span>
         <input type="range" min="0" max="360" step="5" value="{{ origin_angle[:-3] }}"
+               data-section="ht1" data-ht="1" data-key="origin_angle"
                data-apply="cssvar" data-target="halftone" data-prop="--origin-angle" data-unit="deg" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Magnitude</span>
         <input type="range" min="5" max="100" step="1" value="{{ magnitude[:-1] }}"
+               data-section="ht1" data-ht="1" data-key="magnitude"
                data-apply="cssvar" data-target="halftone" data-prop="--magnitude" data-unit="%" />
         <span class="val"></span>
       </label>
+    </div>
+
+    <div class="ctrl-group">
+      <h3>
+        <label class="ht-toggle">
+          <input type="checkbox" id="ht2-toggle" />
+          Halftone 2
+        </label>
+      </h3>
+      <div id="ht2-controls">
+        <label class="ctrl">
+          <span class="ctrl-name">Dot color</span>
+          <input type="color" value="#469696"
+                 data-section="ht2" data-ht="2" data-key="color"
+                 data-apply="attr" data-target="htFlood" data-attr="flood-color" />
+          <span class="val"></span>
+        </label>
+        <label class="ctrl">
+          <span class="ctrl-name">Dot size</span>
+          <input type="range" min="2" max="28" step="1" value="7"
+                 data-section="ht2" data-ht="2" data-key="dot_size"
+                 data-apply="attr" data-target="htImage" data-attr="wh" data-unit="px" />
+          <span class="val"></span>
+        </label>
+        <label class="ctrl">
+          <span class="ctrl-name">Offset</span>
+          <input type="range" min="0" max="28" step="1" value="4"
+                 data-section="ht2" data-ht="2" data-key="offset"
+                 data-apply="attr" data-target="htImage" data-attr="xy" data-unit="px" />
+          <span class="val"></span>
+        </label>
+        <label class="ctrl">
+          <span class="ctrl-name">Transparency</span>
+          <input type="range" min="0" max="1" step="0.05" value="0.8"
+                 data-section="ht2" data-ht="2" data-key="transparency"
+                 data-apply="trans" />
+          <span class="val"></span>
+        </label>
+        <label class="ctrl">
+          <span class="ctrl-name">Max fill</span>
+          <input type="range" min="0.05" max="1" step="0.01" value="0.48"
+                 data-section="ht2" data-ht="2" data-key="max_fill"
+                 data-apply="cssvar" data-target="halftone" data-prop="--max-fill" />
+          <span class="val"></span>
+        </label>
+        <label class="ctrl">
+          <span class="ctrl-name">Origin angle</span>
+          <input type="range" min="0" max="360" step="5" value="270"
+                 data-section="ht2" data-ht="2" data-key="origin_angle"
+                 data-apply="cssvar" data-target="halftone" data-prop="--origin-angle" data-unit="deg" />
+          <span class="val"></span>
+        </label>
+        <label class="ctrl">
+          <span class="ctrl-name">Magnitude</span>
+          <input type="range" min="5" max="100" step="1" value="55"
+                 data-section="ht2" data-ht="2" data-key="magnitude"
+                 data-apply="cssvar" data-target="halftone" data-prop="--magnitude" data-unit="%" />
+          <span class="val"></span>
+        </label>
+      </div>
     </div>
 
     <div class="ctrl-group">
@@ -202,47 +305,61 @@
       <label class="ctrl">
         <span class="ctrl-name">Color</span>
         <input type="color" value="#282622"
+               data-section="border" data-key="color"
                data-apply="attr" data-target="borderPath" data-attr="fill" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Radius</span>
         <input type="range" min="0" max="80" step="1" value="{{ radius }}"
+               data-section="border" data-key="radius"
                data-apply="geom" data-geom="radius" data-unit="px" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Mid width</span>
         <input type="range" min="0" max="40" step="1" value="{{ mid_width }}"
+               data-section="border" data-key="mid_width"
                data-apply="geom" data-geom="mid" data-unit="px" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Corner width</span>
         <input type="range" min="0" max="40" step="1" value="{{ corner_width }}"
+               data-section="border" data-key="corner_width"
                data-apply="geom" data-geom="corner" data-unit="px" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Roughness</span>
         <input type="range" min="0" max="10" step="0.5" value="{{ roughness }}"
+               data-section="border" data-key="roughness"
                data-apply="geom" data-geom="roughness" data-unit="px" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Frequency</span>
         <input type="range" min="1" max="20" step="1" value="{{ frequency }}"
+               data-section="border" data-key="frequency"
                data-apply="geom" data-geom="frequency" />
         <span class="val"></span>
       </label>
       <label class="ctrl">
         <span class="ctrl-name">Seed</span>
         <input type="range" min="0" max="200" step="1" value="{{ seed }}"
+               data-section="border" data-key="seed"
                data-apply="geom" data-geom="seed" />
         <span class="val"></span>
       </label>
     </div>
   </div>
+
+  <h2>Macro invocation</h2>
+  <p class="lede">
+    The <code>comic_panel()</code> call that reproduces the live panel above.
+    Halftone 2 appears only while it is toggled on.
+  </p>
+  <pre class="macro-print"><code id="macro-out"></code></pre>
 
   <h2>Gallery</h2>
   <div class="gallery">
@@ -313,17 +430,22 @@
     // size/offset/color; and the border path is rebuilt in JS (mirroring
     // app/comic.py) for radius/width/roughness/seed/frequency. No markup is
     // generated here beyond the border <path> d — the macro output is the source
-    // of truth.
+    // of truth. The Macro-invocation block is reassembled from the live control
+    // values so it always matches the panel above.
     (function () {
       const demo = document.getElementById("demo");
-      const htFilter = document.getElementById("ht-demo");
       const W = {{ width }}, H = {{ height }};
+      // Per-halftone targets: the macro emits ht-demo then ht-demo2 (uids), and
+      // one .halftone element each, in document order.
+      const filters = [document.getElementById("ht-demo"), document.getElementById("ht-demo2")];
+      const halftoneEls = demo.querySelectorAll(".halftone");
       const targets = {
         panel: demo.querySelector(".comic-panel"),
-        halftone: demo.querySelector(".halftone"),
         borderPath: demo.querySelector(".comic-border path"),
-        htImage: htFilter.querySelector("feImage"), // dot lattice pitch
-        htFlood: htFilter.querySelector("feFlood"), // dot ink color
+        ht: {
+          1: { halftone: halftoneEls[0], htImage: filters[0].querySelector("feImage"), htFlood: filters[0].querySelector("feFlood") },
+          2: { halftone: halftoneEls[1], htImage: filters[1].querySelector("feImage"), htFlood: filters[1].querySelector("feFlood") },
+        },
       };
 
       // Mirror of app/comic.py:comic_border_path / _inner_path. Keep in sync.
@@ -392,6 +514,50 @@
         targets.panel.style.setProperty("--radius", geom.radius + "px");
       }
 
+      // --- Macro-invocation printout -----------------------------------------
+      // Reassembled from the live control values; reads each control by its
+      // (data-section, data-key) pair. The macro delimiters are concatenated
+      // from single braces so Jinja doesn't evaluate them at render time.
+      const macroOut = document.getElementById("macro-out");
+      const toggle = document.getElementById("ht2-toggle");
+      const OPEN = "{" + "{", CLOSE = "}" + "}";
+      const ctrl = (section, key) =>
+        document.querySelector(`[data-section="${section}"][data-key="${key}"]`);
+      const v = (section, key) => ctrl(section, key).value;
+      function fmtHalftone(section) {
+        return "{'color': '" + v(section, "color") + "', "
+          + "'dot_size': " + v(section, "dot_size") + ", "
+          + "'offset': " + v(section, "offset") + ", "
+          + "'transparency': " + v(section, "transparency") + ", "
+          + "'max_fill': " + v(section, "max_fill") + ", "
+          + "'origin_angle': '" + v(section, "origin_angle") + "deg', "
+          + "'magnitude': '" + v(section, "magnitude") + "%'}";
+      }
+      function fmtBorder() {
+        return "{'color': '" + v("border", "color") + "', "
+          + "'radius': " + v("border", "radius") + ", "
+          + "'mid_width': " + v("border", "mid_width") + ", "
+          + "'corner_width': " + v("border", "corner_width") + ", "
+          + "'roughness': " + v("border", "roughness") + ", "
+          + "'frequency': " + v("border", "frequency") + ", "
+          + "'seed': " + v("border", "seed") + "}";
+      }
+      function updateMacroPrint() {
+        const sections = toggle.checked ? ["ht1", "ht2"] : ["ht1"];
+        const htLines = sections.map((s) => "      " + fmtHalftone(s)).join(",\n");
+        macroOut.textContent =
+          OPEN + " comic_panel(\n"
+          + "     width=" + W + ", height=" + H + ", bg='" + v("base", "bg") + "',\n"
+          + "     halftones=[\n" + htLines + ",\n     ],\n"
+          + "     border=" + fmtBorder() + ") " + CLOSE;
+      }
+
+      function resolveTarget(input) {
+        return input.dataset.ht
+          ? targets.ht[input.dataset.ht][input.dataset.target]
+          : targets[input.dataset.target];
+      }
+
       function readout(input) {
         const r = input.parentElement.querySelector(".val");
         if (r) r.textContent = input.value + (input.dataset.unit || "");
@@ -402,30 +568,45 @@
         if (kind === "geom") {
           rebuildBorder(); // radius/mid/corner/roughness/seed/frequency rebuild the path
         } else if (kind === "trans") {
-          // transparency -> dot ink opacity (1 = opaque).
-          targets.htFlood.setAttribute("flood-opacity", (1 - +input.value).toFixed(3));
+          // transparency -> dot ink opacity (1 = opaque), per halftone.
+          targets.ht[input.dataset.ht].htFlood.setAttribute(
+            "flood-opacity", (1 - +input.value).toFixed(3));
         } else {
-          const el = targets[input.dataset.target];
-          if (!el) return;
-          if (kind === "cssvar") {
-            el.style.setProperty(input.dataset.prop, input.value + (input.dataset.unit || ""));
-          } else if (input.dataset.attr === "wh") {
-            el.setAttribute("width", input.value); // dot size (square cell)
-            el.setAttribute("height", input.value);
-          } else if (input.dataset.attr === "xy") {
-            el.setAttribute("x", input.value); // offset (diagonal)
-            el.setAttribute("y", input.value);
-          } else {
-            el.setAttribute(input.dataset.attr, input.value);
+          const el = resolveTarget(input);
+          if (el) {
+            if (kind === "cssvar") {
+              el.style.setProperty(input.dataset.prop, input.value + (input.dataset.unit || ""));
+            } else if (input.dataset.attr === "wh") {
+              el.setAttribute("width", input.value); // dot size (square cell)
+              el.setAttribute("height", input.value);
+            } else if (input.dataset.attr === "xy") {
+              el.setAttribute("x", input.value); // offset (diagonal)
+              el.setAttribute("y", input.value);
+            } else {
+              el.setAttribute(input.dataset.attr, input.value);
+            }
           }
         }
         readout(input);
+        updateMacroPrint();
       }
+
+      // Halftone 2 toggle: show/hide its field + controls, and include/exclude
+      // it from the macro printout.
+      const ht2controls = document.getElementById("ht2-controls");
+      function syncHt2() {
+        const on = toggle.checked;
+        targets.ht[2].halftone.style.display = on ? "" : "none";
+        ht2controls.style.display = on ? "" : "none";
+        updateMacroPrint();
+      }
+      toggle.addEventListener("change", syncHt2);
 
       document.querySelectorAll("[data-apply]").forEach((input) => {
         input.addEventListener("input", () => apply(input));
-        apply(input); // sync panel + readouts to the initial slider values
+        apply(input); // sync panel + readouts to the initial control values
       });
+      syncHt2(); // hide halftone 2 by default; seed the macro printout
     })();
   </script>
 </body>
