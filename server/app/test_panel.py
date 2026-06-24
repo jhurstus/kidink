@@ -1,4 +1,33 @@
+from flask import render_template_string
+
 from app import create_app
+
+
+def test_comic_panel_call_block_renders_children() -> None:
+    # comic_panel takes its contents via {% call %} transclusion (caller()),
+    # rendered into the .comic-content layer — there is no content= param.
+    app = create_app()
+    with app.app_context():
+        html = render_template_string(
+            "{% from 'macros/comic.html' import comic_panel %}"
+            "{% call comic_panel(width=100, height=50, border={'seed': 1}) %}"
+            "HELLO_CHILD{% endcall %}"
+        )
+
+    assert 'class="comic-content"' in html
+    assert "HELLO_CHILD" in html
+
+
+def test_comic_panel_without_call_block_has_no_content_layer() -> None:
+    # A plain {{ comic_panel(...) }} call (no block) renders no content layer.
+    app = create_app()
+    with app.app_context():
+        html = render_template_string(
+            "{% from 'macros/comic.html' import comic_panel %}"
+            "{{ comic_panel(width=100, height=50, border={'seed': 1}) }}"
+        )
+
+    assert 'class="comic-content"' not in html
 
 
 def test_panel_route_renders() -> None:

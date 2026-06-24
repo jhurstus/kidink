@@ -78,9 +78,14 @@ comic.html — reusable comic-panel macros (pairs with static/css/comic.css).
     it for a uniform frame), roughness (px, pen-pressure thickness
     ripple amplitude; 0 = clean), frequency (undulations around the
     perimeter).
-    content: raw HTML placed above the halftone, below the border. -#}
+
+    Children (the panel contents, placed above the halftone and below the
+    border) are supplied via Jinja transclusion — call the macro as a block
+    and the caller's body is rendered into .comic-content:
+      {% call comic_panel(width=..., border=...) %}<h1>Today</h1>{% endcall %}
+    A plain {{ comic_panel(...) }} call with no block renders no content layer. -#}
     {% macro comic_panel(width=1520, height=190, bg='rgb(225,220,202)',
-    halftones=[], border=None, content='') -%}
+    halftones=[], border=None) -%}
     {%- set radius = border.get('radius', 0) if border is not none else 0 %}
     <div class="comic-panel"
       style="--panel-w:{{ width }}px;--panel-h:{{ height }}px;--panel-bg:{{ bg }};--radius:{{ radius }}px">
@@ -100,8 +105,8 @@ comic.html — reusable comic-panel macros (pairs with static/css/comic.css).
     {%- if h.get('max_fill') is not none %}--max-fill:{{ h['max_fill'] }};{% endif -%}
     filter:url(#{{ fid }});"></div>
       {%- endfor %}
-      {%- if content %}
-      <div class="comic-content">{{ content | safe }}</div>
+      {%- if caller %}
+      <div class="comic-content">{{ caller() }}</div>
       {%- endif %}
       {%- if border is not none %}
       {%- set wc = border.get('corner_width', 4) %}

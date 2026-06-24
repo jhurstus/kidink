@@ -1,0 +1,66 @@
+{#- ===========================================================================
+day_strip.html — the day-of-week strip module (spec §9).
+
+A full-width strip: the Monday–Sunday cells of the target week, weekdays and
+weekend in separate group panels, with the full date superimposed (rotated) over
+the top-left corner. Current day is bolded. No calendar data / icons / burst yet.
+
+Nesting is pure {% call %} transclusion: a group panel's children are its day
+cells, the outer panel's children are the two groups. Layout (flex rows, gaps,
+centering) lives in static/css/board.css. The rotated date box is a sibling of
+the outer panel — not its child — so it escapes the panel's overflow:hidden clip.
+
+day_strip(week, date_label):
+  week        list[DayCell] (Mon..Sun) — see app/day_strip.py
+  date_label  formatted corner date, e.g. "June 3, 2026"
+=========================================================================== -#}
+{% from "macros/comic.html" import comic_panel %}
+
+{#- One day box: a rounded comic panel tinted with the day's color, holding the
+day name (bold when it is today). -#}
+{% macro day_cell(day) -%}
+  {% call comic_panel(
+       width=190, height=110, bg=day.bg,
+       halftones=[{'color': day.dot, 'dot_size': 6, 'max_fill': day.max_fill,
+                   'origin_angle': day.origin_angle, 'magnitude': day.magnitude}],
+       border={'color': '#141414', 'radius': 15, 'mid_width': 3, 'corner_width': 2,
+               'roughness': 1, 'frequency': 2, 'seed': day.seed}) -%}
+    <div class="day-name{% if day.is_today %} is-today{% endif %}">{{ day.name }}</div>
+  {%- endcall %}
+{%- endmacro %}
+
+{#- A group panel wrapping a row of day cells. Width is sized to exactly hold the
+cells + inter-cell gaps + row padding (kept in sync with board.css: 190px cells,
+12px gap, 12px side padding). The group panel itself carries no halftone — only a
+flat fill + border — so the per-day cell tints read cleanly. -#}
+{% macro day_group(days, seed, bg) -%}
+  {% call comic_panel(
+       width=days|length * 190 + (days|length - 1) * 12 + 24, height=130,
+       bg=bg, halftones=[],
+       border={'color': '#141414', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
+               'roughness': 1, 'frequency': 2, 'seed': seed}) -%}
+    <div class="day-row">
+      {%- for day in days %}{{ day_cell(day) }}{% endfor -%}
+    </div>
+  {%- endcall %}
+{%- endmacro %}
+
+{% macro day_strip(week, date_label) -%}
+  <div class="day-strip">
+    {% call comic_panel(
+         width=1540, height=190, bg='#e1dcca',
+         halftones=[
+           {'color': '#bbb4a2', 'dot_size': 6, 'offset': 0, 'transparency': 0,
+            'max_fill': 0.6, 'origin_angle': '330deg', 'magnitude': '21%'},
+           {'color': '#bbb4a2', 'dot_size': 6, 'offset': 0, 'transparency': 0,
+            'max_fill': 0.6, 'origin_angle': '150deg', 'magnitude': '21%'}],
+         border={'color': '#141414', 'radius': 0, 'mid_width': 4, 'corner_width': 2,
+                 'roughness': 1, 'frequency': 3, 'seed': 173}) -%}
+      <div class="strip-groups">
+        {{ day_group(week[:5], 173, '#d0dde3') }}{# cool weekdays #}
+        {{ day_group(week[5:], 174, '#f2e0cd') }}{# warm weekend #}
+      </div>
+    {%- endcall %}
+    <div class="date-box">{{ date_label }}</div>
+  </div>
+{%- endmacro %}

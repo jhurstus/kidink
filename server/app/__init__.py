@@ -1,6 +1,10 @@
+from datetime import UTC, datetime
+
 from flask import Flask, render_template, request
 
 from app.comic import comic_border_path
+from app.dates import resolve_date, week_of
+from app.day_strip import build_week_cells, format_date_label
 
 
 def create_app() -> Flask:
@@ -11,6 +15,17 @@ def create_app() -> Flask:
     @app.get("/")
     def index() -> str:
         return render_template("index.html")
+
+    @app.get("/render")
+    def render() -> str:
+        now = app.config.get("NOW") or datetime.now(UTC)
+        target = resolve_date(request.args.get("date"), now=now)
+        week = build_week_cells(week_of(target), target)
+        return render_template(
+            "board.html",
+            week=week,
+            date_label=format_date_label(target),
+        )
 
     @app.get("/panel")
     def panel() -> str:
