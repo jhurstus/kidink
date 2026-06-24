@@ -7,7 +7,7 @@ the top-left corner. Current day is bolded. No calendar data / icons / burst yet
 
 Nesting is pure {% call %} transclusion: a group panel's children are its day
 cells, the outer panel's children are the two groups. Layout (flex rows, gaps,
-centering) lives in static/css/board.css. The rotated date box is a sibling of
+centering) lives in static/css/day_strip.css. The rotated date box is a sibling of
 the outer panel — not its child — so it escapes the panel's overflow:hidden clip.
 
 day_strip(strip):
@@ -31,7 +31,7 @@ day name (bold when it is today). -#}
 {%- endmacro %}
 
 {#- A group panel wrapping a row of day cells. Width is sized to exactly hold the
-cells + inter-cell gaps + row padding (kept in sync with board.css: 190px cells,
+cells + inter-cell gaps + row padding (kept in sync with day_strip.css: 190px cells,
 12px gap, 12px side padding). The group panel itself carries no halftone — only a
 flat fill + border — so the per-day cell tints read cleanly. -#}
 {% macro day_group(days, seed, bg) -%}

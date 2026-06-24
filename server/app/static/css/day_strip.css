@@ -1,0 +1,93 @@
+/* ============================================================================
+   day_strip.css — internal layout + cosmetics for the day-of-week strip module
+   (templates/modules/day_strip.html, spec §9).
+   ============================================================================ */
+
+.day-strip {
+  position: relative;
+  width: 1540px;
+  font-style: italic;
+}
+
+/* Fill + center each panel's content layer within the strip so the groups
+   (and, one level down, the cells' names) sit centered. Scoped to .day-strip so
+   it can never affect other comic_panel users (e.g. the /panel playground). */
+.day-strip .comic-content {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Weekday group + weekend group, with a visible gap between them. */
+.strip-groups {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  width: 100%;
+  height: 100%;
+}
+
+/* The row of day cells inside a group panel. */
+.day-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 0 12px;
+}
+
+/* Inside a day cell, push the day name to the TOP of the cell (overriding the
+   strip-wide centering above), leaving the lower portion free for icons later. */
+.day-strip .day-row .comic-content {
+  align-items: flex-start;
+  padding-top: 10px;
+}
+
+.day-name {
+  font-size: 27px;
+  font-weight: 400;
+  color: #141414;
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* Current day: bold (the comic "burst" treatment is a later addition). */
+.day-name.is-today {
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------------------
+   Corner date box — superimposed over the outer panel's top-left corner and
+   rotated slightly. A sibling of the panel (not its content) so it escapes the
+   panel's overflow:hidden clip.
+   --------------------------------------------------------------------------- */
+.date-box {
+  position: absolute;
+  /* Straddle the panel's top-left corner, sitting up in the page's top margin so
+     it just barely dips into the Monday cell below. The gentle -5deg rotation
+     lifts the box's right end only ~24px, which stays within the 30px margin. */
+  top: -2px;
+  left: -12px;
+  z-index: 3;
+  width: 275px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: top left;
+  transform: rotate(-5deg);
+
+  background: #f4efe0;
+  border: 3px solid #141414;
+  border-radius: 6px;
+
+  font-size: 27px;
+  font-weight: 700;
+  color: #141414;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
