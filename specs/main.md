@@ -175,6 +175,15 @@ legacy fallbacks.
 All Python conforms to **PEP 8** and the **Google Python Style Guide**, with
 type annotations throughout (verifiable by a static type checker).
 
+### 3.9 Verifying rendered changes
+
+Because the board is a visual artifact, changes that affect rendering must be
+verified by **looking at the actual output**, not just by reading code or passing
+unit tests. Use the **Playwright skill** to snapshot and/or screenshot the local
+dev server (`./run.sh`) — typically against `/render` or `/display` for a fixed
+`?date=` — and inspect the result to confirm a change looks right before considering
+it done.
+
 ---
 
 ## 4. Layout
@@ -287,15 +296,24 @@ Ben-Day fills (§5.2) and the panel frames are produced by the comic_panel macro
 
 ```jinja
 {% from "macros/comic.html" import comic_panel with context %}
-{{ comic_panel(
+{% call comic_panel(
      width=520, height=300, bg='rgb(225,220,202)',
      halftones=[
        {'color': 'rgb(70,110,170)', 'origin_angle': '270deg', 'magnitude': '70%'},
      ],
      border={'color': 'rgb(40,38,34)', 'radius': 16, 'mid_width': 12,
-             'corner_width': 3, 'seed': day_seed},   {# day_seed derived from the date #}
-     content='<h1>Today</h1>') }}
+             'corner_width': 3, 'seed': day_seed}) %}   {# day_seed derived from the date #}
+  <h1>Today</h1>
+{% endcall %}
 ```
+
+**Panel contents (transclusion).** The panel's children — the HTML placed above the
+halftone fields and below the border, in the `.comic-content` layer — are supplied by
+**Jinja `{% call %}` transclusion**, not a `content=` string parameter. Invoke the macro
+as a block and the caller's body is rendered via `caller()`. A plain
+`{{ comic_panel(...) }}` call with no block draws the panel (fills + border) with no
+content layer at all. Panels nest the same way: a wrapping panel's children can be
+other `{% call comic_panel(...) %}` blocks (see the day strip, §9).
 
 **Halftone field.** Each dict in `halftones` is one continuous Ben-Day field whose dots
 shrink *smoothly* from an origin edge toward the center (no visible banding). Keys are
