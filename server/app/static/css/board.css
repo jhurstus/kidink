@@ -13,7 +13,7 @@
   height: 1200px;
   margin: 0;
   background: #ffffff;
-  font-style: italic;
+  font-family: "NorB Pen", serif;
 }
 
 /* ---------------------------------------------------------------------------
@@ -30,6 +30,7 @@
 .day-strip {
   position: relative;
   width: 1540px;
+  font-style: italic;
 }
 
 /* Fill + center each panel's content layer within the strip so the groups
@@ -67,15 +68,11 @@
    strip-wide centering above), leaving the lower portion free for icons later. */
 .day-strip .day-row .comic-content {
   align-items: flex-start;
-  padding-top: 14px;
+  padding-top: 10px;
 }
 
-/* The day name inside a cell. "Comic sans" via a system stack for now; a bundled
-   webfont for the Linux render host is a follow-up. */
 .day-name {
-  font-family: "Comic Sans MS", "Comic Neue", "Chalkboard SE", "Chalkboard",
-    cursive;
-  font-size: 22px;
+  font-size: 27px;
   font-weight: 400;
   color: #141414;
   text-align: center;
@@ -112,9 +109,7 @@
   border: 3px solid #141414;
   border-radius: 6px;
 
-  font-family: "Comic Sans MS", "Comic Neue", "Chalkboard SE", "Chalkboard",
-    cursive;
-  font-size: 24px;
+  font-size: 27px;
   font-weight: 700;
   color: #141414;
   text-transform: uppercase;
