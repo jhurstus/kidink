@@ -3,12 +3,14 @@ from datetime import UTC, datetime
 from flask import Flask, render_template, request
 
 from app.comic import comic_border_path
+from app.config import get_settings
 from app.dates import resolve_date
 from app.day_strip import build_day_strip
 
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    settings = get_settings()
 
     app.add_template_global(comic_border_path, name="comic_border_path")
 
@@ -19,7 +21,7 @@ def create_app() -> Flask:
     @app.get("/render")
     def render() -> str:
         now = app.config.get("NOW") or datetime.now(UTC)
-        target = resolve_date(request.args.get("date"), now=now)
+        target = resolve_date(request.args.get("date"), now=now, tz=settings.timezone)
         return render_template("board.html", strip=build_day_strip(target))
 
     @app.get("/panel")

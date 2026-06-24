@@ -147,6 +147,9 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# kidink local app config
+/server/config.toml
+
 # Environments
 .env
 .envrc

@@ -5,6 +5,7 @@ description = "HTTP server for the kidink smart display"
 requires-python = ">=3.14"
 dependencies = [
     "flask>=3.1",
+    "pydantic-settings>=2.14.2",
 ]
 
 [dependency-groups]

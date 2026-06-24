@@ -1,0 +1,8 @@
+# Template for the local kidink server configuration.
+#
+# Copy to config.toml (gitignored) and adjust. Any value omitted here falls back
+# to the model default in app/config.py; environment variables (KIDINK_*) win
+# over the file.
+
+# Display timezone (IANA / zoneinfo name, e.g. "US/Pacific", "America/New_York").
+timezone = "US/Pacific"

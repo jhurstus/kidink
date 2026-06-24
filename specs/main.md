@@ -180,7 +180,7 @@ type annotations throughout (verifiable by a static type checker).
 Because the board is a visual artifact, changes that affect rendering must be
 verified by **looking at the actual output**, not just by reading code or passing
 unit tests. Use the **Playwright skill** to snapshot and/or screenshot the local
-dev server (`./run.sh`) — typically against `/render` or `/display` for a fixed
+dev server (`./run.sh`) — typically against `/render` for a fixed
 `?date=` — and inspect the result to confirm a change looks right before considering
 it done.
 
@@ -306,14 +306,6 @@ Ben-Day fills (§5.2) and the panel frames are produced by the comic_panel macro
   <h1>Today</h1>
 {% endcall %}
 ```
-
-**Panel contents (transclusion).** The panel's children — the HTML placed above the
-halftone fields and below the border, in the `.comic-content` layer — are supplied by
-**Jinja `{% call %}` transclusion**, not a `content=` string parameter. Invoke the macro
-as a block and the caller's body is rendered via `caller()`. A plain
-`{{ comic_panel(...) }}` call with no block draws the panel (fills + border) with no
-content layer at all. Panels nest the same way: a wrapping panel's children can be
-other `{% call comic_panel(...) %}` blocks (see the day strip, §9).
 
 **Halftone field.** Each dict in `halftones` is one continuous Ben-Day field whose dots
 shrink *smoothly* from an origin edge toward the center (no visible banding). Keys are
@@ -865,6 +857,11 @@ the per-event YAML fields in §6.3. The fields:
 | `countdown_tiers` | Escalation cutoffs and treatments. |
 | `refresh_cadence` | **Crontab schedule string** for the warm-up prerenders (§3.6). The device's own refresh happens whenever the ESP32 polls `/display`. |
 | `weekday_backdrop`, `weekend_backdrop` | Global theming backdrops. |
+
+**Location.** The model lives in `server/app/config.py`. Actual values are read from
+`server/config.toml` (gitignored) and/or `KIDINK_`-prefixed environment variables
+(env wins over the file).
+`server/config.example.toml` is the committed template documenting the shape.
 
 ---
 

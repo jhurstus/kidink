@@ -9,7 +9,7 @@ def test_resolve_date_uses_explicit_arg() -> None:
     # An explicit ?date= wins regardless of the clock.
     now = datetime(2020, 1, 1, 12, 0, tzinfo=UTC)
 
-    assert resolve_date("2026-06-03", now=now) == date(2026, 6, 3)
+    assert resolve_date("2026-06-03", now=now, tz="US/Pacific") == date(2026, 6, 3)
 
 
 def test_resolve_date_defaults_to_now_in_tz() -> None:
@@ -24,7 +24,7 @@ def test_resolve_date_rejects_bad_arg() -> None:
     now = datetime(2026, 6, 23, 12, 0, tzinfo=UTC)
 
     with pytest.raises(ValueError):
-        resolve_date("not-a-date", now=now)
+        resolve_date("not-a-date", now=now, tz="US/Pacific")
 
 
 def test_week_of_returns_mon_to_sun() -> None:

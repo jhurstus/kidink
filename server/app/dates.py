@@ -9,21 +9,18 @@ resolved date.
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-# Placeholder until the §18 pydantic config supplies a configured timezone.
-DEFAULT_TZ = "US/Pacific"
-
 
 def resolve_date(
     date_arg: str | None,
     *,
     now: datetime,
-    tz: str = DEFAULT_TZ,
+    tz: str,
 ) -> date:
     """Resolve the target date for a render.
 
     An explicit ``?date=YYYY-MM-DD`` wins; otherwise the calendar day of ``now``
-    in ``tz``. ``now`` is injected (never ``datetime.now()``) so renders stay
-    deterministic and testable.
+    in ``tz`` (the configured display timezone, §18). ``now`` is injected (never
+    ``datetime.now()``) so renders stay deterministic and testable.
 
     Raises ``ValueError`` on a malformed ``date_arg``.
     """
