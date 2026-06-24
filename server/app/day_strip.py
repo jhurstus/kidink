@@ -1,7 +1,7 @@
 """View model for the day-of-week strip (spec §9).
 
 Builds the seven Mon–Sun day cells for a target date: each cell's name, its
-fixed per-day comic colors (spec §5.3, cool weekdays / warm weekend), and whether
+fixed per-day comic colors (spec §5.3, cool Mon–Thu / warm Fri–Sun), and whether
 it is "today". Calendar data and day icons are intentionally not handled here yet.
 """
 
@@ -14,13 +14,13 @@ from app.dates import week_of
 # LIGHT panel background paired with a DARKER halftone dot of a similar hue. Exact
 # hex values are starting points to tune on the physical panel.
 DAY_PALETTE: list[dict[str, str]] = [
-    {"name": "MONDAY", "bg": "#dbe7f5", "dot": "#5b89c4"},  # light-blue (sky)
-    {"name": "TUESDAY", "bg": "#d2ece9", "dot": "#3f9b96"},  # teal
-    {"name": "WEDNESDAY", "bg": "#dcefdf", "dot": "#4faf7d"},  # mint
-    {"name": "THURSDAY", "bg": "#dee2f4", "dot": "#6b74c4"},  # periwinkle
-    {"name": "FRIDAY", "bg": "#dbe3ec", "dot": "#5a7da8"},  # steel blue
-    {"name": "SATURDAY", "bg": "#fbe6cf", "dot": "#e08a3c"},  # orange
-    {"name": "SUNDAY", "bg": "#f7dbe6", "dot": "#d46a93"},  # pink
+    {"name": "MONDAY", "bg": "#d7f0dc", "dot": "#4ebc60"},  # green (~130°)
+    {"name": "TUESDAY", "bg": "#d7eaf4", "dot": "#4e97bc"},  # sky blue (~200°)
+    {"name": "WEDNESDAY", "bg": "#d7daf4", "dot": "#4e57bc"},  # indigo (~235°)
+    {"name": "THURSDAY", "bg": "#e6d7f4", "dot": "#854ebc"},  # violet (~270°)
+    {"name": "FRIDAY", "bg": "#f7dbe6", "dot": "#d46a93"},  # pink (~340°)
+    {"name": "SATURDAY", "bg": "#fbe6cf", "dot": "#e08a3c"},  # orange (~28°)
+    {"name": "SUNDAY", "bg": "#faf3d1", "dot": "#e2c536"},  # yellow (~50°)
 ]
 
 # Day-cell halftone shape (shared by every cell); see the comic_panel macro.
