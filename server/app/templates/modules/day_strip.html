@@ -10,9 +10,10 @@ cells, the outer panel's children are the two groups. Layout (flex rows, gaps,
 centering) lives in static/css/board.css. The rotated date box is a sibling of
 the outer panel — not its child — so it escapes the panel's overflow:hidden clip.
 
-day_strip(week, date_label):
-  week        list[DayCell] (Mon..Sun) — see app/day_strip.py
-  date_label  formatted corner date, e.g. "June 3, 2026"
+day_strip(strip):
+  strip  a DayStrip view model (see app/day_strip.py), with:
+           .week        list[DayCell] (Mon..Sun)
+           .date_label  formatted corner date, e.g. "June 3, 2026"
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
 
@@ -45,7 +46,7 @@ flat fill + border — so the per-day cell tints read cleanly. -#}
   {%- endcall %}
 {%- endmacro %}
 
-{% macro day_strip(week, date_label) -%}
+{% macro day_strip(strip) -%}
   <div class="day-strip">
     {% call comic_panel(
          width=1540, height=190, bg='#e1dcca',
@@ -57,10 +58,10 @@ flat fill + border — so the per-day cell tints read cleanly. -#}
          border={'color': '#141414', 'radius': 0, 'mid_width': 4, 'corner_width': 2,
                  'roughness': 1, 'frequency': 3, 'seed': 173}) -%}
       <div class="strip-groups">
-        {{ day_group(week[:5], 173, '#d0dde3') }}{# cool weekdays #}
-        {{ day_group(week[5:], 174, '#f2e0cd') }}{# warm weekend #}
+        {{ day_group(strip.week[:5], 173, '#d0dde3') }}{# cool weekdays #}
+        {{ day_group(strip.week[5:], 174, '#f2e0cd') }}{# warm weekend #}
       </div>
     {%- endcall %}
-    <div class="date-box">{{ date_label }}</div>
+    <div class="date-box">{{ strip.date_label }}</div>
   </div>
 {%- endmacro %}

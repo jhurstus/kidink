@@ -8,6 +8,8 @@ it is "today". Calendar data and day icons are intentionally not handled here ye
 from dataclasses import dataclass
 from datetime import date
 
+from app.dates import week_of
+
 # Per-day comic colors, Monday..Sunday (spec §5.3 day-cell assignments). Each is a
 # LIGHT panel background paired with a DARKER halftone dot of a similar hue. Exact
 # hex values are starting points to tune on the physical panel.
@@ -42,7 +44,23 @@ class DayCell:
     is_today: bool
 
 
-def build_week_cells(week: list[date], target: date) -> list[DayCell]:
+@dataclass(frozen=True)
+class DayStrip:
+    """The complete view model rendered by ``templates/modules/day_strip.html``."""
+
+    week: list[DayCell]
+    date_label: str
+
+
+def build_day_strip(target: date) -> DayStrip:
+    """Build the full day-strip view model for the resolved render date ``target``."""
+    return DayStrip(
+        week=_build_week_cells(week_of(target), target),
+        date_label=_format_date_label(target),
+    )
+
+
+def _build_week_cells(week: list[date], target: date) -> list[DayCell]:
     """Build the seven ``DayCell``s for ``week`` (Mon..Sun), flagging ``target``.
 
     ``week`` must be the seven Mon–Sun dates (see ``dates.week_of``).
@@ -63,6 +81,6 @@ def build_week_cells(week: list[date], target: date) -> list[DayCell]:
     ]
 
 
-def format_date_label(target: date) -> str:
+def _format_date_label(target: date) -> str:
     """Format the corner date, e.g. "June 3, 2026" (no leading zero on the day)."""
     return f"{target:%B} {target.day}, {target.year}"
