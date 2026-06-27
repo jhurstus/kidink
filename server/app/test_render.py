@@ -32,12 +32,14 @@ def test_render_contains_formatted_corner_date() -> None:
     assert "June 3, 2026" in text
 
 
-def test_render_bolds_only_today() -> None:
-    # 2026-06-03 is a Wednesday.
-    text = create_app().test_client().get("/render?date=2026-06-03").text
+def test_render_today_shows_burst_image() -> None:
+    # 2026-06-22 is a Monday: today's cell is replaced by its burst image (the day
+    # name is baked into the image), and the old is-today bold treatment is gone.
+    text = create_app().test_client().get("/render?date=2026-06-22").text
 
-    assert 'class="day-name is-today">WEDNESDAY</div>' in text
-    assert text.count("is-today") == 1
+    assert "day-burst-monday" in text
+    assert "img/day_strip/monday_burst.png" in text
+    assert "is-today" not in text
 
 
 def test_render_emits_exact_outer_panel_params() -> None:
@@ -68,7 +70,7 @@ def test_render_default_date_uses_injected_now() -> None:
     text = app.test_client().get("/render").text
 
     assert "June 23, 2026" in text
-    assert 'class="day-name is-today">TUESDAY</div>' in text
+    assert "day-burst-tuesday" in text
 
 
 def test_render_is_deterministic() -> None:

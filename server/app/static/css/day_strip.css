@@ -55,9 +55,65 @@
   line-height: 1.1;
 }
 
-/* Current day: bold (the comic "burst" treatment is a later addition). */
-.day-name.is-today {
-  font-weight: 700;
+/* ---------------------------------------------------------------------------
+   Active-day burst (spec §9.1). The day_cell macro emits a transparent
+   .day-burst-slot to reserve the (widened) slot's flex width so its neighbors
+   shift; the burst image itself is a sibling of the outer panel (like .date-box)
+   and laid over that slot here.
+   --------------------------------------------------------------------------- */
+.day-burst-slot {
+  /* Width is set inline (the cell's reserved width); only a height is needed so the
+     flex item matches the cells. It is otherwise invisible — the burst covers it. */
+  height: 110px;
+}
+
+.day-burst {
+  position: absolute;
+  /* Above the outer panel (which paints at the z-auto/0 tier via its own
+     isolate context, border included) but below the .date-box (z 3). This relies
+     on the outer strip panel staying at z-index:auto. */
+  z-index: 2;
+  pointer-events: none;
+
+  /* Centered horizontally on the active cell's center (--burst-cx, computed in
+     day_strip.py) so it overlaps its neighbors and spills past its slot. The fixed
+     width keeps a consistent footprint; the vertical offset is per-day below, since
+     the images differ in aspect and in where the day name sits. */
+  left: var(--burst-cx);
+  transform: translateX(-50%);
+  width: 400px;
+  height: auto;
+}
+
+/* Per-day vertical offset: tuned by screenshot so each image's baked-in day name
+   lines up with the other cells' day names (the wider 4:3 images sit higher than
+   the near-square ones). */
+.day-burst-monday {
+  top: -73px;
+}
+
+.day-burst-tuesday {
+  top: -47px;
+}
+
+.day-burst-wednesday {
+  top: -82px;
+}
+
+.day-burst-thursday {
+  top: -50px;
+}
+
+.day-burst-friday {
+  top: -82px;
+}
+
+.day-burst-saturday {
+  top: -51px;
+}
+
+.day-burst-sunday {
+  top: -51px;
 }
 
 /* ---------------------------------------------------------------------------
