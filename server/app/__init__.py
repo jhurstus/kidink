@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 
-from flask import Flask, render_template, request
+from flask import Flask, abort, render_template, request
 
+from app.calendar import CalendarFetchError, expand_events, fetch_ics
 from app.comic import comic_border_path
 from app.config import get_settings
-from app.dates import resolve_date
+from app.dates import resolve_date, week_of
 from app.day_strip import build_day_strip
 
 
@@ -13,6 +14,9 @@ def create_app() -> Flask:
     settings = get_settings()
 
     app.add_template_global(comic_border_path, name="comic_border_path")
+    # Injectable fetch seam (mirrors app.config["NOW"]): tests override this with a
+    # fake so the suite never hits the network
+    app.config.setdefault("FETCH_ICS", fetch_ics)
 
     @app.get("/")
     def index() -> str:
@@ -22,7 +26,13 @@ def create_app() -> Flask:
     def render() -> str:
         now = app.config.get("NOW") or datetime.now(UTC)
         target = resolve_date(request.args.get("date"), now=now, tz=settings.timezone)
-        return render_template("board.html", strip=build_day_strip(target))
+        try:
+            ics_text = app.config["FETCH_ICS"](settings.family_calendar_ics_url)
+            events = expand_events(ics_text, week_of(target), settings.timezone)
+        except (CalendarFetchError, ValueError) as exc:
+            app.logger.warning("family calendar render failed: %s", type(exc).__name__)
+            abort(500)
+        return render_template("board.html", strip=build_day_strip(target, events))
 
     @app.get("/panel")
     def panel() -> str:

@@ -1,6 +1,24 @@
-from datetime import date
+from datetime import date, datetime
 
+from app.calendar import CalendarEvent, EventOverrides, TimeOfDay
 from app.day_strip import build_day_strip
+
+
+def _event(
+    title: str, day: date, *, interesting: int = 100, is_chore: bool = False
+) -> CalendarEvent:
+    """A minimal event for day-strip selection tests (only ranking fields matter)."""
+    noon = datetime(day.year, day.month, day.day, 12)
+    return CalendarEvent(
+        title=title,
+        start=noon,
+        end=noon,
+        all_day=False,
+        is_chore=is_chore,
+        local_day=day,
+        time_of_day=TimeOfDay.DAY,
+        overrides=EventOverrides(interesting=interesting),
+    )
 
 
 def test_build_day_strip_marks_exactly_one_today() -> None:
@@ -77,3 +95,53 @@ def test_build_day_strip_every_weekday_has_a_burst() -> None:
         bursts = [c for c in strip.week if c.burst]
         assert len(bursts) == 1
         assert bursts[0].is_today
+
+
+def test_build_day_strip_has_no_event_titles_without_events() -> None:
+    strip = build_day_strip(date(2026, 6, 3))
+
+    assert all(cell.event_title is None for cell in strip.week)
+
+
+def test_build_day_strip_shows_most_interesting_event_per_day() -> None:
+    # Week of 2026-06-01 (Mon)..06-07 (Sun); cell index == weekday (Mon=0).
+    events = [
+        _event("Dentist", date(2026, 6, 2), interesting=50),
+        _event("Soccer", date(2026, 6, 2), interesting=300),  # wins Tuesday
+        _event("Library", date(2026, 6, 4), interesting=100),  # only Thursday event
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events)
+
+    assert strip.week[1].event_title == "Soccer"  # Tuesday
+    assert strip.week[3].event_title == "Library"  # Thursday
+    assert strip.week[0].event_title is None  # empty Monday
+
+
+def test_build_day_strip_breaks_interesting_ties_by_title() -> None:
+    events = [
+        _event("Banana", date(2026, 6, 2), interesting=200),
+        _event("Apple", date(2026, 6, 2), interesting=200),
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events)
+
+    assert strip.week[1].event_title == "Apple"  # ascending title tiebreak
+
+
+def test_build_day_strip_excludes_chores_from_selection() -> None:
+    events = [
+        _event("Make bed", date(2026, 6, 2), interesting=999, is_chore=True),
+        _event("Soccer", date(2026, 6, 2), interesting=100),
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events)
+
+    assert strip.week[1].event_title == "Soccer"
+
+
+def test_build_day_strip_ignores_chore_only_and_out_of_week_days() -> None:
+    events = [
+        _event("Sweep", date(2026, 6, 5), interesting=500, is_chore=True),  # chore only
+        _event("Birthday", date(2026, 6, 20), interesting=999),  # other week
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events)
+
+    assert all(cell.event_title is None for cell in strip.week)

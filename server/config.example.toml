@@ -6,3 +6,10 @@
 
 # Display timezone (IANA / zoneinfo name, e.g. "US/Pacific", "America/New_York").
 timezone = "US/Pacific"
+
+# Private Google Calendar ICS feed (events + chores, §6.1). REQUIRED — the server
+# fails to start without it. This is a SECRET, unauthenticated URL: keep it only in
+# config.toml (gitignored) or the KIDINK_FAMILY_CALENDAR_ICS_URL env var, never here.
+# Must point at the iCalendar export, e.g.
+#   https://calendar.google.com/calendar/ical/<calendar-id>/public/basic.ics
+family_calendar_ics_url = "https://calendar.google.com/calendar/ical/REPLACE_ME/public/basic.ics"

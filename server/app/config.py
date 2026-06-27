@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -34,7 +34,15 @@ class Settings(BaseSettings):
     )
 
     timezone: str = "US/Pacific"
-    """Display timezone (e.g. ``US/Pacific``); drives date resolution (§3.4)."""
+    """Display timezone (e.g. ``US/Pacific``); drives date resolution."""
+
+    family_calendar_ics_url: SecretStr
+    """Private Google Calendar ICS feed — events + chores.
+
+    Required: a missing value fails fast at startup. Held as ``SecretStr`` so
+    the unauthenticated URL never lands in a repr, log, or traceback.  Supplied
+    via ``config.toml`` or ``KIDINK_FAMILY_CALENDAR_ICS_URL``.
+    """
 
     @field_validator("timezone")
     @classmethod
@@ -61,4 +69,6 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Return the process-wide settings, loaded and validated once."""
-    return Settings()
+    # Required fields are populated from the TOML file / env by pydantic-settings at
+    # runtime, which the type checker can't see — hence the suppression.
+    return Settings()  # ty: ignore[missing-argument]

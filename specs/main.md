@@ -367,17 +367,17 @@ Events may recur, **including exceptions**. The parser expands `RRULE`s into con
 instances for the target date and honors `EXDATE` and `RECURRENCE-ID` overrides (a
 moved or cancelled occurrence), via a recurring-ICS expansion library.
 
-### 6.3 Structured fields (YAML in the description)
+### 6.3 Structured fields (TOML in the description)
 
 The standard event fields — **start/end times, title, and the all-day flag** — are
 modeled natively in the ICS. The **remaining, non-standard fields are stored in the
-event description as YAML**.
+event description as TOML**.
 
-**Model.** The YAML is parsed and validated into a Pydantic `EventOverrides` model
+**Model.** The TOML is parsed and validated into a Pydantic `EventOverrides` model
 whose fields are exactly those in §6.4. The model is configured for **lenient** parsing,
 so a malformed description degrades gracefully instead of dropping the event:
 
-- A description that is empty, non-YAML, or not a top-level **mapping** (a bare scalar or
+- A description that is empty, non-TOML, or not a top-level **mapping** (a bare scalar or
   a sequence) yields an all-defaults model — i.e. no overrides.
 - `extra="ignore"` **drops unknown keys**.
 - Each field uses lenient per-field validation: an invalid value (e.g. a non-integer
@@ -386,7 +386,7 @@ so a malformed description degrades gracefully instead of dropping the event:
 
 (The family calendar drives only this display, so descriptions never need free prose.)
 
-### 6.4 Event model — the YAML-described fields
+### 6.4 Event model — the TOML-described fields
 
 These are the fields of the `EventOverrides` Pydantic model (§6.3):
 
@@ -837,7 +837,7 @@ fields, declarative defaults, and validation at load time, so a malformed or mis
 config fails fast with a clear error rather than surfacing later as a render bug.
 Secrets — the OpenAI key, the Google Maps key, and the private ICS URLs — are typed as
 `SecretStr`. The same Pydantic validate-and-coerce-to-default approach naturally covers
-the per-event YAML fields in §6.3. The fields:
+the per-event TOML fields in §6.3. The fields:
 
 | Key | Purpose |
 |---|---|

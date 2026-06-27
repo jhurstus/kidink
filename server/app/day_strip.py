@@ -1,13 +1,17 @@
 """View model for the day-of-week strip (spec §9).
 
 Builds the seven Mon–Sun day cells for a target date: each cell's name, its
-fixed per-day comic colors (spec §5.3, cool Mon–Thu / warm Fri–Sun), and whether
-it is "today". Calendar data and day icons are intentionally not handled here yet.
+fixed per-day comic colors (spec §5.3, cool Mon–Thu / warm Fri–Sun), whether
+it is "today", and the title of its most-interesting (non-chore) event. The day
+icons and the per-kid icon selection of §9.2 are deferred — for now each cell just
+carries the winning event's title text.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
+from app.calendar import CalendarEvent
 from app.dates import week_of
 
 # Per-day comic colors, Monday..Sunday (spec §5.3 day-cell assignments). Each is a
@@ -73,6 +77,7 @@ class DayCell:
     width: int
     burst: str | None
     burst_cx: int | None
+    event_title: str | None
 
 
 @dataclass(frozen=True)
@@ -83,12 +88,36 @@ class DayStrip:
     date_label: str
 
 
-def build_day_strip(target: date) -> DayStrip:
-    """Build the full day-strip view model for the resolved render date ``target``."""
+def build_day_strip(target: date, events: Iterable[CalendarEvent] = ()) -> DayStrip:
+    """Build the full day-strip view model for the resolved render date ``target``.
+
+    ``events`` are the week's expanded calendar events (see
+    :func:`app.calendar.expand_events`); they are grouped by local day and each
+    cell shows its most-interesting non-chore event's title. Defaults to empty so
+    the view model stays a pure, testable function of its inputs.
+    """
+    by_day: dict[date, list[CalendarEvent]] = {}
+    for event in events:
+        by_day.setdefault(event.local_day, []).append(event)
     return DayStrip(
-        week=_build_week_cells(week_of(target), target),
+        week=_build_week_cells(week_of(target), target, by_day),
         date_label=_format_date_label(target),
     )
+
+
+def _top_event_title(day_events: list[CalendarEvent]) -> str | None:
+    """Title of the day's most-interesting non-chore event, or ``None``.
+
+    Ranked by ``interesting`` descending, ties broken by title ascending — a total
+    order, so the choice is deterministic for a given day (spec §3.4). Chores are
+    excluded from the strip (§6.5, §9.2). The full per-kid icon selection of §9.2
+    is deferred; this returns text only.
+    """
+    candidates = [event for event in day_events if not event.is_chore]
+    if not candidates:
+        return None
+    best = min(candidates, key=lambda e: (-e.overrides.interesting, e.title))
+    return best.title
 
 
 def _cell_width(i: int, active_idx: int | None) -> int:
@@ -125,10 +154,13 @@ def _burst_center_x(widths: list[int], active_idx: int) -> float:
     return cell_left + cells[idx] / 2
 
 
-def _build_week_cells(week: list[date], target: date) -> list[DayCell]:
+def _build_week_cells(
+    week: list[date], target: date, by_day: dict[date, list[CalendarEvent]]
+) -> list[DayCell]:
     """Build the seven ``DayCell``s for ``week`` (Mon..Sun), flagging ``target``.
 
-    ``week`` must be the seven Mon–Sun dates (see ``dates.week_of``).
+    ``week`` must be the seven Mon–Sun dates (see ``dates.week_of``); ``by_day``
+    maps each local day to its events.
     """
     # The today cell sits at index ``target.weekday()`` (week is Mon-first). It gets
     # a burst — and triggers the width redistribution — only if that weekday has one.
@@ -149,6 +181,7 @@ def _build_week_cells(week: list[date], target: date) -> list[DayCell]:
             width=widths[i],
             burst=BURST_BY_WEEKDAY[i] if i == active_idx else None,
             burst_cx=cx if i == active_idx else None,
+            event_title=_top_event_title(by_day.get(day, [])),
         )
         for i, (day, palette) in enumerate(zip(week, DAY_PALETTE, strict=True))
     ]

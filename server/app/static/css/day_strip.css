@@ -40,11 +40,15 @@
   padding: 0 12px;
 }
 
-/* Inside a day cell, push the day name to the TOP of the cell (overriding the
-   strip-wide centering above), leaving the lower portion free for icons later. */
+/* Inside a day cell, stack the day name at the TOP with its event title beneath
+   (overriding the strip-wide row/centering above). The lower portion is where day
+   icons will go later; for now it holds the most-interesting event's title text. */
 .day-strip .day-row .comic-content {
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   padding-top: 10px;
+  gap: 6px;
 }
 
 .day-name {
@@ -53,6 +57,21 @@
   color: #141414;
   text-align: center;
   line-height: 1.1;
+}
+
+/* Most-interesting event title for the day (spec §9.2; placeholder for the day
+   icons to come). Clamped to two lines so a long title can't overflow the cell. */
+.day-event {
+  font-size: 17px;
+  font-weight: 400;
+  color: #141414;
+  text-align: center;
+  line-height: 1.1;
+  max-width: 150px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ---------------------------------------------------------------------------
@@ -69,20 +88,43 @@
 
 .day-burst {
   position: absolute;
-  /* Above the outer panel (which paints at the z-auto/0 tier via its own
-     isolate context, border included) but below the .date-box (z 3). This relies
-     on the outer strip panel staying at z-index:auto. */
-  z-index: 2;
+  /* The today cell is the hero: it sits above the panels AND the date box, and
+     spills past its slot to overlap its neighbors and the row below (spec §9.1). */
+  z-index: 5;
   pointer-events: none;
 
   /* Centered horizontally on the active cell's center (--burst-cx, computed in
-     day_strip.py) so it overlaps its neighbors and spills past its slot. The fixed
-     width keeps a consistent footprint; the vertical offset is per-day below, since
-     the images differ in aspect and in where the day name sits. */
+     day_strip.py). The fixed width keeps a consistent footprint; the per-day
+     vertical offset below aligns each image's baked-in day name with the other
+     cells' names (the images differ in aspect and in where the name sits). */
   left: var(--burst-cx);
   transform: translateX(-50%);
   width: 400px;
+}
+
+/* The starburst art sits behind the cell content; its natural height drives the
+   container height, so the per-day top offsets stay valid across aspect ratios. */
+.day-burst-img {
+  display: block;
+  width: 100%;
   height: auto;
+}
+
+/* Today's content area: the SAME .day-event markup as every other cell, just
+   positioned into the open starburst body below the baked-in day name. Only the
+   offset/alignment differs from a normal cell's .comic-content — not the structure.
+   top/bottom are height-relative, so the lower-body framing holds across the varied
+   image aspect ratios. */
+.day-burst-content {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 38%;
+  bottom: 16%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Per-day vertical offset: tuned by screenshot so each image's baked-in day name
