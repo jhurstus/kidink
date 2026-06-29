@@ -128,7 +128,7 @@ directly. They are invisible to the ESP32 in normal operation:
 - **`?quantize=1`** — serve the emulated palette-quantized preview instead of the raw
   screenshot (consumed by `/display`, step 6).
 - **`?debug_images=1`** — after the main content, append a list of **every AI image
-  included in the render**: each image's filename/key and a link to the image admin
+  included in the render**: each image's id and logical key and a link to the image admin
   endpoint (§7.4, via its `img=` arg) to view and edit that image's prompt (consumed
   by `/render`).
 
@@ -416,33 +416,40 @@ are ignored if set.
 
 ## 7. AI image pipeline
 
-### 7.1 Cache key / filename
+### 7.1 Image records and the logical key
 
-Images are stored in a configurable location with the filename:
+Metadata for every **AI-generated** image lives in a **SQLite database** (`sqlite.db`
+under `app_storage_path`, §18). (The hand-made weather and bugbug assets are not in this
+table; they are static files, §7.6.) The main table has one row per image, with an
+integer `id` primary key and a **unique index** over the logical key `(module,
+item_description, width, height, variant)`:
 
-```
-<module>__<item>__<width>__<height>.png
-```
+- **`module`** — the owning UI module (`Calendar`, `Chores`, `Countdown`, `Dinner`,
+  `Joke`, …).
+- **`item_description`** — a *rough* key: a characteristic string taken from a source
+  that has no stable upstream id of its own — a calendar event title (the event's
+  `icon_description`, which defaults to its title, §6.4), a dinner menu-item name, a joke
+  line, and so on. We key on this string directly. Two logical items that yield the same
+  `item_description` **share one image**; that collision is the reuse mechanism and is
+  fine for our small, hand-curated input space.
+- **`width`, `height`** — the stored display size in pixels.
+- **`variant`** — `NULL` by default. A non-null tag distinguishes a parallel version of
+  the same logical image; its only current use is the bugbug host variant (§16), letting
+  that variant coexist with its base.
+- **`prompt`** (required) — the prompt used to generate the image (§7.2). Seeded by
+  per-module construction logic (§7.5) when the record is created and **editable**
+  afterward via the admin endpoint (§7.4).
 
-Example: `Calendar__Soccer_practice__64__64.png`.
+**Prompt attachments.** The reference images passed alongside the prompt to the image API
+(§7.2) live in a second table, **`prompt_attachments`**, whose meaningful column is a
+**relative path** to an image under `prompt_images/` (§18). It is **many-to-many** with
+the main table through a junction table, so one reference image can be attached to many
+image records (e.g. a module's shared style examples) and one record can carry several
+attachments.
 
-The `<item>` segment is a **slug** of `icon_description` (falling back to `title`),
-normalized so it can never contain the `__` delimiter:
-
-1. Unicode **NFKC** normalization.
-2. Casefold to lowercase.
-3. Transliterate to ASCII (strip diacritics).
-4. Replace every run of non-`[a-z0-9]` characters with a single `_`.
-5. Trim leading/trailing `_`.
-6. Truncate to `MAX_SLUG_LEN` (e.g. 64) on an underscore boundary.
-
-This guarantees no internal `__`. Two items that normalize to the **same slug
-intentionally share one image** — this is the reuse mechanism, and acceptable given the
-small, controlled input space. **Threshold:** if the normalized source is empty, or the
-source exceeds `MAX_SLUG_LEN` (e.g. a joke line), the `<item>` segment is instead a hex
-**hash** (first 16 chars of SHA-256 of the NFKC-normalized source).
-
-If an image exists for the key, it is used as-is.
+**Files.** The rendered image bytes are stored as a flat **`<id>.png`** (the row id) under
+`gen_images/` (§18); nothing is encoded in the filename. If a row exists for the key, its
+image is used as-is.
 
 ### 7.2 Generation
 
@@ -451,16 +458,16 @@ Missing images are generated via the OpenAI image API, **inline** during `/rende
 
 - **Top current image model**, configurable per module.
 - **Output:** PNG with transparency (the API's background parameter set to transparent).
-- **Size:** generated at the nearest supported large size and downscaled to the key's
-  target dimensions. The `<width>__<height>` in the key is the stored display size.
-- **Style references:** each module has a configurable directory of example images,
-  passed as reference inputs so new images match the comic style (keep to ~2–3).
-- **Prompt:** a per-image **override** from the sidecar (§7.5) if present; otherwise the
-  module's canned template — comic-book style, bold colors, sharp edges, no fine detail
-  — incorporating `icon_description`/`title`.
+- **Size:** generated at the nearest supported large size and downscaled to the
+  record's `width`×`height`, its stored display size.
+- **Prompt:** the record's **`prompt`** column (§7.1, §7.5).
+- **Style references:** the record's **prompt attachments** (§7.1) — typically the owning
+  module's shared style examples — are passed as reference inputs so new images match the
+  comic style (keep to ~2–3).
 
-After generation the image is saved at its key. Failures are **logged to disk** (with
-the item and the prompt) and the render falls back (§7.3).
+After generation the image is written to `gen_images/<id>.png` and the record saved.
+Failures are **logged to disk** (with the item and the prompt) and the render falls back
+(§7.3).
 
 ### 7.3 Fallbacks on a missing/failed image
 
@@ -474,13 +481,20 @@ These are rare because the warm-up (§3.6) generates the day's new images ahead 
 
 ### 7.4 Image admin endpoint
 
-A separate Flask endpoint to browse and edit the device's AI images.
+A separate Flask endpoint to browse and edit the device's images.
 
-- **Default view** (no args): a list of links to every available image (by key).
-- **`?img=<key>`:** view a single image/key in isolation — the current image, its
-  prompt, and its reference attachments — with controls to edit the prompt/attachments,
-  regenerate, view the new image side-by-side with the old, and save or discard. Saves
-  go to the sidecar (§7.5).
+- **Default view** (no args): a list of links to every image record (by logical key).
+- **`?img=<id>`:** view a single record in isolation — the current image, its `prompt`,
+  and its prompt attachments — with controls to:
+  - **edit the prompt** and **regenerate**, viewing the new image side-by-side with the
+    old before saving or discarding;
+  - **manage attachments:** show the associated prompt images and remove one, attach
+    another existing reference image, or upload a new one (stored under `prompt_images/`,
+    §18);
+  - **upload a handcrafted image** to replace the current `<id>.png` outright, with no
+    generation.
+
+  Saves persist to the record and its files.
 
 The `?debug_images=1` listing on a render (§3.5) links here per image.
 
@@ -488,22 +502,33 @@ The `?debug_images=1` listing on a render (§3.5) links here per image.
 regeneration. This is an accepted trade-off for a trusted home LAN and must not be
 exposed beyond it.
 
-### 7.5 Prompt overrides (sidecar)
+### 7.5 Prompt construction
 
-The cache key derives from `icon_description`, not from the prompt, so an admin-edited
-prompt has nowhere to live in the key, the event model, or config. Edits persist in a
-**SQLite sidecar database** at `prompt_overrides_path`, mapping
-`<image key> → { prompt, attachments[] }`. Generation precedence (§7.2): a sidecar
-override for the key **wins** over the module's canned template; otherwise the default
-template is used. The admin endpoint writes here, so edits survive future renders and
-regenerations.
+A record's `prompt` (§7.1) is built when the record is first created, by **per-module
+logic**: each module knows how to turn its `item_description` into a generation prompt —
+comic-book style, bold saturated colors, sharp edges, no fine detail — and modules that
+consume similar data can share one builder. For example, calendar-derived icons use a
+template like *"Generate a 40px-wide by 40px-tall icon representing &lt;event title&gt;,
+in a kids' comic-book style: bold colors, hard edges, no fine detail."*
+
+The same per-module step also seeds the record's **prompt attachments** (§7.1) with that
+module's default style examples, drawn from `prompt_images/` (§18).
+
+The prompt and attachments are then **editable** via the admin endpoint (§7.4); an edit
+simply updates the row, so it persists across future renders and regenerations.
 
 ### 7.6 Serving images
 
-All images — generated icons, hero images, and the hand-made weather and bugbug assets —
-live on disk under `image_store_path` but are **served over HTTP by a Flask image route**
-(e.g. `GET /images/<key>`). Rendered HTML, the admin UI, and Chromium reference images
-only by their **absolute loopback URLs**, never by filesystem path.
+The page references all images by **absolute loopback URLs** served by a Flask image
+route, never by filesystem path — so Chromium, the rendered HTML, and the admin UI all
+fetch over HTTP. There are two kinds:
+
+- **AI-generated images** — generated icons and hero images — live as `<id>.png` under
+  `gen_images/` (§18) and are served by id (e.g. `GET /images/generated/<id>`).
+- **Handcrafted static assets** — the hand-made weather icons and clothing figures (§11)
+  and the bugbug creature poses (§16) — are **not** in the image database. They are static
+  files served by **name** (e.g. `GET /images/static/<name>`), authored once and shipped
+  with the app, so they carry no row, `id`, or `prompt`.
 
 ---
 
@@ -667,10 +692,11 @@ condition icons. The bar needs no hand-made images.
 
 ### Hand-made image inventory
 
-Seven condition icons + eight clothing figures = **15 images**, following the same
-naming (`Weather__sunny__W__H.png`, `Weather__<kid>_rain__W__H.png`). Pixel sizes are
-pinned at layout time (kid figures run taller than the square condition icons). These
-are the only non-AI images in the system.
+Seven condition icons + eight clothing figures = **15 images**. Being hand-made rather
+than generated, they are **static assets served by name** (e.g. `sunny`, `<kid>_rain`),
+not rows in the image database (§7.6). Pixel sizes are pinned at layout time (kid figures
+run taller than the square condition icons). These are the only non-AI images in the
+system, alongside the bugbug creature poses (§16).
 
 ---
 
@@ -757,8 +783,8 @@ drawn inside the image).
   ignored and `#`-prefixed lines are comments, so N is the count of real jokes.
 - **Selection:** index = (target date − configurable start date) in whole days, **modulo
   N**, so the list loops. The debug date arg selects a different joke.
-- **Image:** the whole line is handed to the prompt; the image is keyed by a **hash** of
-  the line, generated once, and reused each cycle.
+- **Image:** the whole line is handed to the prompt; the image is keyed by the joke line
+  itself (its `item_description`, §7.1), generated once, and reused each cycle.
 - **Riddles:** the answer is shown alongside the question (there is no interactivity to
   "reveal" it).
 - **Fallback (rare):** the joke line rendered as comic-styled **HTML text in a single
@@ -806,9 +832,9 @@ host, and the seed picks which.
 - The host's **bugbug variant** is generated by the base prompt plus an instruction to
   *"subtly tuck a tiny white labrador into the scene,"* and is a drop-in replacement for
   that image that day.
-- It is cached under its own key via a **configurable suffix token** (default
-  `__bugbug`), with base keys untouched, e.g.
-  `Calendar__Soccer_practice__64__64__bugbug.png`.
+- It is stored as its **own image record** — a separate row sharing the host's `(module,
+  item_description, width, height)` but with `variant = bugbug` (§7.1) — so the base image
+  is untouched.
 - The warm-up generates the day's host variant ahead of time.
 - **Fallback:** if the variant isn't ready at render time, the panel shows the normal
   image and the placement pass falls back to a CSS-overlay spot — so there is always
@@ -847,13 +873,10 @@ the per-event TOML fields in §6.3. The fields:
 | `family_calendar_ics_url` | Google Calendar private ICS (events + chores). |
 | `anylist_mealplan_ics_url` | Anylist meal-plan ICS (dinner). |
 | `openai_api_key` | AI image generation. |
-| `image_store_path` | On-disk store for generated/manual images; served over HTTP (§7.6). |
-| `prompt_overrides_path` | SQLite sidecar DB of admin-edited prompts/attachments (§7.5). |
-| `module_example_dirs` | Per-module style-reference image directories. |
+| `app_storage_path` | **Required** root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata, §7.1), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). |
 | `module_model_tiers` | Per-module image-model overrides. |
 | `kids` | Names and initials (label text), pose/figure mapping. |
 | `joke_file_path`, `joke_start_date` | Joke source and base date. |
-| `bugbug_asset_path`, `bugbug_poses`, `bugbug_suffix` | Creature, poses, variant token (default `__bugbug`). |
 | `countdown_tiers` | Escalation cutoffs and treatments. |
 | `refresh_cadence` | **Crontab schedule string** for the warm-up prerenders (§3.6). The device's own refresh happens whenever the ESP32 polls `/display`. |
 | `weekday_backdrop`, `weekend_backdrop` | Global theming backdrops. |
