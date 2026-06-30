@@ -161,7 +161,8 @@ is nearly free, since tomorrow's images are already cached.
 | CSS authoring | Plain CSS with custom properties; the palette/tones are owned by a central Python class that emits the CSS variables |
 | Headless render | Playwright (Python) driving Chromium |
 | Calendar parsing | ICS parser + a recurring-ICS expansion library |
-| AI images | OpenAI image API (top model, configurable per module) |
+| AI images | OpenAI image API — `gpt-image-2`, configurable per module; transparency is derived in code by background-keying (§7.2) |
+| Image processing | Pillow + NumPy — background-keying to alpha (§7.2) and the quantize-preview pass (§5.2) |
 | Weather | Google Maps Platform Weather API (daily forecast) |
 | App config | Pydantic (`pydantic-settings`) model, validated at startup (§18) |
 
@@ -456,18 +457,29 @@ image is used as-is.
 Missing images are generated via the OpenAI image API, **inline** during `/render`
 (§3.6). Cost is a non-issue (≈1–2 calls/day), so quality is the priority:
 
-- **Top current image model**, configurable per module.
-- **Output:** PNG with transparency (the API's background parameter set to transparent).
-- **Size:** generated at the nearest supported large size and downscaled to the
-  record's `width`×`height`, its stored display size.
+- **Model:** `gpt-image-2`, configurable per module.
 - **Prompt:** the record's **`prompt`** column (§7.1, §7.5).
 - **Style references:** the record's **prompt attachments** (§7.1) — typically the owning
   module's shared style examples — are passed as reference inputs so new images match the
   comic style (keep to ~2–3).
+- **Transparency (background-keying).** `gpt-image-2` has **no transparent-background
+  mode** (a `background:"transparent"` request errors), so the prompt asks for the subject
+  on a **flat, solid key-color background** distinct from the subject's palette, and the
+  alpha is then derived **in code** (Pillow + NumPy): starting from the image edges,
+  background-connected pixels matching the key color (within a tolerance) are flood-filled
+  to transparent, and the key is de-spilled at the subject's rim. Removing only
+  *edge-connected* background — rather than every key-colored pixel — keeps a same-colored
+  region *inside* the subject opaque. The board's bold, hard-edged, flat art (§5.2) keys
+  cleanly; soft/wispy edges would not.
+- **Size:** generated at a supported large size matching the record's aspect ratio.
+  Keying runs at that full resolution, then the result is **downscaled** to the record's
+  `width`×`height` (its stored display size) — so the hard alpha edge anti-aliases into a
+  smooth one. `gpt-image-2`'s minimum output far exceeds the icon sizes, so generating
+  large and downscaling is required regardless.
 
-After generation the image is written to `gen_images/<id>.png` and the record saved.
-Failures are **logged to disk** (with the item and the prompt) and the render falls back
-(§7.3).
+The final image is a **transparent PNG** written to `gen_images/<id>.png`, and the record
+is saved. Failures (generation or keying) are **logged to disk** (with the item and the
+prompt) and the render falls back (§7.3).
 
 ### 7.3 Fallbacks on a missing/failed image
 
@@ -750,8 +762,9 @@ Shows "Dinner", an AI image of the meal, and the menu name(s).
 - **Source:** the Anylist meal-plan ICS (§6.1). Anylist is used only for dinner, so the
   meal-plan entries on the target date **are** the dinner — no meal-slot filtering. A
   main plus any side are **joined into one name and one combined image**.
-- **Image:** keyed by the dish name (reused across days), hero-sized, top model,
-  transparent PNG; omitted on a generation miss (leaving "Dinner" + the name).
+- **Image:** keyed by the dish name (reused across days), hero-sized, a transparent PNG
+  generated like any other (§7.2); omitted on a generation miss (leaving "Dinner" + the
+  name).
 - **Mystery dinner fallback:** a fixed "question-marks" card titled "Mystery dinner!" is
   shown both when **no dinner is planned** and when the **ICS fetch fails** (the failure
   is logged) — the same friendly visual for either cause.
