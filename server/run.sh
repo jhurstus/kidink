@@ -3,4 +3,4 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-uv run flask --app app run --debug
+uv run flask --app app run --debug --port 5051

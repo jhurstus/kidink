@@ -246,7 +246,11 @@ quantize + dither is **deferred to the device pipeline** (§19). The server perf
 only to emulate that step for preview, via `?quantize=1`. That single page-wide pass
 dithers the full-color icon/AI regions with an **ordered / clustered-dot screen** (not
 Floyd–Steinberg), so they read as comic halftone and rhyme with the hand-authored CSS
-backgrounds (which are already dithered and pass through largely untouched).
+backgrounds (which are already dithered and pass through largely untouched). This
+choice has since been **validated on the physical panel** by the demo pipeline
+([eink-demo.md](eink-demo.md)): its ordered mixing-plan dither + edge snapping +
+vibrance boost is the intended basis for this pass, and §5.5 records what it taught
+us about color choice.
 
 ### 5.3 Canonical halftone swatches
 
@@ -254,7 +258,9 @@ A proposed starting set, expressed as native inks plus an approximate dot
 coverage. **All densities and angles are starting points to tune on the physical
 panel.** E-ink guidance baked into these choices: keep the two inks in a blend
 high in luminance contrast, use coarse, hard-edged dots, and use black sparingly
-(it darkens a blend fast and muddies it).
+(it darkens a blend fast and muddies it). These rules are now backed by
+measurements from the demo pipeline — §5.5 has the full findings and the
+authoring rules they imply.
 
 **Named blends (general palette):**
 
@@ -276,6 +282,16 @@ high in luminance contrast, use coarse, hard-edged dots, and use black sparingly
 | Navy | blue + black | ~70% blue / ~30% black |
 | Maroon | red + black | ~70% red / ~30% black |
 | Brown (approx.) | red + green (+ black) | ~50/50 red+green, optional sparse black |
+| Forest green | green + black | ~65% green / ~35% black |
+| Amber | red + yellow | ~30% red dots on yellow (yellow-leaning orange) |
+| Coral | red + white | ~55% red dots on white |
+| Butter | yellow + white | ~40% yellow dots on white |
+
+Forest green, amber, coral, and butter were added after on-panel testing (§5.5) —
+all four are high-luma-contrast two-ink blends, the shape that renders best.
+Purple and brown are the panel's **weakest** swatches (their inks sit close
+together on the luma ladder, §5.5) — keep them for accents rather than large
+fills.
 
 **Day-cell assignments** (all halftone, cool weekdays / warm weekend; §9.1):
 
@@ -342,6 +358,51 @@ the panel** so the background only shows inside the frame. Because it is plain g
 | `roughness` | px amplitude of a smooth, pen-pressure thickness ripple; `0` = clean | `0` |
 | `frequency` | number of ripple undulations around the perimeter | `6` |
 
+### 5.5 What renders well — findings from the physical panel
+
+The demo push pipeline ([eink-demo.md](eink-demo.md)) made color behavior on the
+real panel measurable. Its quantizer renders every non-ink color as a mix of at
+most **two** inks; that constraint, plus the panel's own ink properties, yields
+the rules below. They matter chiefly for **image assets** — hand-made PNGs (the
+day bursts, weather icons) and AI images — because authored CSS areas are already
+explicit ink-dot patterns and pass through quantization untouched (verified).
+
+- **The two-ink rule.** Every color reduces to ink coverage. A color expressible
+  as *ink + white* (tint), *ink + black* (shade), or a §5.3 two-ink blend
+  renders cleanly. A color needing **three** inks renders muddy and desaturated:
+  the "bright" green `rgb(81,195,85)` is really ~45% green + 32% white + 24%
+  black ink and read gray-green on the panel, while the exaggerated
+  `rgb(54,214,60)` (~65% green) reads vibrant. When in doubt, push a color
+  toward the nearest pure ink hue — this is worth reflecting in AI prompt
+  templates too (§7.5): ask for *"pure saturated primary colors"*, not just
+  *"bright colors"*.
+- **The ink luma ladder:** black 0 → blue 29 → red 76 → green 150 → yellow 226 →
+  white 255 (BT.601 luma). Blends between inks **far apart** on the ladder
+  dither cleanly and vividly (orange, sky, mint, forest green); blends between
+  **neighbors** read dark and muddy — purple (red+blue) and brown (red+green)
+  are the panel's weakest colors. Yellow-based blends (orange, lime, amber) are
+  the most vibrant things the panel can do. Equal-luma complementary mixes
+  (yellow+blue "gray") are rejected by the quantizer outright — they'd be pure
+  noise.
+- **Tints need ≥ ~25% ink coverage to read as color.** A pale tint *is* mostly
+  white: light green `rgb(231,246,228)` is ~7% green ink and reads as white with
+  a faint stipple at arm's length (below ~5% the dots are dropped entirely). The
+  §5.3 tint recipes (pink 35%, sky 40%, mint 40%) sit safely above the floor.
+- **Near-neutrals render neutral.** Subtle warm/cool casts vanish: a flat cream
+  fill quantizes to white + sparse black — i.e. light gray. Cream that must
+  *read* cream needs the authored yellow-dot halftone of §5.3, never a flat
+  fill. The flip side is protective: grays, paper tones, and text edges never
+  sprout colored speckle.
+- **Grays are dependable.** Black+white mixes render smooth and stable at every
+  level; the gray ramp is the cleanest gradient the panel can show.
+- **A vibrance boost is part of the pipeline** (luma-preserving, ~1.4×, leaves
+  neutrals untouched — eink-demo §4). It buys mid-saturation colors roughly +20
+  points of ink coverage, but pure inks are the ceiling — authoring near-ink
+  hues is worth more than relying on the boost.
+- **Physical inks are muted** relative to the pure sRGB primaries we author
+  against, so on-panel saturation lands a notch below the preview even with the
+  boost. Calibrating the quantizer's palette targets to measured ink colors is
+  an open tuning task (§20).
 
 ---
 
@@ -909,7 +970,10 @@ the per-event TOML fields in §6.3. The fields:
 - **Final on-device file:** quantize + ordered-dither to the six colors and pre-pack the
   controller framebuffer in the expected bit layout. (The quantize step is built early
   for preview via `?quantize=1`; the packing and the choice between serving a PNG vs. a
-  packed buffer depend on the firmware stack, TBD.)
+  packed buffer depend on the firmware stack, TBD.) A standalone demo of this whole
+  path — screenshot → six-color dither → packed buffer → flash — exists already; see
+  [eink-demo.md](eink-demo.md). Its `app/eink/` palette/dither core is the intended
+  basis for `?quantize=1`.
 - **Seasonal theming** (date-range → theme) and **birthday / special-person mode**, both
   via the theming layer in §17.
 - **Visual polish** explored in review and planned for a later mockup, with no software
@@ -929,6 +993,10 @@ the per-event TOML fields in §6.3. The fields:
   API reference.
 - Concrete **pixel sizes** for icons, kid figures, panels, and the header/row heights
   that drive §10's budget, fixed at layout time.
-- Final **halftone densities/angles** for the §5.3 swatches, tuned on the physical panel.
+- Final **halftone densities/angles** for the §5.3 swatches, tuned on the physical panel,
+  and **calibration of the quantizer's palette targets** (eink-demo §4) to measured
+  Spectra ink colors (the vibrance-boost factor will want retuning with it, §5.5).
 - The **firmware stack** (Inkplate Arduino library vs. ESP-IDF/raw), which determines
-  what "a file ready for rendering" is on the wire.
+  what "a file ready for rendering" is on the wire. The push demo
+  ([eink-demo.md](eink-demo.md)) has meanwhile verified the Inkplate Arduino library's
+  buffer format and dither behavior end-to-end on the device.

@@ -30,7 +30,7 @@ a rounded comic panel tinted with the day's color, holding the day name. -#}
 width=day.width, height=110, bg=day.bg,
 halftones=[{'color': day.dot, 'dot_size': 6, 'max_fill': day.max_fill,
 'origin_angle': day.origin_angle, 'magnitude': day.magnitude}],
-border={'color': '#141414', 'radius': 15, 'mid_width': 3, 'corner_width': 2,
+border={'color': '#000', 'radius': 15, 'mid_width': 3, 'corner_width': 2,
 'roughness': 1, 'frequency': 2, 'seed': day.seed}) -%}
 <div class="day-name">{{ day.name }}</div>
 {%- if day.event_title %}<div class="day-event">{{ day.event_title }}</div>{% endif %}
@@ -47,7 +47,7 @@ no halftone — only a flat fill + border — so the per-day cell tints read cle
 {% call comic_panel(
 width=(days | sum(attribute='width')) + (days|length - 1) * 12 + 24, height=130,
 bg=bg, halftones=[],
-border={'color': '#141414', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
+border={'color': '#000', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
 'roughness': 1, 'frequency': 2, 'seed': seed}) -%}
 <div class="day-row">
   {%- for day in days %}{{ day_cell(day) }}{% endfor -%}
@@ -64,7 +64,7 @@ border={'color': '#141414', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
   'max_fill': 0.6, 'origin_angle': '330deg', 'magnitude': '21%'},
   {'color': '#bbb4a2', 'dot_size': 6, 'offset': 0, 'transparency': 0,
   'max_fill': 0.6, 'origin_angle': '150deg', 'magnitude': '21%'}],
-  border={'color': '#141414', 'radius': 0, 'mid_width': 4, 'corner_width': 2,
+  border={'color': '#000', 'radius': 0, 'mid_width': 4, 'corner_width': 2,
   'roughness': 1, 'frequency': 3, 'seed': 173}) -%}
   <div class="strip-groups">
     {{ day_group(strip.week[:5], 173, '#d0dde3') }}{# cool weekdays #}

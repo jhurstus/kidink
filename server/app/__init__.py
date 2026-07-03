@@ -53,9 +53,7 @@ def create_app() -> Flask:
             "max_fill": request.args.get("max_fill", default=0.42, type=float),
             "origin_angle": request.args.get("origin_angle", default="90deg", type=str),
             "magnitude": request.args.get("magnitude", default="60%", type=str),
-            "border_color": request.args.get(
-                "border_color", default="rgb(40,38,34)", type=str
-            ),
+            "border_color": request.args.get("border_color", default="#000", type=str),
             "radius": request.args.get("radius", default=16, type=int),
             "mid_width": request.args.get("mid_width", default=12, type=int),
             "corner_width": request.args.get("corner_width", default=3, type=int),

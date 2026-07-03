@@ -313,7 +313,7 @@
       <h3>Border</h3>
       <label class="ctrl">
         <span class="ctrl-name">Color</span>
-        <input type="color" value="#282622"
+        <input type="color" value="#000000"
                data-section="border" data-key="color"
                data-apply="attr" data-target="borderPath" data-attr="fill" />
         <span class="val"></span>
@@ -378,7 +378,7 @@
       {% call comic_panel(width=360, height=220, bg='rgb(225,235,245)',
            halftones=[{'color':'rgb(70,110,170)','dot_size':8,'max_fill':0.46,
                        'origin_angle':'270deg','magnitude':'100%'}],
-           border={'color':'rgb(40,38,34)','seed':1001,'radius':18,'mid_width':10,'corner_width':3}) %}{% endcall %}
+           border={'color':'#000','seed':1001,'radius':18,'mid_width':10,'corner_width':3}) %}{% endcall %}
       <div class="caption">Single halftone from the left edge (origin 270°),
         reaching all the way across (magnitude 100%). Border fat at the edge
         midpoints, tapering at the rounded corners.</div>
@@ -389,7 +389,7 @@
            halftones=[
              {'color':'rgb(225,120,45)','dot_size':7,'offset':0,'transparency':0.8,'max_fill':0.48,'origin_angle':'0deg','magnitude':'55%'},
              {'color':'rgb(70,150,150)','dot_size':7,'offset':4,'transparency':0.8,'max_fill':0.48,'origin_angle':'270deg','magnitude':'55%'}],
-           border={'color':'rgb(40,38,34)','seed':1002,'radius':0,'mid_width':6,'corner_width':6}) %}{% endcall %}
+           border={'color':'#000','seed':1002,'radius':0,'mid_width':6,'corner_width':6}) %}{% endcall %}
       <div class="caption">Two halftone groups — orange from the top, teal from the
         left — with different lattice offsets and 80% transparent dots, so they
         blend softly where they overlap. Plain uniform square border.</div>
@@ -399,7 +399,7 @@
       {% call comic_panel(width=360, height=220, bg='rgb(245,232,232)',
            halftones=[{'color':'rgb(200,70,70)','dot_size':5,'max_fill':0.45,
                        'origin_angle':'180deg','magnitude':'70%'}],
-           border={'color':'rgb(40,38,34)','seed':1003,'radius':10,'mid_width':10,'corner_width':3,'roughness':5,'frequency':5}) %}{% endcall %}
+           border={'color':'#000','seed':1003,'radius':10,'mid_width':10,'corner_width':3,'roughness':5,'frequency':5}) %}{% endcall %}
       <div class="caption">Origin from the bottom (180°), fine dots (size 5) — a
         gentle floor shadow. Border thickness ripples like pen pressure
         (roughness 5).</div>
@@ -409,7 +409,7 @@
       {% call comic_panel(width=360, height=220, bg='rgb(230,230,225)',
            halftones=[{'color':'rgb(60,60,60)','dot_size':16,'max_fill':0.72,
                        'origin_angle':'90deg','magnitude':'90%'}],
-           border={'color':'rgb(40,38,34)','seed':1004,'radius':12,'mid_width':16,'corner_width':2}) %}{% endcall %}
+           border={'color':'#000','seed':1004,'radius':12,'mid_width':16,'corner_width':2}) %}{% endcall %}
       <div class="caption">Big chunky dots (size 16) with max fill 0.72, so dots
         overlap into near-solid ink at the origin and break up toward the center.
         Heavy mid-edge border with sharply tapered corners.</div>
@@ -418,7 +418,7 @@
     <div class="card">
       {% call comic_panel(width=360, height=220, bg='rgb(255,253,245)',
            halftones=[],
-           border={'color':'rgb(40,38,34)','seed':1005,'radius':28,'mid_width':6,'corner_width':6}) %}{% endcall %}
+           border={'color':'#000','seed':1005,'radius':28,'mid_width':6,'corner_width':6}) %}{% endcall %}
       <div class="caption">Zero halftones — just the border on a flat fill (panels
         can have no shading at all). Very rounded corners (radius 28).</div>
     </div>
@@ -428,7 +428,7 @@
            halftones=[
              {'color':'rgb(70,110,170)','dot_size':10,'max_fill':0.42,'origin_angle':'270deg','magnitude':'100%'},
              {'color':'rgb(70,110,170)','dot_size':10,'max_fill':0.42,'origin_angle':'270deg','magnitude':'100%','offset':5}],
-           border={'color':'rgb(40,38,34)','seed':1006,'radius':14,'mid_width':9,'corner_width':3}) %}{% endcall %}
+           border={'color':'#000','seed':1006,'radius':14,'mid_width':9,'corner_width':3}) %}{% endcall %}
       <div class="caption">Two identical halftones, the second offset by half a
         dot (5px), so they interleave into a denser grid instead of overlapping
         exactly.</div>
