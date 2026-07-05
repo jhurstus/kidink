@@ -1,0 +1,71 @@
+<!doctype html>
+{#- Admin: one image record in isolation (spec §7.4, ?img=<id>): current image,
+editable prompt with regenerate, side-by-side candidate review, and a
+handcrafted-upload override. Attachment management is deferred with the rest of
+prompt-attachment support. -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — image {{ record.id }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 60rem; }
+    .error { color: #b00020; font-weight: bold; }
+    .images { display: flex; gap: 2rem; align-items: flex-start; }
+    figure { margin: 0; }
+    figcaption { font-size: 0.9rem; color: #555; }
+    img { display: block; background:
+      repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px; }
+    textarea { width: 100%; font: inherit; }
+    form { margin: 1rem 0; }
+  </style>
+</head>
+<body>
+  <p><a href="{{ url_for('images_admin.admin_images') }}">&larr; all images</a></p>
+  <h1>Image {{ record.id }}</h1>
+  <p>
+    {{ record.spec.module }} / {{ record.spec.item_description }}
+    / {{ record.spec.width }}×{{ record.spec.height }}
+    {% if record.spec.variant %} / variant: {{ record.spec.variant }}{% endif %}
+  </p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <div class="images">
+    <figure>
+      <figcaption>current</figcaption>
+      {% if has_image %}
+      <img src="{{ url_for('images.generated_image', image_id=record.id) }}"
+           alt="current image">
+      {% else %}<p>(no image yet — generation failed or pending)</p>{% endif %}
+    </figure>
+    {% if has_candidate %}
+    <figure>
+      <figcaption>candidate</figcaption>
+      <img src="{{ url_for('images_admin.admin_candidate_image', image_id=record.id) }}"
+           alt="candidate image">
+    </figure>
+    {% endif %}
+  </div>
+
+  {% if has_candidate %}
+  <form method="post"
+        action="{{ url_for('images_admin.admin_candidate_decision', image_id=record.id) }}">
+    <button name="action" value="keep">Keep candidate</button>
+    <button name="action" value="discard">Discard candidate</button>
+  </form>
+  {% endif %}
+
+  <form method="post"
+        action="{{ url_for('images_admin.admin_regenerate', image_id=record.id) }}">
+    <label for="prompt">Prompt (saved on regenerate)</label>
+    <textarea id="prompt" name="prompt" rows="16">{{ record.prompt }}</textarea>
+    <button>Regenerate</button>
+  </form>
+
+  <form method="post" enctype="multipart/form-data"
+        action="{{ url_for('images_admin.admin_upload', image_id=record.id) }}">
+    <label for="image">Replace with handcrafted PNG</label>
+    <input id="image" type="file" name="image" accept="image/png">
+    <button>Upload</button>
+  </form>
+</body>
+</html>

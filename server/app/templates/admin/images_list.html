@@ -1,0 +1,33 @@
+<!doctype html>
+{#- Admin: all image records by logical key (spec §7.4 default view). -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — image admin</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+    table { border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 6px 12px; text-align: left; }
+    img { display: block; background:
+      repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px; }
+  </style>
+</head>
+<body>
+  <h1>Image records</h1>
+  {% if not records %}<p>No images generated yet.</p>{% endif %}
+  <table>
+    <tr><th>id</th><th>module</th><th>item</th><th>size</th><th>variant</th><th>image</th></tr>
+    {% for record in records %}
+    <tr>
+      <td><a href="{{ url_for('images_admin.admin_images', img=record.id) }}">{{ record.id }}</a></td>
+      <td>{{ record.spec.module }}</td>
+      <td>{{ record.spec.item_description }}</td>
+      <td>{{ record.spec.width }}×{{ record.spec.height }}</td>
+      <td>{{ record.spec.variant or "—" }}</td>
+      <td><img src="{{ url_for('images.generated_image', image_id=record.id) }}"
+               alt="{{ record.spec.item_description }}"></td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>

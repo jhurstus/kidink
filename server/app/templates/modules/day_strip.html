@@ -3,8 +3,8 @@ day_strip.html — the day-of-week strip module (spec §9).
 
 A full-width strip: the Monday–Sunday cells of the target week, weekdays and
 weekend in separate group panels, with the full date superimposed (rotated) over
-the top-left corner. The current day is replaced by a wider starburst cell. No
-calendar data / day icons yet.
+the top-left corner. The current day is replaced by a wider starburst cell. Each
+day shows the AI icon of its top event (falling back to a title-text chip).
 
 Nesting is pure {% call %} transclusion: a group panel's children are its day
 cells, the outer panel's children are the two groups. Layout (flex rows, gaps,
@@ -17,6 +17,17 @@ strip a DayStrip view model (see app/day_strip.py), with:
 .date_label formatted corner date, e.g. "June 3, 2026"
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
+
+{#- A day's event content: the AI icon for its top event (spec §9.2), or — when
+the icon is missing/failed — the comic fallback chip with the title text (§7.3).
+Shared by normal cells and the today burst. -#}
+{% macro day_event(day) -%}
+{%- if day.icon_url -%}
+<img class="day-icon" src="{{ day.icon_url }}" alt="{{ day.event_title }}" />
+{%- elif day.event_title -%}
+<div class="day-event day-event-chip">{{ day.event_title }}</div>
+{%- endif -%}
+{%- endmacro %}
 
 {#- One day box. The active (today) day renders just a width-reserving spacer: its
 burst image is emitted once at the strip level so it can escape the panel
@@ -33,7 +44,7 @@ halftones=[{'color': day.dot, 'dot_size': 6, 'max_fill': day.max_fill,
 border={'color': '#000', 'radius': 15, 'mid_width': 3, 'corner_width': 2,
 'roughness': 1, 'frequency': 2, 'seed': day.seed}) -%}
 <div class="day-name">{{ day.name }}</div>
-{%- if day.event_title %}<div class="day-event">{{ day.event_title }}</div>{% endif %}
+{{- day_event(day) -}}
 {%- endcall %}
 {%- endif -%}
 {%- endmacro %}
@@ -76,14 +87,14 @@ border={'color': '#000', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
   is "today", so this loop emits a single burst, centered on its cell's x
   (--burst-cx) with a per-day vertical offset from its .day-burst-<day> rule. The
   burst is a container: the starburst image (its day name baked in) sits behind, and
-  the day's event title overlays the open body below the name — the today cell's
-  equivalent of the .day-event text on every other cell. -#}
+  the day's event icon (or fallback chip) overlays the open body below the name — the
+  today cell's equivalent of the day_event content on every other cell. -#}
     {%- for day in strip.week if day.burst %}
     <div class="day-burst day-burst-{{ day.name | lower }}" style="--burst-cx: {{ day.burst_cx }}px">
       <img class="day-burst-img"
         src="{{ url_for('static', filename='img/day_strip/' ~ day.burst) }}" alt="{{ day.name }}" />
       <div class="day-burst-content">
-        {%- if day.event_title %}<div class="day-event">{{ day.event_title }}</div>{% endif %}
+        {{- day_event(day) -}}
       </div>
     </div>
     {%- endfor %}

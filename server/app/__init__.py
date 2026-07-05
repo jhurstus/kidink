@@ -7,6 +7,13 @@ from app.comic import comic_border_path
 from app.config import get_settings
 from app.dates import resolve_date, week_of
 from app.day_strip import build_day_strip
+from app.images import (
+    RenderedImage,
+    admin_bp,
+    generate_image_bytes,
+    images_bp,
+    make_calendar_icon_resolver,
+)
 
 
 def create_app() -> Flask:
@@ -14,9 +21,14 @@ def create_app() -> Flask:
     settings = get_settings()
 
     app.add_template_global(comic_border_path, name="comic_border_path")
-    # Injectable fetch seam (mirrors app.config["NOW"]): tests override this with a
-    # fake so the suite never hits the network
+    # Injectable seams (mirror app.config["NOW"]): tests override these with fakes
+    # so the suite never hits the network or the developer's real storage.
     app.config.setdefault("FETCH_ICS", fetch_ics)
+    app.config.setdefault("GENERATE_IMAGE_BYTES", generate_image_bytes)
+    app.config.setdefault("APP_STORAGE_PATH", settings.app_storage_path)
+
+    app.register_blueprint(images_bp)
+    app.register_blueprint(admin_bp)
 
     @app.get("/")
     def index() -> str:
@@ -32,7 +44,16 @@ def create_app() -> Flask:
         except (CalendarFetchError, ValueError) as exc:
             app.logger.warning("family calendar render failed: %s", type(exc).__name__)
             abort(500)
-        return render_template("board.html", strip=build_day_strip(target, events))
+        # Missing AI images are generated inline here (§3.6); an individual
+        # image failure falls back to a chip (§7.3), never a 500.
+        rendered_images: list[RenderedImage] = []
+        strip = build_day_strip(
+            target, events, make_calendar_icon_resolver(rendered_images)
+        )
+        debug_images = (
+            rendered_images if request.args.get("debug_images") == "1" else None
+        )
+        return render_template("board.html", strip=strip, debug_images=debug_images)
 
     @app.get("/panel")
     def panel() -> str:

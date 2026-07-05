@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -43,6 +43,32 @@ class Settings(BaseSettings):
     the unauthenticated URL never lands in a repr, log, or traceback.  Supplied
     via ``config.toml`` or ``KIDINK_FAMILY_CALENDAR_ICS_URL``.
     """
+
+    openai_api_key: SecretStr
+    """OpenAI API key for AI image generation (§7.2).
+
+    Required: a missing value fails fast at startup. Held as ``SecretStr`` so the
+    key never lands in a repr, log, or traceback. Supplied via ``config.toml`` or
+    ``KIDINK_OPENAI_API_KEY``.
+    """
+
+    app_storage_path: Path = Path(".storage")
+    """Root for all app-managed storage (§18): ``sqlite.db``, ``gen_images/``,
+    ``prompt_images/``. A relative path is resolved against the ``server/``
+    directory (where ``config.toml`` lives). Created lazily on first write, not
+    at config load."""
+
+    module_model_tiers: dict[str, str] = Field(default_factory=dict)
+    """Per-module image-model overrides (§18), e.g. ``{"Calendar": "gpt-image-2"}``.
+    Modules absent from the map use the default model."""
+
+    @field_validator("app_storage_path")
+    @classmethod
+    def _resolve_storage_path(cls, value: Path) -> Path:
+        value = value.expanduser()
+        if not value.is_absolute():
+            value = CONFIG_PATH.parent / value
+        return value
 
     @field_validator("timezone")
     @classmethod

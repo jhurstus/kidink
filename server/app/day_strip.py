@@ -2,17 +2,27 @@
 
 Builds the seven Mon–Sun day cells for a target date: each cell's name, its
 fixed per-day comic colors (spec §5.3, cool Mon–Thu / warm Fri–Sun), whether
-it is "today", and the title of its most-interesting (non-chore) event. The day
-icons and the per-kid icon selection of §9.2 are deferred — for now each cell just
-carries the winning event's title text.
+it is "today", and the AI icon (plus title) of its most-interesting (non-chore)
+event. The per-kid one/two-icon selection of §9.2 is deferred — each cell shows
+a single icon for its top event, with the title as fallback text.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date
 
 from app.calendar import CalendarEvent
 from app.dates import week_of
+
+# Structural stand-in for app.images.IconResolver (kept as a plain Callable so
+# this module needs no images import): item description -> icon URL or None.
+type _IconResolver = Callable[[str], str | None]
+
+
+def _no_icons(item_description: str) -> str | None:
+    """Default resolver: no icons — keeps build_day_strip pure by default."""
+    return None
+
 
 # Per-day comic colors, Monday..Sunday (spec §5.3 day-cell assignments). Each is a
 # LIGHT panel background paired with a DARKER halftone dot of a similar hue. Exact
@@ -78,6 +88,7 @@ class DayCell:
     burst: str | None
     burst_cx: int | None
     event_title: str | None
+    icon_url: str | None
 
 
 @dataclass(frozen=True)
@@ -88,36 +99,40 @@ class DayStrip:
     date_label: str
 
 
-def build_day_strip(target: date, events: Iterable[CalendarEvent] = ()) -> DayStrip:
+def build_day_strip(
+    target: date,
+    events: Iterable[CalendarEvent] = (),
+    icon_resolver: _IconResolver = _no_icons,
+) -> DayStrip:
     """Build the full day-strip view model for the resolved render date ``target``.
 
     ``events`` are the week's expanded calendar events (see
     :func:`app.calendar.expand_events`); they are grouped by local day and each
-    cell shows its most-interesting non-chore event's title. Defaults to empty so
-    the view model stays a pure, testable function of its inputs.
+    cell shows an icon for its most-interesting non-chore event, resolved
+    through ``icon_resolver`` (see :data:`app.images.IconResolver`; the default
+    resolves nothing, keeping the view model a pure function of its inputs).
     """
     by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
         by_day.setdefault(event.local_day, []).append(event)
     return DayStrip(
-        week=_build_week_cells(week_of(target), target, by_day),
+        week=_build_week_cells(week_of(target), target, by_day, icon_resolver),
         date_label=_format_date_label(target),
     )
 
 
-def _top_event_title(day_events: list[CalendarEvent]) -> str | None:
-    """Title of the day's most-interesting non-chore event, or ``None``.
+def _top_event(day_events: list[CalendarEvent]) -> CalendarEvent | None:
+    """The day's most-interesting non-chore event, or ``None``.
 
     Ranked by ``interesting`` descending, ties broken by title ascending — a total
     order, so the choice is deterministic for a given day (spec §3.4). Chores are
-    excluded from the strip (§6.5, §9.2). The full per-kid icon selection of §9.2
-    is deferred; this returns text only.
+    excluded from the strip (§6.5, §9.2). The full per-kid one/two-icon selection
+    of §9.2 is deferred; this picks a single event per day.
     """
     candidates = [event for event in day_events if not event.is_chore]
     if not candidates:
         return None
-    best = min(candidates, key=lambda e: (-e.overrides.interesting, e.title))
-    return best.title
+    return min(candidates, key=lambda e: (-e.overrides.interesting, e.title))
 
 
 def _cell_width(i: int, active_idx: int | None) -> int:
@@ -155,36 +170,48 @@ def _burst_center_x(widths: list[int], active_idx: int) -> float:
 
 
 def _build_week_cells(
-    week: list[date], target: date, by_day: dict[date, list[CalendarEvent]]
+    week: list[date],
+    target: date,
+    by_day: dict[date, list[CalendarEvent]],
+    icon_resolver: _IconResolver,
 ) -> list[DayCell]:
     """Build the seven ``DayCell``s for ``week`` (Mon..Sun), flagging ``target``.
 
     ``week`` must be the seven Mon–Sun dates (see ``dates.week_of``); ``by_day``
-    maps each local day to its events.
+    maps each local day to its events. Each day's top event is resolved to an
+    icon URL through ``icon_resolver``, keyed by the event's ``icon_description``
+    (falling back to its title, §6.4/§7.1).
     """
     # The today cell sits at index ``target.weekday()`` (week is Mon-first). It gets
     # a burst — and triggers the width redistribution — only if that weekday has one.
     active_idx = target.weekday() if target.weekday() in BURST_BY_WEEKDAY else None
     widths = [_cell_width(i, active_idx) for i in range(7)]
     cx = round(_burst_center_x(widths, active_idx)) if active_idx is not None else None
-    return [
-        DayCell(
-            name=palette["name"],
-            iso=day.isoformat(),
-            bg=palette["bg"],
-            dot=palette["dot"],
-            max_fill=_CELL_MAX_FILL,
-            origin_angle=_CELL_ORIGIN_ANGLE,
-            magnitude=_CELL_MAGNITUDE,
-            seed=173 + i,
-            is_today=(day == target),
-            width=widths[i],
-            burst=BURST_BY_WEEKDAY[i] if i == active_idx else None,
-            burst_cx=cx if i == active_idx else None,
-            event_title=_top_event_title(by_day.get(day, [])),
+    cells: list[DayCell] = []
+    for i, (day, palette) in enumerate(zip(week, DAY_PALETTE, strict=True)):
+        best = _top_event(by_day.get(day, []))
+        icon_url = None
+        if best is not None:
+            icon_url = icon_resolver(best.overrides.icon_description or best.title)
+        cells.append(
+            DayCell(
+                name=palette["name"],
+                iso=day.isoformat(),
+                bg=palette["bg"],
+                dot=palette["dot"],
+                max_fill=_CELL_MAX_FILL,
+                origin_angle=_CELL_ORIGIN_ANGLE,
+                magnitude=_CELL_MAGNITUDE,
+                seed=173 + i,
+                is_today=(day == target),
+                width=widths[i],
+                burst=BURST_BY_WEEKDAY[i] if i == active_idx else None,
+                burst_cx=cx if i == active_idx else None,
+                event_title=best.title if best is not None else None,
+                icon_url=icon_url,
+            )
         )
-        for i, (day, palette) in enumerate(zip(week, DAY_PALETTE, strict=True))
-    ]
+    return cells
 
 
 def _format_date_label(target: date) -> str:

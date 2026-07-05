@@ -1,10 +1,10 @@
-"""Calendar event model + recurrence expansion (spec §6.2, §6.4, §6.5).
+"""Calendar event model + recurrence expansion.
 
 Turns raw ICS text into concrete :class:`CalendarEvent` occurrences for a target
 week. Recurrence (``RRULE``/``RDATE``) is expanded and exceptions (``EXDATE`` and
 ``RECURRENCE-ID`` overrides) are honored by ``recurring_ical_events`` — we do not
-hand-roll any of that (spec §3.7, §6.2). This module performs no network I/O; the
-HTTP fetch lives in :mod:`app.calendar.feed`.
+hand-roll any of that. This module performs no network I/O; the HTTP fetch lives
+in :mod:`app.calendar.feed`.
 """
 
 import re
@@ -19,10 +19,10 @@ import recurring_ical_events
 
 from app.calendar.overrides import EventOverrides, TimeOfDay, parse_overrides
 
-# Chore prefix (spec §6.5): "chore:" case-insensitive, optional whitespace after.
+# Chore prefix "chore:" case-insensitive, optional whitespace after.
 _CHORE_RE = re.compile(r"^chore:\s*", re.IGNORECASE)
 
-# Time-of-day cutoffs in local clock time (spec §6.4).
+# Time-of-day cutoffs in local clock time.
 _MORNING_END = time(9, 0)
 _EVENING_START = time(16, 0)
 

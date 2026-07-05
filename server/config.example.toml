@@ -13,3 +13,18 @@ timezone = "US/Pacific"
 # Must point at the iCalendar export, e.g.
 #   https://calendar.google.com/calendar/ical/<calendar-id>/public/basic.ics
 family_calendar_ics_url = "https://calendar.google.com/calendar/ical/REPLACE_ME/public/basic.ics"
+
+# OpenAI API key for AI image generation (§7.2). REQUIRED — the server fails to
+# start without it. This is a SECRET: keep it only in config.toml (gitignored) or
+# the KIDINK_OPENAI_API_KEY env var, never here.
+openai_api_key = "sk-REPLACE_ME"
+
+# Root directory for app-managed storage (§18): sqlite.db (image metadata),
+# gen_images/ (generated PNGs), prompt_images/ (prompt attachments). A relative
+# path is resolved against this directory (server/).
+app_storage_path = ".storage"
+
+# Per-module image-model overrides (§18). Modules not listed use the default
+# model (gpt-image-2).
+# [module_model_tiers]
+# Calendar = "gpt-image-2"

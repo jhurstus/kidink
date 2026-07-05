@@ -14,6 +14,21 @@
   <div class="board">
     <div class="day-strip-slot">{{ day_strip(strip) }}</div>
   </div>
+  {#- Debug-only listing of every AI image in this render (spec §3.5,
+  ?debug_images=1). Never present in normal device renders. -#}
+  {% if debug_images is not none %}
+  <ul class="debug-images">
+    {% for image in debug_images %}
+    <li>
+      <a href="{{ url_for('images_admin.admin_images', img=image.id) }}">
+        #{{ image.id }} — {{ image.spec.module }} / {{ image.spec.item_description }}
+        / {{ image.spec.width }}×{{ image.spec.height }}
+        {%- if image.spec.variant %} / {{ image.spec.variant }}{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 </body>
 
 </html>

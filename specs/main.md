@@ -533,10 +533,12 @@ Missing images are generated via the OpenAI image API, **inline** during `/rende
   region *inside* the subject opaque. The board's bold, hard-edged, flat art (§5.2) keys
   cleanly; soft/wispy edges would not.
 - **Size:** generated at a supported large size matching the record's aspect ratio.
-  Keying runs at that full resolution, then the result is **downscaled** to the record's
-  `width`×`height` (its stored display size) — so the hard alpha edge anti-aliases into a
-  smooth one. `gpt-image-2`'s minimum output far exceeds the icon sizes, so generating
-  large and downscaling is required regardless.
+  Keying runs at that full resolution; the result is then **cropped to its visible
+  pixels** (fully transparent borders are snapped away) and **downscaled preserving
+  aspect ratio** to fit within the record's `width`×`height` — a *maximum* bounding
+  box, with the more constraining dimension matched exactly — so the hard alpha edge
+  anti-aliases into a smooth one. `gpt-image-2`'s minimum output far exceeds the icon
+  sizes, so generating large and downscaling is required regardless.
 
 The final image is a **transparent PNG** written to `gen_images/<id>.png`, and the record
 is saved. Failures (generation or keying) are **logged to disk** (with the item and the

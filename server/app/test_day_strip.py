@@ -5,7 +5,12 @@ from app.day_strip import build_day_strip
 
 
 def _event(
-    title: str, day: date, *, interesting: int = 100, is_chore: bool = False
+    title: str,
+    day: date,
+    *,
+    interesting: int = 100,
+    is_chore: bool = False,
+    icon_description: str | None = None,
 ) -> CalendarEvent:
     """A minimal event for day-strip selection tests (only ranking fields matter)."""
     noon = datetime(day.year, day.month, day.day, 12)
@@ -17,8 +22,22 @@ def _event(
         is_chore=is_chore,
         local_day=day,
         time_of_day=TimeOfDay.DAY,
-        overrides=EventOverrides(interesting=interesting),
+        overrides=EventOverrides(
+            interesting=interesting, icon_description=icon_description
+        ),
     )
+
+
+class _RecordingResolver:
+    """Icon-resolver stub that records the item descriptions it is asked for."""
+
+    def __init__(self, url: str | None = "http://icons/1") -> None:
+        self.url = url
+        self.items: list[str] = []
+
+    def __call__(self, item_description: str) -> str | None:
+        self.items.append(item_description)
+        return self.url
 
 
 def test_build_day_strip_marks_exactly_one_today() -> None:
@@ -145,3 +164,56 @@ def test_build_day_strip_ignores_chore_only_and_out_of_week_days() -> None:
     strip = build_day_strip(date(2026, 6, 3), events)
 
     assert all(cell.event_title is None for cell in strip.week)
+
+
+def test_build_day_strip_default_resolver_yields_no_icons() -> None:
+    events = [_event("Soccer", date(2026, 6, 2))]
+    strip = build_day_strip(date(2026, 6, 3), events)
+
+    assert strip.week[1].event_title == "Soccer"
+    assert all(cell.icon_url is None for cell in strip.week)
+
+
+def test_build_day_strip_resolves_icon_for_each_days_top_event() -> None:
+    resolver = _RecordingResolver()
+    events = [
+        _event("Dentist", date(2026, 6, 2), interesting=50),
+        _event("Soccer", date(2026, 6, 2), interesting=300),  # wins Tuesday
+        _event("Library", date(2026, 6, 4)),
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events, resolver)
+
+    # Only the winning event per non-empty day reaches the resolver.
+    assert sorted(resolver.items) == ["Library", "Soccer"]
+    assert strip.week[1].icon_url == "http://icons/1"
+    assert strip.week[0].icon_url is None  # empty Monday
+
+
+def test_build_day_strip_prefers_icon_description_over_title() -> None:
+    # §6.4/§7.1: the image is keyed by icon_description when the event sets one.
+    resolver = _RecordingResolver()
+    events = [
+        _event("S's game", date(2026, 6, 2), icon_description="kids soccer match")
+    ]
+    build_day_strip(date(2026, 6, 3), events, resolver)
+
+    assert resolver.items == ["kids soccer match"]
+
+
+def test_build_day_strip_never_resolves_chores() -> None:
+    resolver = _RecordingResolver()
+    events = [_event("Make bed", date(2026, 6, 2), interesting=999, is_chore=True)]
+    build_day_strip(date(2026, 6, 3), events, resolver)
+
+    assert resolver.items == []
+
+
+def test_build_day_strip_failed_resolution_keeps_title_for_fallback() -> None:
+    # §7.3: a failed generation leaves icon_url None; the template then renders
+    # the fallback chip from event_title.
+    resolver = _RecordingResolver(url=None)
+    events = [_event("Soccer", date(2026, 6, 2))]
+    strip = build_day_strip(date(2026, 6, 3), events, resolver)
+
+    assert strip.week[1].icon_url is None
+    assert strip.week[1].event_title == "Soccer"

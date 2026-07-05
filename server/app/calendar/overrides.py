@@ -1,4 +1,4 @@
-"""Per-event structured overrides parsed from the ICS description (spec §6.3–§6.4).
+"""Per-event structured overrides parsed from the ICS description.
 
 The standard event fields (start/end, title, all-day) are modeled natively in the
 ICS; everything else lives in the event ``DESCRIPTION`` as TOML and is parsed here
