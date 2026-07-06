@@ -66,8 +66,9 @@ def test_generates_once_then_serves_from_disk(tmp_path: Path) -> None:
     assert len(generator.prompts) == 1  # warm path makes zero API calls (§7.1)
     png = image_path(tmp_path, first).read_bytes()
     image = Image.open(io.BytesIO(png))
-    # The 720×400 subject is width-constrained in the 100×60 box: 100×56.
-    assert image.mode == "RGBA" and image.size == (100, 56)
+    # The stored PNG is the native-resolution crop of the 720×400 subject —
+    # larger than the record's logical 100×60 box, which is display-only.
+    assert image.mode == "RGBA" and image.size == (720, 400)
 
 
 def test_generation_uses_requested_size_and_model(tmp_path: Path) -> None:

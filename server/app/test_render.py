@@ -188,7 +188,9 @@ def test_render_serves_generated_icon_bytes(tmp_path: Path) -> None:
     assert response.mimetype == "image/png"
     image = Image.open(io.BytesIO(response.data))
     assert image.mode == "RGBA"
-    assert image.width <= 100 and image.height <= 60
+    # Native-resolution crop of the fake generation's 720×400 subject — the
+    # record's logical 60×60 box no longer bounds the stored PNG.
+    assert (image.width, image.height) == (720, 400)
 
 
 def test_render_falls_back_to_chip_on_generation_failure(tmp_path: Path) -> None:

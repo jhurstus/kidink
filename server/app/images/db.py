@@ -46,7 +46,11 @@ CREATE TABLE IF NOT EXISTS image_prompt_attachments (
 
 @dataclass(frozen=True)
 class ImageSpec:
-    """The logical key of an image record (spec §7.1)."""
+    """The logical key of an image record (spec §7.1).
+
+    ``width``/``height`` are the *logical display size* in px (what CSS sizes
+    the image to); the stored PNG keeps its native generation resolution.
+    """
 
     module: str
     item_description: str

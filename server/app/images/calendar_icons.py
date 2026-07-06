@@ -18,9 +18,10 @@ from app.images.store import ensure_image
 
 CALENDAR_ICON_MODULE = "Calendar"
 
-# Display bounding box (px). A generated icon is cropped to its visible pixels
-# and aspect-fitted within this box — the stored PNG is at most this large.
-CALENDAR_ICON_W = 100
+# Logical display box (px): drives the generation size (16×, §7.2) and the CSS
+# max-width/max-height that aspect-fit the icon. The stored PNG keeps its
+# native generation resolution.
+CALENDAR_ICON_W = 60
 CALENDAR_ICON_H = 60
 
 type IconResolver = Callable[[str], str | None]
@@ -42,7 +43,7 @@ _PROMPT_TEMPLATE = """\
 Create an icon that will represent the concept of “{item_description}” on a children’s \
 calendar.  The icon should be in the style of comic book, with black outlines and \
 colored fills, emulating a hand-drawn comic.  The icon should be fun and engaging for \
-a 7 year old kid.  It will be shown at fairly small resolution (100px wide by 60px \
+a 7 year old kid.  It will be shown at fairly small resolution (60px wide by 60px \
 tall), so keep it simple: very simple shapes, very simple colors, and no fine details.
 
 There should be no text in the image.

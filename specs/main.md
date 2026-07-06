@@ -494,7 +494,9 @@ item_description, width, height, variant)`:
   line, and so on. We key on this string directly. Two logical items that yield the same
   `item_description` **share one image**; that collision is the reuse mechanism and is
   fine for our small, hand-curated input space.
-- **`width`, `height`** — the stored display size in pixels.
+- **`width`, `height`** — the **logical display size** in pixels: the CSS box the
+  image is shown in (and the basis of the generation size, §7.2). The stored PNG's
+  own resolution is independent — it keeps its native generation resolution.
 - **`variant`** — `NULL` by default. A non-null tag distinguishes a parallel version of
   the same logical image; its only current use is the bugbug host variant (§16), letting
   that variant coexist with its base.
@@ -532,13 +534,15 @@ Missing images are generated via the OpenAI image API, **inline** during `/rende
   *edge-connected* background — rather than every key-colored pixel — keeps a same-colored
   region *inside* the subject opaque. The board's bold, hard-edged, flat art (§5.2) keys
   cleanly; soft/wispy edges would not.
-- **Size:** generated at a supported large size matching the record's aspect ratio.
-  Keying runs at that full resolution; the result is then **cropped to its visible
-  pixels** (fully transparent borders are snapped away) and **downscaled preserving
-  aspect ratio** to fit within the record's `width`×`height` — a *maximum* bounding
-  box, with the more constraining dimension matched exactly — so the hard alpha edge
-  anti-aliases into a smooth one. `gpt-image-2`'s minimum output far exceeds the icon
-  sizes, so generating large and downscaling is required regardless.
+- **Size:** generated at a supported large size matching the record's aspect ratio
+  (16× its `width`×`height`). Keying runs at that full resolution; the result is then
+  **cropped to its visible pixels** (fully transparent borders are snapped away) and
+  **stored at that native resolution** — no server-side downscale. The record's
+  `width`×`height` is a *logical display size* only: CSS (`max-width`/`max-height`)
+  aspect-fits the image into that box at render time, so the browser always
+  downscales — never upscales — at any device scale factor (the e-ink path
+  screenshots at 2× device scale, §19/eink-demo, and samples the icon at twice its
+  CSS size), and that downscale anti-aliases the hard keyed alpha edge.
 
 The final image is a **transparent PNG** written to `gen_images/<id>.png`, and the record
 is saved. Failures (generation or keying) are **logged to disk** (with the item and the

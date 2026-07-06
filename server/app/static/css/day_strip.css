@@ -51,11 +51,12 @@
 }
 
 /* The day's AI event icon (spec §9.2): a transparent PNG drawn directly on the
-   halftone cell, no white plate. Already cropped + aspect-fitted server-side to
-   at most 100×60; the max constraints are a safety net only. */
+   halftone cell, no white plate. Stored at native generation resolution, so
+   these max constraints ARE the display sizing: both max-* on an
+   intrinsic-ratio <img> aspect-fit it into the logical 60×60 box. */
 .day-icon {
   display: block;
-  max-width: 100px;
+  max-width: 60px;
   max-height: 60px;
 }
 

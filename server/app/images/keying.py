@@ -1,13 +1,14 @@
-"""Background-keying and sizing for generated images (spec §7.2).
+"""Background-keying for generated images (spec §7.2).
 
 ``gpt-image-2`` has no transparent-background mode, so images are generated on a
 flat pure-green (#00FF00) key background and the alpha is derived here: starting
 from the image edges, background-connected pixels near the key color are flood-
 filled to transparent (so key-colored regions *inside* the subject stay opaque),
-the green spill is removed at the subject's rim, the result is cropped to its
-visible pixels, and finally downscaled — aspect ratio preserved — to fit within
-the record's width×height bounding box. Generating large and downscaling turns
-the hard keying edge into a smooth anti-aliased one.
+the green spill is removed at the subject's rim, and the result is cropped to
+its visible pixels. The PNG is stored at that native generation resolution —
+the record's width×height is a *display* size only, applied by CSS — so the
+browser always downscales (never upscales) at any device scale factor, and that
+downscale anti-aliases the hard keying edge at render time.
 """
 
 import io
@@ -83,19 +84,18 @@ def _despill_rim(rgb: np.ndarray, background: np.ndarray) -> np.ndarray:
     return out
 
 
-def key_crop_and_fit(
+def key_and_crop(
     png_bytes: bytes,
     *,
-    max_size: tuple[int, int],
     key_rgb: tuple[int, int, int] = (0, 255, 0),
     tolerance: float = _DEFAULT_TOLERANCE,
 ) -> bytes:
-    """Key out the green background, crop to content, fit within ``max_size``.
+    """Key out the green background and crop to content, at native resolution.
 
-    Returns transparent-PNG bytes no larger than ``max_size`` (the record's
-    width×height, a *maximum* bounding box): after keying, fully transparent
-    borders are cropped away and the result is scaled — aspect ratio preserved —
-    so the more constraining dimension matches the box exactly.
+    Returns transparent-PNG bytes at the generation's own resolution: after
+    keying, fully transparent borders are cropped away and nothing is resized —
+    display scaling is the browser's job (CSS sizes to the record's logical
+    width×height).
 
     Raises :class:`KeyingError` if keying leaves no visible pixels.
     """
@@ -114,16 +114,6 @@ def key_crop_and_fit(
 
     rgba = np.dstack([rgb, alpha])[top:bottom, left:right]
     image = Image.fromarray(rgba, "RGBA")
-
-    # Aspect-preserving fit: the more constraining dimension lands exactly on the
-    # box edge. Downscale through premultiplied alpha ("RGBa") so LANCZOS never
-    # mixes the RGB of transparent pixels into visible edges (green/dark fringe).
-    max_w, max_h = max_size
-    scale = min(max_w / image.width, max_h / image.height)
-    target = (max(1, round(image.width * scale)), max(1, round(image.height * scale)))
-    image = (
-        image.convert("RGBa").resize(target, Image.Resampling.LANCZOS).convert("RGBA")
-    )
 
     out = io.BytesIO()
     image.save(out, format="PNG")

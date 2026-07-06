@@ -24,8 +24,11 @@
       <td>{{ record.spec.item_description }}</td>
       <td>{{ record.spec.width }}×{{ record.spec.height }}</td>
       <td>{{ record.spec.variant or "—" }}</td>
+      {#- PNGs are stored at native generation resolution; preview at the
+          record's logical display size. -#}
       <td><img src="{{ url_for('images.generated_image', image_id=record.id) }}"
-               alt="{{ record.spec.item_description }}"></td>
+               alt="{{ record.spec.item_description }}"
+               style="max-width: {{ record.spec.width }}px; max-height: {{ record.spec.height }}px"></td>
     </tr>
     {% endfor %}
   </table>

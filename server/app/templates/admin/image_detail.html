@@ -33,15 +33,18 @@ prompt-attachment support. -#}
     <figure>
       <figcaption>current</figcaption>
       {% if has_image %}
+      {#- Stored at native generation resolution; preview at logical size. -#}
       <img src="{{ url_for('images.generated_image', image_id=record.id) }}"
-           alt="current image">
+           alt="current image"
+           style="max-width: {{ record.spec.width }}px; max-height: {{ record.spec.height }}px">
       {% else %}<p>(no image yet — generation failed or pending)</p>{% endif %}
     </figure>
     {% if has_candidate %}
     <figure>
       <figcaption>candidate</figcaption>
       <img src="{{ url_for('images_admin.admin_candidate_image', image_id=record.id) }}"
-           alt="candidate image">
+           alt="candidate image"
+           style="max-width: {{ record.spec.width }}px; max-height: {{ record.spec.height }}px">
     </figure>
     {% endif %}
   </div>

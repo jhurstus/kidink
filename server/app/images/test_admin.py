@@ -63,6 +63,9 @@ def test_detail_view_shows_prompt_and_image(tmp_path: Path) -> None:
     text = _app(tmp_path).test_client().get(f"/admin/images?img={image_id}").text
     assert "the prompt text" in text
     assert f"/images/generated/{image_id}" in text
+    # Previews are constrained to the record's logical display size — the
+    # stored PNG itself is native generation resolution.
+    assert "max-width: 100px; max-height: 60px" in text
 
 
 def test_detail_view_unknown_id_404s(tmp_path: Path) -> None:

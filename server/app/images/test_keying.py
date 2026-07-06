@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from app.images.keying import KeyingError, key_crop_and_fit
+from app.images.keying import KeyingError, key_and_crop
 
 KEY = (0, 255, 0)
 RED = (220, 40, 40)
@@ -36,7 +36,7 @@ def test_background_keyed_but_interior_key_green_kept() -> None:
     pixels = _canvas()
     pixels[40:440, 40:760] = RED
     pixels[200:240, 380:420] = KEY  # interior hole
-    result = _decode(key_crop_and_fit(_png(pixels), max_size=(100, 60)))
+    result = _decode(key_and_crop(_png(pixels)))
 
     alpha = result[..., 3]
     # The crop snapped to the red rectangle, so its corners are opaque subject —
@@ -48,7 +48,7 @@ def test_background_keyed_but_interior_key_green_kept() -> None:
 def test_legitimate_palette_green_not_keyed() -> None:
     pixels = _canvas()
     pixels[40:440, 40:760] = PALETTE_GREEN
-    result = _decode(key_crop_and_fit(_png(pixels), max_size=(100, 60)))
+    result = _decode(key_and_crop(_png(pixels)))
     assert result[..., 3].max() == 255  # the subject survived
 
 
@@ -58,7 +58,7 @@ def test_near_key_wobble_is_keyed() -> None:
     pixels = _canvas()
     pixels[0:480, 0:20] = (30, 235, 25)  # wobbly green strip on the left edge
     pixels[40:440, 40:760] = RED
-    result = _decode(key_crop_and_fit(_png(pixels), max_size=(100, 60)))
+    result = _decode(key_and_crop(_png(pixels)))
     # Crop snapped to the red subject: wobbly strip and background both gone.
     assert (
         result[..., 3][:, 0].max() > 0
@@ -72,7 +72,7 @@ def test_despill_clamps_green_at_rim() -> None:
     pixels[40:440, 40:760] = RED
     # Green-spilled fringe just inside the subject edge.
     pixels[40:440, 40:44] = (180, 250, 60)
-    result = _decode(key_crop_and_fit(_png(pixels), max_size=(100, 60)))
+    result = _decode(key_and_crop(_png(pixels)))
     rgb = result[..., :3].astype(int)
     opaque = result[..., 3] == 255
     left_edge = opaque[:, :2]
@@ -80,29 +80,33 @@ def test_despill_clamps_green_at_rim() -> None:
     assert np.all(g[left_edge] <= np.maximum(r[left_edge], b[left_edge]) + 1)
 
 
-def test_crop_snaps_to_visible_pixels_and_fits_box() -> None:
+def test_crop_snaps_to_visible_pixels() -> None:
     # Small off-center subject: output must snap to it (no transparent borders)
-    # and scale aspect-preserved so the constraining dimension hits the box.
+    # and keep its native resolution — no resize.
     pixels = _canvas(1600, 960)
-    pixels[100:340, 200:1000] = RED  # 800×240 subject → aspect 10:3
-    result = _decode(key_crop_and_fit(_png(pixels), max_size=(100, 60)))
+    pixels[100:340, 200:1000] = RED  # 800×240 subject
+    result = _decode(key_and_crop(_png(pixels)))
 
     h, w = result.shape[:2]
-    assert (w, h) == (100, 30)  # width-constrained; aspect preserved
+    assert (w, h) == (800, 240)  # exact crop box, native resolution
     alpha = result[..., 3]
     # No fully-transparent border row/column — the crop snapped to content.
     assert alpha[0, :].any() and alpha[-1, :].any()
     assert alpha[:, 0].any() and alpha[:, -1].any()
 
 
-def test_height_constrained_subject() -> None:
+def test_native_resolution_and_binary_alpha() -> None:
+    # A tall subject also stays at its crop-box size, and the alpha channel is
+    # strictly binary — no resize, no feathering; the browser's downscale is
+    # what anti-aliases the edge at render time (§7.2).
     pixels = _canvas(1600, 960)
-    pixels[80:880, 400:800] = RED  # 400×800 subject → taller than the box aspect
-    result = _decode(key_crop_and_fit(_png(pixels), max_size=(100, 60)))
+    pixels[80:880, 400:800] = RED  # 400×800 subject
+    result = _decode(key_and_crop(_png(pixels)))
     h, w = result.shape[:2]
-    assert (w, h) == (30, 60)
+    assert (w, h) == (400, 800)
+    assert set(np.unique(result[..., 3])) <= {0, 255}
 
 
 def test_all_key_image_raises() -> None:
     with pytest.raises(KeyingError):
-        key_crop_and_fit(_png(_canvas()), max_size=(100, 60))
+        key_and_crop(_png(_canvas()))

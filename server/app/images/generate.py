@@ -20,9 +20,10 @@ DEFAULT_IMAGE_MODEL = "gpt-image-2"
 # divisible by 16, within these bounds.
 _MAX_GEN_W, _MAX_GEN_H = 2560, 1440
 
-# Records store small display sizes (e.g. 100×60); generation happens this many
-# times larger so keying runs at full resolution and the downscale anti-aliases
-# the hard alpha edge (§7.2).
+# Records store small logical display sizes (e.g. 60×60); generation happens
+# this many times larger. Keying runs at that full resolution and the PNG is
+# stored at it too, so the browser always downscales — never upscales — when
+# CSS sizes it to the logical box, at any device scale factor (§7.2).
 _GEN_SCALE = 16
 
 type GenerateImageBytes = Callable[..., bytes]
@@ -38,7 +39,7 @@ class ImageGenerationError(Exception):
 
 
 def generation_size(width: int, height: int) -> str:
-    """The API size string for a record's display size: ``_GEN_SCALE``× larger.
+    """The API size string for a record's logical display size: ``_GEN_SCALE``× larger.
 
     E.g. 100×60 → ``"1600x960"`` — same aspect ratio exactly, both dimensions
     divisible by 16. Raises ``ValueError`` if the scaled size exceeds the API
@@ -56,7 +57,7 @@ def generate_image_bytes(
     """Generate one image via the OpenAI API and return the raw PNG bytes.
 
     The result still has its solid key-color background; callers run it through
-    :func:`app.images.keying.key_crop_and_fit`. Raises
+    :func:`app.images.keying.key_and_crop`. Raises
     :class:`ImageGenerationError` on any SDK/decode failure.
     """
     from openai import OpenAI  # deferred: the SDK is never needed under test

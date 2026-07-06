@@ -22,7 +22,7 @@ from app.images.generate import (
     ImageGenerationError,
     generation_size,
 )
-from app.images.keying import KeyingError, key_crop_and_fit
+from app.images.keying import KeyingError, key_and_crop
 
 GEN_IMAGES_DIR = "gen_images"
 _FAILURE_LOG = "gen_failures.log"
@@ -113,7 +113,7 @@ def _generate_to(
         size=generation_size(spec.width, spec.height),
         model=model,
     )
-    final = key_crop_and_fit(raw, max_size=(spec.width, spec.height))
+    final = key_and_crop(raw)
 
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp = destination.with_suffix(".tmp")
