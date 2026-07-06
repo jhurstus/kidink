@@ -106,16 +106,14 @@ def test_render_today_shows_burst_image() -> None:
     assert "is-today" not in text
 
 
-def test_render_emits_exact_outer_panel_params() -> None:
+def test_render_has_no_outer_strip_panel() -> None:
+    # The strip's groups sit directly on .day-strip — the old full-width enclosing
+    # comic panel (its tan fill and double halftone) must not come back.
     text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
 
-    assert "--panel-w:1540px" in text
-    assert "--panel-h:190px" in text
-    assert "--panel-bg:#e1dcca" in text
-    assert "#bbb4a2" in text  # outer halftone color
-    assert "--origin-angle:330deg" in text  # the two outer halftone fields
-    assert "--origin-angle:150deg" in text
-    assert "--magnitude:21%" in text
+    assert "--panel-w:1540px" not in text
+    assert "#e1dcca" not in text  # outer panel fill
+    assert "#bbb4a2" not in text  # outer halftone color
 
 
 def test_render_has_strip_structure() -> None:

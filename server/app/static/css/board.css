@@ -4,21 +4,27 @@
 
 /* The fixed 1600x1200 comic page. */
 .board {
-  position: relative;
-  width: 1600px;
-  height: 1200px;
-  margin: 0;
-  background: #ffffff;
-  font-family: "NorB Pen", serif;
+   position: relative;
+   width: 1600px;
+   height: 1200px;
+   margin: 0;
+   background: #ffffff;
+   font-family: "NorB Pen", serif;
 }
 
 /* ---------------------------------------------------------------------------
-   Day-of-week strip slot (spec §9). 30px margin to the top/left/right of the
-   page. The slot is NOT clipped, so the strip's rotated date box can jut past
-   the outer panel's top-left corner.
+   Day-of-week strip slot (spec §9). 60px margin to the top of the page, 30px to
+   the left, 33px to the right (the 1537px strip ends at x=1567) — visually even
+   side margins once the frame's obscured edge pixels (spec §2) are subtracted.
+   The slot is NOT clipped, so the strip's rotated date box can jut past its
+   top-left corner.
    --------------------------------------------------------------------------- */
 .day-strip-slot {
-  position: absolute;
-  top: 30px;
-  left: 30px;
+   position: absolute;
+   top: 60px;
+   left: 30px;
+}
+
+body {
+   margin: 0;
 }

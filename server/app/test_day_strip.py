@@ -86,11 +86,11 @@ def test_build_day_strip_today_gets_burst_and_redistributes_widths() -> None:
     monday = strip.week[0]
     assert monday.is_today
     assert monday.burst == "monday_burst.png"
-    assert monday.width == 301
-    assert monday.burst_cx == 188  # centered over the leftmost cell
+    assert monday.width == 306
+    assert monday.burst_cx == 165  # centered over the leftmost cell
 
     # Every other cell (Tue–Sun) shrinks to one uniform smaller width, no burst.
-    assert [c.width for c in strip.week[1:]] == [172] * 6
+    assert [c.width for c in strip.week[1:]] == [182] * 6
     assert [c for c in strip.week if c.burst] == [monday]
 
 
@@ -101,8 +101,8 @@ def test_build_day_strip_weekend_burst_centers_in_weekend_group() -> None:
 
     saturday = strip.week[5]
     assert saturday.burst == "saturday_burst.png"
-    assert saturday.width == 301
-    assert saturday.burst_cx == 1168
+    assert saturday.width == 306
+    assert saturday.burst_cx == 1178
     assert [c for c in strip.week if c.burst] == [saturday]
 
 

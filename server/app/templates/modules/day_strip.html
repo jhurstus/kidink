@@ -7,9 +7,9 @@ the top-left corner. The current day is replaced by a wider starburst cell. Each
 day shows the AI icon of its top event (falling back to a title-text chip).
 
 Nesting is pure {% call %} transclusion: a group panel's children are its day
-cells, the outer panel's children are the two groups. Layout (flex rows, gaps,
-centering) lives in static/css/day_strip.css. The rotated date box is a sibling of
-the outer panel — not its child — so it escapes the panel's overflow:hidden clip.
+cells; the two groups sit directly on the strip (no enclosing panel). Layout
+(flex rows, gaps, centering) lives in static/css/day_strip.css. The rotated date
+box is a sibling of the groups, so it escapes the group panels' overflow:hidden clip.
 
 day_strip(strip):
 strip a DayStrip view model (see app/day_strip.py), with:
@@ -68,22 +68,12 @@ border={'color': '#000', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
 
 {% macro day_strip(strip) -%}
 <div class="day-strip">
-  {% call comic_panel(
-  width=1540, height=190, bg='#e1dcca',
-  halftones=[
-  {'color': '#bbb4a2', 'dot_size': 6, 'offset': 0, 'transparency': 0,
-  'max_fill': 0.6, 'origin_angle': '330deg', 'magnitude': '21%'},
-  {'color': '#bbb4a2', 'dot_size': 6, 'offset': 0, 'transparency': 0,
-  'max_fill': 0.6, 'origin_angle': '150deg', 'magnitude': '21%'}],
-  border={'color': '#000', 'radius': 0, 'mid_width': 4, 'corner_width': 2,
-  'roughness': 1, 'frequency': 3, 'seed': 173}) -%}
   <div class="strip-groups">
     {{ day_group(strip.week[:5], 173, '#d0dde3') }}{# cool weekdays #}
     {{ day_group(strip.week[5:], 174, '#f2e0cd') }}{# warm weekend #}
   </div>
-  {%- endcall %}
-  {#- The active day's burst, a sibling of the outer panel (like .date-box) so it
-  escapes every panel's overflow:hidden and can spill past its cell. Exactly one day
+  {#- The active day's burst, a sibling of the groups (like .date-box) so it
+  escapes the group panels' overflow:hidden and can spill past its cell. Exactly one day
   is "today", so this loop emits a single burst, centered on its cell's x
   (--burst-cx) with a per-day vertical offset from its .day-burst-<day> rule. The
   burst is a container: the starburst image (its day name baked in) sits behind, and

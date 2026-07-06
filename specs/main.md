@@ -41,6 +41,11 @@ reflects decisions made during design iteration. Sections marked *Deferred* or
   cadence; color e-ink cannot do fast partial updates.
 - **Bistability:** the panel retains its last image with no power, so "keeps showing
   the last image" is free, even through deep sleep.
+- **Frame overlay:** the physical frame sits on top of the e-ink screen and obscures
+  the outermost pixels on every side — measured (2026-07-06, via a full-screen
+  calibration checkerboard of 10px blocks) at about **3px left, 7px top, 4px right,
+  6px bottom**. Treat those edge bands as invisible: no content may rely on them,
+  and edge margins should be tuned to look even *after* subtracting them.
 - **Compute split:** a Raspberry Pi 5 (Raspbian) renders everything; the ESP32-S3 on
   the Inkplate is a dumb client that wakes on its RTC, fetches a pre-rendered file
   over local Wi-Fi, draws it, and sleeps.
