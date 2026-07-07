@@ -41,8 +41,8 @@ a rounded comic panel tinted with the day's color, holding the day name. -#}
 width=day.width, height=110, bg=day.bg,
 halftones=[{'color': day.dot, 'dot_size': 6, 'max_fill': day.max_fill,
 'origin_angle': day.origin_angle, 'magnitude': day.magnitude}],
-border={'color': '#000', 'radius': 15, 'mid_width': 3, 'corner_width': 2,
-'roughness': 1, 'frequency': 2, 'seed': day.seed}) -%}
+border={'color': '#000', 'radius': 15, 'mid_width': 2, 'corner_width': 2,
+'roughness': 0, 'frequency': 2, 'seed': day.seed}) -%}
 <div class="day-name">{{ day.name }}</div>
 {{- day_event(day) -}}
 {%- endcall %}
@@ -58,8 +58,8 @@ no halftone — only a flat fill + border — so the per-day cell tints read cle
 {% call comic_panel(
 width=(days | sum(attribute='width')) + (days|length - 1) * 12 + 24, height=130,
 bg=bg, halftones=[],
-border={'color': '#000', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
-'roughness': 1, 'frequency': 2, 'seed': seed}) -%}
+border={'color': '#000', 'radius': 15, 'mid_width': 3, 'corner_width': 3,
+'roughness': 0, 'frequency': 2, 'seed': seed}) -%}
 <div class="day-row">
   {%- for day in days %}{{ day_cell(day) }}{% endfor -%}
 </div>
@@ -76,18 +76,51 @@ border={'color': '#000', 'radius': 15, 'mid_width': 4, 'corner_width': 3,
   escapes the group panels' overflow:hidden and can spill past its cell. Exactly one day
   is "today", so this loop emits a single burst, centered on its cell's x
   (--burst-cx) with a per-day vertical offset from its .day-burst-<day> rule. The
-  burst is a container: the starburst image (its day name baked in) sits behind, and
-  the day's event icon (or fallback chip) overlays the open body below the name — the
-  today cell's equivalent of the day_event content on every other cell. -#}
+    burst is a container: the starburst image (its day name baked in) sits behind, and
+    the day's event icon (or fallback chip) overlays the open body below the name — the
+    today cell's equivalent of the day_event content on every other cell. -#}
     {%- for day in strip.week if day.burst %}
     <div class="day-burst day-burst-{{ day.name | lower }}" style="--burst-cx: {{ day.burst_cx }}px">
-      <img class="day-burst-img"
-        src="{{ url_for('static', filename='img/day_strip/' ~ day.burst) }}" alt="{{ day.name }}" />
+      <img class="day-burst-img" src="{{ url_for('static', filename='img/day_strip/' ~ day.burst) }}"
+        alt="{{ day.name }}" />
       <div class="day-burst-content">
         {{- day_event(day) -}}
       </div>
     </div>
     {%- endfor %}
-    <div class="date-box">{{ strip.date_label }}</div>
+    {#- Corner date box: a paper slip sitting just above the strip. The face is
+    clipped at its bottom-right corner and .date-fold draws the turned-back
+    flap over the cut; both decorative SVGs are aria-hidden. On Mondays the
+    burst spills over the strip's top-LEFT corner and would bury the box, so it
+    flips to the top-right corner instead (week[0] is Monday). -#}
+    <div class="date-box{% if strip.week[0].burst %} date-box-right{% endif %}">
+      <div class="date-box-face">
+        {#- preserveAspectRatio=none: the icon is sized taller than wide in CSS
+        and should stretch to fill, not letterbox. -#}
+        <svg class="date-icon" viewBox="0 0 32 32" preserveAspectRatio="none" aria-hidden="true">
+          <rect x="2" y="5" width="28" height="25" rx="3" fill="#fff" stroke="#000" stroke-width="2.5" />
+          <rect x="4.5" y="7.5" width="23" height="6.5" rx="1.5" fill="#d02f2f" />
+          <rect x="8" y="2" width="3" height="8" rx="1.5" fill="#000" />
+          <rect x="21" y="2" width="3" height="8" rx="1.5" fill="#000" />
+          <g fill="#000">
+            <rect x="7.5" y="17.5" width="3" height="3" />
+            <rect x="14.5" y="17.5" width="3" height="3" />
+            <rect x="21.5" y="17.5" width="3" height="3" />
+            <rect x="7.5" y="23.5" width="3" height="3" />
+            <rect x="14.5" y="23.5" width="3" height="3" />
+          </g>
+        </svg>
+        {{ strip.date_label }}
+      </div>
+      {#- Filled paths, not a stroked outline: a centered stroke bulges past the
+      triangle's vertices (which sit exactly on the box outline), poking outside
+      the rectangle. The black triangle IS the silhouette; the white inner
+      triangle (each edge inset 3px, matching the face border) leaves a uniform
+      3px "border" that registers flush with the box's bottom/right edges. -#}
+      <svg class="date-fold" viewBox="0 0 18 18" aria-hidden="true">
+        <path d="M0 0 H18 L0 18 Z" fill="#000" />
+        <path d="M3 3 H10.757 L3 10.757 Z" fill="#fff" />
+      </svg>
+    </div>
 </div>
 {%- endmacro %}

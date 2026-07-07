@@ -222,33 +222,75 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Corner date box — superimposed over the strip's top-left corner and rotated
-   slightly. A strip-level sibling of the groups, so no panel's overflow:hidden
-   can clip it.
+   Corner date box — a paper slip (calendar icon + date, folded bottom-right
+   corner) sitting above the strip's top-left corner, left edges aligned. A
+   strip-level sibling of the groups, so no panel's overflow:hidden can clip
+   it. Axis-aligned on purpose: any rotation turns the straight border into a
+   staircase under the e-ink quantizer's edge snapping.
    --------------------------------------------------------------------------- */
 .date-box {
   position: absolute;
-  /* Straddle the strip's top-left corner, sitting up in the page's top margin so
-     it just barely dips into the Monday cell below. The gentle -5deg rotation
-     lifts the box's right end ~16-23px (label-width dependent), which stays
-     within the 60px page margin even for the widest labels ("September 25, 2026"). */
-  top: -2px;
-  left: -12px;
+  /* The group-panel frames start 30px into .day-strip ((190px strip - 130px
+     panel) / 2), so the 54px-outer box (48px + 2*3px border) ends 11px above
+     them: 30 - 11 - 54 = -35. */
+  top: -35px;
+  left: 0;
   z-index: 3;
-  height: 48px;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 16px;
-  transform-origin: top left;
-  transform: rotate(-5deg);
-
-  background: #f4efe0;
-  border: 3px solid #000;
-  border-radius: 6px;
+  /* Flex, not inline flow: the wrapper must shrink-wrap the face exactly. On
+     a line box the inline-level face would leave descender space below it,
+     pushing the bottom-anchored .date-fold outside the face's border. */
+  display: flex;
 
   font-size: 27px;
   font-weight: 700;
   color: #000;
   text-transform: uppercase;
   white-space: nowrap;
+}
+
+/* Monday flip: the Monday burst spills over the strip's top-left corner and
+   would bury the box there, so it docks to the strip's right edge instead
+   (set by the template when Monday is the active day). */
+.date-box-right {
+  left: auto;
+  right: 0;
+}
+
+/* The visible slip. The clip cuts the bottom-right corner at 45deg (18px legs —
+   keep in sync with .date-fold's size); the CSS border vanishes along the cut,
+   so the flap's black hypotenuse band redraws the crease line there. */
+.date-box-face {
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  background: #f4efe0;
+  border: 3px solid #000;
+  border-radius: 6px 6px 0 6px;
+  clip-path: polygon(0 0,
+      100% 0,
+      100% calc(100% - 18px),
+      calc(100% - 18px) 100%,
+      0 100%);
+}
+
+.date-icon {
+  display: block;
+  width: 30px;
+  height: 35px;
+  position: relative;
+  top: -1px;
+}
+
+/* The turned-back flap, drawn with filled paths (see the markup comment) so
+   its silhouette exactly fills the 18px corner square the face's clip-path
+   cuts away — flush with the box outline, nothing protrudes. */
+.date-fold {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: block;
+  width: 18px;
+  height: 18px;
 }
