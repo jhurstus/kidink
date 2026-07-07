@@ -1,10 +1,11 @@
 """View model for the day-of-week strip (spec §9).
 
 Builds the seven Mon–Sun day cells for a target date: each cell's name, its
-fixed per-day comic colors (spec §5.3, cool Mon–Thu / warm Fri–Sun), whether
-it is "today", and the AI icon (plus title) of its most-interesting (non-chore)
-event. The per-kid one/two-icon selection of §9.2 is deferred — each cell shows
-a single icon for its top event, with the title as fallback text.
+fixed per-day border color (see DAY_PALETTE — hues picked for separability on
+the six-ink panel, spec §5.5), whether it is "today", and the AI icon (plus
+title) of its most-interesting (non-chore) event. The per-kid one/two-icon
+selection of §9.2 is deferred — each cell shows a single icon for its top
+event, with the title as fallback text.
 """
 
 from collections.abc import Callable, Iterable
@@ -24,23 +25,22 @@ def _no_icons(item_description: str) -> str | None:
     return None
 
 
-# Per-day comic colors, Monday..Sunday (spec §5.3 day-cell assignments). Each is a
-# LIGHT panel background paired with a DARKER halftone dot of a similar hue. Exact
-# hex values are starting points to tune on the physical panel.
+# Per-day cell color, Monday..Sunday: the day's dominant saturated color, drawn
+# as each white cell's 3px border (see the day_cell macro). Full-cell tints and
+# gradients were abandoned after on-panel testing (2026-07): smooth saturated
+# fills posterize under the six-ink quantizer (spec §5.5), while a thin line of
+# a saturated color on white renders crisply. Purple and orange remain the
+# panel's weakest hues, but as a border accent (not a large fill) they read
+# acceptably.
 DAY_PALETTE: list[dict[str, str]] = [
-    {"name": "MONDAY", "bg": "#d7f0dc", "dot": "#4ebc60"},  # green (~130°)
-    {"name": "TUESDAY", "bg": "#d7eaf4", "dot": "#4e97bc"},  # sky blue (~200°)
-    {"name": "WEDNESDAY", "bg": "#d7daf4", "dot": "#4e57bc"},  # indigo (~235°)
-    {"name": "THURSDAY", "bg": "#e6d7f4", "dot": "#854ebc"},  # violet (~270°)
-    {"name": "FRIDAY", "bg": "#f7dbe6", "dot": "#d46a93"},  # pink (~340°)
-    {"name": "SATURDAY", "bg": "#fbe6cf", "dot": "#e08a3c"},  # orange (~28°)
-    {"name": "SUNDAY", "bg": "#faf3d1", "dot": "#e2c536"},  # yellow (~50°)
+    {"name": "MONDAY", "color": "#3dbb4e"},  # green
+    {"name": "TUESDAY", "color": "#4aa8e8"},  # blue
+    {"name": "WEDNESDAY", "color": "#8e8e8e"},  # gray
+    {"name": "THURSDAY", "color": "#8f6ade"},  # purple
+    {"name": "FRIDAY", "color": "#e02b20"},  # red
+    {"name": "SATURDAY", "color": "#ee7a14"},  # orange
+    {"name": "SUNDAY", "color": "#f2c91d"},  # yellow
 ]
-
-# Day-cell halftone shape (shared by every cell); see the comic_panel macro.
-_CELL_MAX_FILL = 0.58
-_CELL_ORIGIN_ANGLE = "180deg"
-_CELL_MAGNITUDE = "35%"
 
 # Per-weekday burst image filename (spec §9.1), keyed by ``date.weekday()`` (Mon=0).
 # Every day has its own starburst; the today cell is replaced by it.
@@ -78,12 +78,7 @@ class DayCell:
 
     name: str
     iso: str
-    bg: str
-    dot: str
-    max_fill: float
-    origin_angle: str
-    magnitude: str
-    seed: int
+    color: str
     is_today: bool
     width: int
     burst: str | None
@@ -198,12 +193,7 @@ def _build_week_cells(
             DayCell(
                 name=palette["name"],
                 iso=day.isoformat(),
-                bg=palette["bg"],
-                dot=palette["dot"],
-                max_fill=_CELL_MAX_FILL,
-                origin_angle=_CELL_ORIGIN_ANGLE,
-                magnitude=_CELL_MAGNITUDE,
-                seed=173 + i,
+                color=palette["color"],
                 is_today=(day == target),
                 width=widths[i],
                 burst=BURST_BY_WEEKDAY[i] if i == active_idx else None,

@@ -12,17 +12,6 @@
   font-style: italic;
 }
 
-/* Fill + center each panel's content layer so the cells (and their day names)
-   sit centered. Scoped to .day-strip so it can never affect other comic_panel
-   users (e.g. the /panel playground). */
-.day-strip .comic-content {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 /* Weekday group + weekend group, with a visible gap between them. */
 .strip-groups {
   display: flex;
@@ -33,19 +22,44 @@
   height: 100%;
 }
 
-/* The row of day cells inside a group panel. */
+/* A group box: a plain tinted rounded box (background set inline per group by
+   the day_group macro) with the day cells' border vocabulary. */
+.day-group {
+  box-sizing: border-box;
+  height: 130px;
+  border: 2px solid #000;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The row of day cells inside a group box. 10px side padding, not 12: the
+   group's outer width budgets 12px of edge-to-cell inset per side (see the
+   day_group macro and app/day_strip.py's _ROW_PAD), and the box's own 2px
+   border consumes the first 2 — so cells land exactly where the burst-centering
+   math expects. */
 .day-row {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
   height: 100%;
-  padding: 0 12px;
+  padding: 0 10px;
 }
 
-/* Inside a day cell, stack the day name at the TOP with its event icon (or
-   fallback chip) beneath (overriding the strip-wide row/centering above). */
-.day-strip .day-row .comic-content {
+/* One day box: a plain white rounded box, thin black border (the .date-box
+   vocabulary, 1px thinner). The day name stacks at the TOP with the event
+   icon (or fallback chip) beneath. */
+.day-cell {
+  box-sizing: border-box;
+  /* 114 rather than 110: content stacks from the top, so the extra 4px land
+     below the icon image. */
+  height: 114px;
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 6px;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
@@ -105,8 +119,9 @@
    --------------------------------------------------------------------------- */
 .day-burst-slot {
   /* Width is set inline (the cell's reserved width); only a height is needed so the
-     flex item matches the cells. It is otherwise invisible — the burst covers it. */
-  height: 110px;
+     flex item matches the cells (.day-cell). It is otherwise invisible — the burst
+     covers it. */
+  height: 114px;
 }
 
 .day-burst {
@@ -135,9 +150,9 @@
 
 /* Today's content area: the SAME .day-event markup as every other cell, just
    positioned into the open starburst body below the baked-in day name. Only the
-   offset/alignment differs from a normal cell's .comic-content — not the structure.
-   top/bottom are height-relative, so the lower-body framing holds across the varied
-   image aspect ratios. */
+   offset/alignment differs from a normal cell's content stack — not the
+   structure. top/bottom are height-relative, so the lower-body framing holds
+   across the varied image aspect ratios. */
 .day-burst-content {
   position: absolute;
   left: 0;
@@ -224,7 +239,7 @@
 /* ---------------------------------------------------------------------------
    Corner date box — a paper slip (calendar icon + date, folded bottom-right
    corner) sitting above the strip's top-left corner, left edges aligned. A
-   strip-level sibling of the groups, so no panel's overflow:hidden can clip
+   strip-level sibling of the groups, so no group box can clip
    it. Axis-aligned on purpose: any rotation turns the straight border into a
    staircase under the e-ink quantizer's edge snapping.
    --------------------------------------------------------------------------- */

@@ -6,17 +6,16 @@ weekend in separate group panels, with the full date superimposed (rotated) over
 the top-left corner. The current day is replaced by a wider starburst cell. Each
 day shows the AI icon of its top event (falling back to a title-text chip).
 
-Nesting is pure {% call %} transclusion: a group panel's children are its day
-cells; the two groups sit directly on the strip (no enclosing panel). Layout
-(flex rows, gaps, centering) lives in static/css/day_strip.css. The rotated date
-box is a sibling of the groups, so it escapes the group panels' overflow:hidden clip.
+The two group boxes sit directly on the strip (no enclosing panel); everything
+is plain divs — no comic_panel anywhere in the strip. Layout (flex rows, gaps,
+centering) lives in static/css/day_strip.css. The date box and the burst are
+siblings of the groups, laid over the strip.
 
 day_strip(strip):
 strip a DayStrip view model (see app/day_strip.py), with:
 .week list[DayCell] (Mon..Sun)
 .date_label formatted corner date, e.g. "June 3, 2026"
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
 
 {#- A day's event content: the AI icon for its top event (spec §9.2), or — when
 the icon is missing/failed — the comic fallback chip with the title text (§7.3).
@@ -30,50 +29,45 @@ Shared by normal cells and the today burst. -#}
 {%- endmacro %}
 
 {#- One day box. The active (today) day renders just a width-reserving spacer: its
-burst image is emitted once at the strip level so it can escape the panel
-overflow:hidden and spill, and its name is baked into the image. Every other day is
-a rounded comic panel tinted with the day's color, holding the day name. -#}
+burst image is emitted once at the strip level so it can spill freely over the
+groups and the row below, and its name is baked into the image. Every other day is
+a plain white rounded box with a thin black border. (The day's DAY_PALETTE color
+is not used by the cell right now — colored borders and tinted/gradient fills
+both disappointed on the physical panel; where the color lands next is open.) -#}
 {% macro day_cell(day) -%}
 {%- if day.burst -%}
 <div class="day-burst-slot" style="width: {{ day.width }}px"></div>
 {%- else -%}
-{% call comic_panel(
-width=day.width, height=110, bg=day.bg,
-halftones=[{'color': day.dot, 'dot_size': 6, 'max_fill': day.max_fill,
-'origin_angle': day.origin_angle, 'magnitude': day.magnitude}],
-border={'color': '#000', 'radius': 15, 'mid_width': 2, 'corner_width': 2,
-'roughness': 0, 'frequency': 2, 'seed': day.seed}) -%}
-<div class="day-name">{{ day.name }}</div>
-{{- day_event(day) -}}
-{%- endcall %}
+<div class="day-cell" style="width: {{ day.width }}px">
+  <div class="day-name">{{ day.name }}</div>
+  {{- day_event(day) -}}
+</div>
 {%- endif -%}
 {%- endmacro %}
 
-{#- A group panel wrapping a row of day cells. Width is sized to exactly hold the
-cells + inter-cell gaps + row padding (12px gap, 12px side padding per day_strip.css).
-Cell widths vary (the active day is widened, its weekday siblings shrunk), so the
-width is summed from the cells rather than count*190. The group panel itself carries
-no halftone — only a flat fill + border — so the per-day cell tints read cleanly. -#}
-{% macro day_group(days, seed, bg) -%}
-{% call comic_panel(
-width=(days | sum(attribute='width')) + (days|length - 1) * 12 + 24, height=130,
-bg=bg, halftones=[],
-border={'color': '#000', 'radius': 15, 'mid_width': 3, 'corner_width': 3,
-'roughness': 0, 'frequency': 2, 'seed': seed}) -%}
-<div class="day-row">
-  {%- for day in days %}{{ day_cell(day) }}{% endfor -%}
+{#- A group box wrapping a row of day cells: a plain tinted rounded box with the
+same border vocabulary as the day cells. Its OUTER width is sized to exactly hold
+the cells + inter-cell gaps + 12px of edge-to-cell inset per side (the inset is
+the 2px border + the 10px .day-row padding — keep in sync with day_strip.css and
+the layout constants in app/day_strip.py). Cell widths vary (the active day is
+widened, its weekday siblings shrunk), so the width is summed from the cells
+rather than count*190. -#}
+{% macro day_group(days, bg) -%}
+<div class="day-group" style="width: {{ (days | sum(attribute='width')) + (days|length - 1) * 12 + 24 }}px; background: {{ bg }}">
+  <div class="day-row">
+    {%- for day in days %}{{ day_cell(day) }}{% endfor -%}
+  </div>
 </div>
-{%- endcall %}
 {%- endmacro %}
 
 {% macro day_strip(strip) -%}
 <div class="day-strip">
   <div class="strip-groups">
-    {{ day_group(strip.week[:5], 173, '#d0dde3') }}{# cool weekdays #}
-    {{ day_group(strip.week[5:], 174, '#f2e0cd') }}{# warm weekend #}
+    {{ day_group(strip.week[:5], '#d0dde3') }}{# cool weekdays #}
+    {{ day_group(strip.week[5:], '#f2e0cd') }}{# warm weekend #}
   </div>
-  {#- The active day's burst, a sibling of the groups (like .date-box) so it
-  escapes the group panels' overflow:hidden and can spill past its cell. Exactly one day
+  {#- The active day's burst, a sibling of the groups (like .date-box) laid
+  over the strip so it can spill past its cell. Exactly one day
   is "today", so this loop emits a single burst, centered on its cell's x
   (--burst-cx) with a per-day vertical offset from its .day-burst-<day> rule. The
     burst is a container: the starburst image (its day name baked in) sits behind, and

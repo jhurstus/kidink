@@ -64,14 +64,15 @@ def test_build_day_strip_week_is_mon_to_sun() -> None:
     ]
 
 
-def test_build_day_strip_assigns_spec_colors() -> None:
+def test_build_day_strip_assigns_palette_colors() -> None:
     strip = build_day_strip(date(2026, 6, 3))
 
-    # §5.3 cool Mon–Thu / warm Fri–Sun mapping.
-    assert (strip.week[0].bg, strip.week[0].dot) == ("#d7f0dc", "#4ebc60")  # Mon green
-    assert (strip.week[4].bg, strip.week[4].dot) == ("#f7dbe6", "#d46a93")  # Fri pink
-    assert (strip.week[5].bg, strip.week[5].dot) == ("#fbe6cf", "#e08a3c")  # Sat orange
-    assert (strip.week[6].bg, strip.week[6].dot) == ("#faf3d1", "#e2c536")  # Sun yellow
+    # Spot-check the panel-tuned DAY_PALETTE mapping (see day_strip.py): each
+    # day's border color lands on the right weekday.
+    assert strip.week[0].color == "#3dbb4e"  # Mon green
+    assert strip.week[3].color == "#8f6ade"  # Thu purple
+    assert strip.week[5].color == "#ee7a14"  # Sat orange
+    assert strip.week[6].color == "#f2c91d"  # Sun yellow
 
 
 def test_build_day_strip_date_label_strips_leading_zero() -> None:
