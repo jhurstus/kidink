@@ -1,0 +1,15 @@
+{#- ===========================================================================
+dinner.html — the Dinner module (spec §13). "Dinner", an AI image of the meal,
+and the menu name(s).
+
+Placeholder for now: a white comic_panel with the module name centered. See
+today.html for the sizing note.
+=========================================================================== -#}
+{% from "macros/comic.html" import comic_panel %}
+
+{% macro dinner() -%}
+{% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
+     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 4}) %}
+<div class="module-name">Dinner</div>
+{% endcall %}
+{%- endmacro %}

@@ -1,0 +1,15 @@
+{#- ===========================================================================
+joke.html — the Joke / riddle module (spec §15). Normally a wholly AI-generated
+comic panel (the text is drawn inside the image).
+
+Placeholder for now: a white comic_panel with the module name centered. See
+today.html for the sizing note.
+=========================================================================== -#}
+{% from "macros/comic.html" import comic_panel %}
+
+{% macro joke() -%}
+{% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
+     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 6}) %}
+<div class="module-name">Joke</div>
+{% endcall %}
+{%- endmacro %}

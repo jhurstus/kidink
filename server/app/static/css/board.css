@@ -14,7 +14,7 @@
 
 /* ---------------------------------------------------------------------------
    Day-of-week strip slot (spec §9). 60px margin to the top of the page, 30px to
-   the left, 33px to the right (the 1537px strip ends at x=1567) — visually even
+   the left, 32px to the right (the 1538px strip ends at x=1568) — visually even
    side margins once the frame's obscured edge pixels (spec §2) are subtracted.
    The slot is NOT clipped, so the strip's rotated date box can jut past its
    top-left corner.
@@ -27,4 +27,76 @@
 
 body {
    margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Content area (spec §4) — everything below the day strip. Left/right/bottom
+   margins mirror the strip's (30px left, 32px right → 1538px wide), and the
+   bottom margin (31px) is tuned to look visually even against them once the
+   frame's obscured edge pixels (spec §2: 3px left, 4px right, 6px bottom) are
+   subtracted. The strip occupies y 60–250; the content is pulled up to y=245 so
+   it tucks 5px under the strip (the burst spills down into this band anyway,
+   §9.1), running to y=1169.
+   --------------------------------------------------------------------------- */
+.content {
+   position: absolute;
+   top: 245px;
+   left: 30px;
+   width: 1538px;
+   height: 924px;
+   display: flex;
+   gap: 15px;
+}
+
+/* Left column: the full-height Today panel, fixed 510px wide (spec §10). */
+.today-pane {
+   width: 610px;
+   height: 100%;
+}
+
+/* Right column: Tomorrow across the top, then the 2×2 module grid filling the
+   rest. Claims all the width the Today pane leaves (1012px). */
+.right-pane {
+   flex: 1;
+   height: 100%;
+   display: flex;
+   flex-direction: column;
+   gap: 15px;
+}
+
+/* Tomorrow spans the right column at a fixed height (spec §11). */
+.tomorrow-cell {
+   height: 280px;
+}
+
+/* Countdown / Dinner / Chore / Joke — an equal-portioned 2×2 grid filling the
+   remaining height of the right column. */
+.module-grid {
+   flex: 1;
+   display: grid;
+   grid-template-columns: 1fr 1fr;
+   grid-template-rows: 1fr 1fr;
+   gap: 15px;
+}
+
+/* Every module's comic_panel stretches to fill its layout cell; the width/height
+   passed to comic_panel only fix the border path's aspect ratio. */
+.content .comic-panel {
+   width: 100%;
+   height: 100%;
+}
+
+/* Center each placeholder module name in its panel (above the halftone/base at
+   z-index 1, below the border at z-index 2). */
+.content .comic-content {
+   position: absolute;
+   inset: 0;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
+.module-name {
+   font-size: 44px;
+   color: #000;
 }

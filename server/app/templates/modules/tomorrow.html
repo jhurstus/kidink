@@ -1,0 +1,15 @@
+{#- ===========================================================================
+tomorrow.html — the Tomorrow module (spec §11). Top of the right column: a
+chronological event list plus its weather subpanel.
+
+Placeholder for now: a white comic_panel with the module name centered. See
+today.html for the sizing note.
+=========================================================================== -#}
+{% from "macros/comic.html" import comic_panel %}
+
+{% macro tomorrow() -%}
+{% call comic_panel(width=913, height=280, bg='#fff', halftones=[],
+     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 2}) %}
+<div class="module-name">Tomorrow</div>
+{% endcall %}
+{%- endmacro %}

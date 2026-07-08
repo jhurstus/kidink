@@ -12,9 +12,30 @@
 
 <body>
   {% from "modules/day_strip.html" import day_strip %}
+  {% from "modules/today.html" import today %}
+  {% from "modules/tomorrow.html" import tomorrow %}
+  {% from "modules/countdown.html" import countdown %}
+  {% from "modules/dinner.html" import dinner %}
+  {% from "modules/chore.html" import chore %}
+  {% from "modules/joke.html" import joke %}
   <div class="board">
     <div class="day-strip-slot">{{ day_strip(strip) }}</div>
 
+    {#- Everything below the strip: the full-height Today column on the left, and
+    a right column of Tomorrow over a 2×2 grid of Countdown / Dinner / Chore /
+    Joke. Sizes flex to fill; module panels stretch to their cell (board.css). -#}
+    <div class="content">
+      <div class="today-pane">{{ today() }}</div>
+      <div class="right-pane">
+        <div class="tomorrow-cell">{{ tomorrow() }}</div>
+        <div class="module-grid">
+          <div class="grid-cell">{{ countdown() }}</div>
+          <div class="grid-cell">{{ dinner() }}</div>
+          <div class="grid-cell">{{ chore() }}</div>
+          <div class="grid-cell">{{ joke() }}</div>
+        </div>
+      </div>
+    </div>
   </div>
   {#- Debug-only listing of every AI image in this render (spec §3.5,
   ?debug_images=1). Never present in normal device renders. -#}

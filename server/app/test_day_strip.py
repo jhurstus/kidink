@@ -103,7 +103,7 @@ def test_build_day_strip_weekend_burst_centers_in_weekend_group() -> None:
     saturday = strip.week[5]
     assert saturday.burst == "saturday_burst.png"
     assert saturday.width == 306
-    assert saturday.burst_cx == 1178
+    assert saturday.burst_cx == 1179
     assert [c for c in strip.week if c.burst] == [saturday]
 
 

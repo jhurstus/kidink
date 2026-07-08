@@ -56,8 +56,8 @@ BURST_BY_WEEKDAY: dict[int, str] = {
 
 # Cell widths (px). The active cell is ~70% wider than every other cell, and all six
 # non-active cells shrink to one uniform width; the values are chosen so the seven
-# cells exactly fill the strip: with 139px of fixed overhead (gaps + row padding)
-# they must sum to _STRIP_W - 139 = 1398 (306 + 6*182). The no-burst fallback
+# cells exactly fill the strip: with 140px of fixed overhead (gaps + row padding)
+# they must sum to _STRIP_W - 140 = 1398 (306 + 6*182). The no-burst fallback
 # (every cell 199, ~5px slack) is unused while all seven days map above, but kept
 # for robustness if a mapping is removed.
 _DEFAULT_CELL_W = 199
@@ -66,10 +66,10 @@ _SHRUNK_CELL_W = 182
 
 # Strip layout geometry (mirrors day_strip.css and the day_group macro): used to
 # place the active day's burst horizontally, centered over its cell.
-_STRIP_W = 1537
+_STRIP_W = 1538
 _CELL_GAP = 12
 _ROW_PAD = 12
-_GROUP_GAP = 31
+_GROUP_GAP = 32
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,15 @@
+{#- ===========================================================================
+chore.html — the Chores module (spec §14). Today's chores as an icon + kid
+label + title list.
+
+Placeholder for now: a white comic_panel with the module name centered. See
+today.html for the sizing note.
+=========================================================================== -#}
+{% from "macros/comic.html" import comic_panel %}
+
+{% macro chore() -%}
+{% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
+     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 5}) %}
+<div class="module-name">Chore</div>
+{% endcall %}
+{%- endmacro %}

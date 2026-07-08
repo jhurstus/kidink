@@ -1,0 +1,17 @@
+{#- ===========================================================================
+today.html — the Today module (spec §10). Full left column: Morning/Day/Evening
+event buckets plus the weather subpanel.
+
+Placeholder for now: a white comic_panel (thin black border, rounded corners —
+the day_strip cell vocabulary) with the module name centered. Sized to fill its
+layout cell (board.css forces .comic-panel to 100%); the width/height passed
+here only set the border path's aspect ratio.
+=========================================================================== -#}
+{% from "macros/comic.html" import comic_panel %}
+
+{% macro today() -%}
+{% call comic_panel(width=610, height=924, bg='#fff', halftones=[],
+     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 1}) %}
+<div class="module-name">Today</div>
+{% endcall %}
+{%- endmacro %}
