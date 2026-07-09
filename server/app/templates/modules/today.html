@@ -1,17 +1,115 @@
 {#- ===========================================================================
-today.html — the Today module (spec §10). Full left column: Morning/Day/Evening
-event buckets plus the weather subpanel.
+today.html — the Today module (spec §10). Full left column: a creased-corner
+"TODAY" tab, the Morning/Day/Evening event buckets, and a reserved (empty for
+now) slot for the weather subpanel (§10.3).
 
-Placeholder for now: a white comic_panel (thin black border, rounded corners —
-the day_strip cell vocabulary) with the module name centered. Sized to fill its
-layout cell (board.css forces .comic-panel to 100%); the width/height passed
-here only set the border path's aspect ratio.
+today(panel):
+panel a TodayPanel view model (see app/today.py), with:
+.seed border seed for the outer panel
+.buckets non-empty TodayBuckets (Morning→Day→Evening), each with
+.name/.key/.seed/.rows; a row has .title/.icon_url/.kids
+
+Each bucket is its own comic_panel with the same vocabulary as the outer panel
+(white, thin black border). Buckets flex-grow by their row count so the column's
+slack distributes proportionally. Layout constants live in static/css/today.css
+and must stay in sync with the row-budget geometry in app/today.py.
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
+{% from "macros/tab.html" import corner_tab %}
 
-{% macro today() -%}
+{#- Comic time-of-day glyph for a bucket header: rising sun / sun / moon, drawn
+as inline SVG with a thin black ink outline (in-palette yellows). -#}
+{% macro bucket_icon(key) -%}
+{%- if key == 'morning' -%}
+<svg class="today-bucket-icon" viewBox="0 0 32 32" aria-hidden="true">
+  <path d="M8 22 a8 8 0 0 1 16 0 Z" fill="#f2c91d" stroke="#000" stroke-width="2" stroke-linejoin="round" />
+  <g stroke="#000" stroke-width="2" stroke-linecap="round">
+    <line x1="16" y1="5" x2="16" y2="8.5" />
+    <line x1="7" y1="9" x2="9.5" y2="11.5" />
+    <line x1="25" y1="9" x2="22.5" y2="11.5" />
+  </g>
+  <line x1="2.5" y1="22" x2="29.5" y2="22" stroke="#000" stroke-width="2" stroke-linecap="round" />
+</svg>
+{%- elif key == 'day' -%}
+<svg class="today-bucket-icon" viewBox="0 0 32 32" aria-hidden="true">
+  <circle cx="16" cy="16" r="7.5" fill="#f2c91d" stroke="#000" stroke-width="2" />
+  <g stroke="#000" stroke-width="2" stroke-linecap="round">
+    <line x1="16" y1="2.5" x2="16" y2="6" />
+    <line x1="16" y1="26" x2="16" y2="29.5" />
+    <line x1="2.5" y1="16" x2="6" y2="16" />
+    <line x1="26" y1="16" x2="29.5" y2="16" />
+    <line x1="6.5" y1="6.5" x2="9" y2="9" />
+    <line x1="23" y1="23" x2="25.5" y2="25.5" />
+    <line x1="6.5" y1="25.5" x2="9" y2="23" />
+    <line x1="23" y1="9" x2="25.5" y2="6.5" />
+  </g>
+</svg>
+{%- else -%}
+<svg class="today-bucket-icon" viewBox="0 0 32 32" aria-hidden="true">
+  <path d="M17 3 A13 13 0 1 0 17 29 A16 16 0 0 1 17 3 Z" fill="#f7e9a0" stroke="#000" stroke-width="2"
+    stroke-linejoin="round" />
+  <path d="M25 4.5 L26.8 8.7 L31 10.5 L26.8 12.3 L25 16.5 L23.2 12.3 L19 10.5 L23.2 8.7 Z" fill="#f2c91d"
+    stroke="#000" stroke-width="2" stroke-linejoin="round" />
+</svg>
+{%- endif -%}
+{%- endmacro %}
+
+{#- One event row: AI icon (or the §7.3 fallback chip) with the kid initials
+(§8) in a subscript badge box overlapping its bottom-right corner, then the
+title. The icon slot is fixed-width so titles align across rows; a badge is
+present only when the event concerns a proper subset of the kids. -#}
+{% macro today_row(row) -%}
+<div class="today-row">
+  <div class="today-row-icon">
+    <div class="today-icon-frame">
+      {%- if row.icon_url -%}
+      <img class="today-icon" src="{{ row.icon_url }}" alt="{{ row.title }}" />
+      {%- else -%}
+      <div class="today-chip"></div>
+      {%- endif -%}
+      {%- if row.kids %}
+      <div class="today-kids">
+        {%- for kid in row.kids -%}
+        <span class="today-kid" style="color: {{ kid.color }}">{{ kid.initial }}</span>
+        {%- endfor -%}
+      </div>
+      {%- endif %}
+    </div>
+  </div>
+  <div class="today-row-title">{{ row.title }}</div>
+</div>
+{%- endmacro %}
+
+{% macro today(panel) -%}
+{#- The tab is a SIBLING of the panel, not a child: comic_panel clips its
+contents (overflow:hidden), and the tab pops up-left past the panel's corner
+(absolute against .today-pane; see today.css). -#}
+<div class="today-tab">{% call corner_tab() %}Today!{% endcall %}</div>
 {% call comic_panel(width=610, height=924, bg='#fff', halftones=[],
-     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 1}) %}
-<div class="module-name">Today</div>
+border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
+'seed': panel.seed}) %}
+<div class="today">
+  <div class="today-buckets">
+    {%- for bucket in panel.buckets %}
+    {#- Each bucket shrink-wraps its content; the body is absolutely positioned
+    (board.css), so the height is computed here: 10px top pad + 34px header +
+    12px bottom pad + per row a 12px gap and 60px of icon = 56 + 72·rows. Keep
+    in sync with today.css and the app/today.py budget constants. -#}
+    <div class="today-bucket today-bucket-{{ bucket.key }}" style="height: {{ 56 + 72 * (bucket.rows | length) }}px">
+      {% call comic_panel(width=546, height=180, bg='#fff', halftones=[],
+      border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
+      'seed': bucket.seed}) %}
+      <div class="today-bucket-body">
+        <div class="today-bucket-header">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
+        {%- for row in bucket.rows %}{{ today_row(row) }}{% endfor -%}
+      </div>
+      {% endcall %}
+    </div>
+    {%- endfor %}
+  </div>
+  {#- Reserved footprint for the weather subpanel (§10.3) — intentionally empty
+  until weather lands; the row budget in app/today.py already subtracts it. -#}
+  <div class="today-weather-slot"></div>
+</div>
 {% endcall %}
 {%- endmacro %}

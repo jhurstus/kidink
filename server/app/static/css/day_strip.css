@@ -251,9 +251,7 @@
   top: -35px;
   left: 0;
   z-index: 3;
-  /* Flex, not inline flow: the wrapper must shrink-wrap the face exactly. On
-     a line box the inline-level face would leave descender space below it,
-     pushing the bottom-anchored .date-fold outside the face's border. */
+  /* Flex so the wrapper shrink-wraps the corner-tab exactly. */
   display: flex;
 
   font-size: 27px;
@@ -271,24 +269,8 @@
   right: 0;
 }
 
-/* The visible slip. The clip cuts the bottom-right corner at 45deg (18px legs —
-   keep in sync with .date-fold's size); the CSS border vanishes along the cut,
-   so the flap's black hypotenuse band redraws the crease line there. */
-.date-box-face {
-  height: 48px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-  background: #f4efe0;
-  border: 3px solid #000;
-  border-radius: 6px 6px 0 6px;
-  clip-path: polygon(0 0,
-      100% 0,
-      100% calc(100% - 18px),
-      calc(100% - 18px) 100%,
-      0 100%);
-}
+/* The slip face and folded flap themselves are the shared creased-corner tab
+   (.corner-tab-* in comic.css, emitted by macros/tab.html). */
 
 .date-icon {
   display: block;
@@ -296,16 +278,4 @@
   height: 35px;
   position: relative;
   top: -1px;
-}
-
-/* The turned-back flap, drawn with filled paths (see the markup comment) so
-   its silhouette exactly fills the 18px corner square the face's clip-path
-   cuts away — flush with the box outline, nothing protrudes. */
-.date-fold {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  display: block;
-  width: 18px;
-  height: 18px;
 }

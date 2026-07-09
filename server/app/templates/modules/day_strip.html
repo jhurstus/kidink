@@ -60,6 +60,8 @@ rather than count*190. -#}
 </div>
 {%- endmacro %}
 
+{% from "macros/tab.html" import corner_tab %}
+
 {% macro day_strip(strip) -%}
 <div class="day-strip">
   <div class="strip-groups">
@@ -82,13 +84,12 @@ rather than count*190. -#}
       </div>
     </div>
     {%- endfor %}
-    {#- Corner date box: a paper slip sitting just above the strip. The face is
-    clipped at its bottom-right corner and .date-fold draws the turned-back
-    flap over the cut; both decorative SVGs are aria-hidden. On Mondays the
-    burst spills over the strip's top-LEFT corner and would bury the box, so it
-    flips to the top-right corner instead (week[0] is Monday). -#}
+    {#- Corner date box: a creased-corner tab (macros/tab.html) sitting just
+    above the strip. On Mondays the burst spills over the strip's top-LEFT
+    corner and would bury the box, so it flips to the top-right corner instead
+    (week[0] is Monday). -#}
     <div class="date-box{% if strip.week[0].burst %} date-box-right{% endif %}">
-      <div class="date-box-face">
+      {%- call corner_tab() %}
         {#- preserveAspectRatio=none: the icon is sized taller than wide in CSS
         and should stretch to fill, not letterbox. -#}
         <svg class="date-icon" viewBox="0 0 32 32" preserveAspectRatio="none" aria-hidden="true">
@@ -105,16 +106,7 @@ rather than count*190. -#}
           </g>
         </svg>
         {{ strip.date_label }}
-      </div>
-      {#- Filled paths, not a stroked outline: a centered stroke bulges past the
-      triangle's vertices (which sit exactly on the box outline), poking outside
-      the rectangle. The black triangle IS the silhouette; the white inner
-      triangle (each edge inset 3px, matching the face border) leaves a uniform
-      3px "border" that registers flush with the box's bottom/right edges. -#}
-      <svg class="date-fold" viewBox="0 0 18 18" aria-hidden="true">
-        <path d="M0 0 H18 L0 18 Z" fill="#000" />
-        <path d="M3 3 H10.757 L3 10.757 Z" fill="#fff" />
-      </svg>
+      {%- endcall %}
     </div>
 </div>
 {%- endmacro %}

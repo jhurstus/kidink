@@ -620,8 +620,15 @@ fetch over HTTP. There are two kinds:
 
 Events may pertain to one kid or both. Instead of small face icons (the kids look alike
 and tiny faces reproduce poorly), each item shows the **initials** of the kid or kids it
-concerns, in a colorful comic font, taken from the event's `labels` field — e.g. `J`,
-`S`, or `J S` for both. An event with **no kid label is shared** (counts for both kids).
+concerns, in a colorful comic font, taken from the event's `labels` field. A label value
+matches a configured kid by that kid's **label (initials) or name, case-insensitively**.
+An event with **no kid label is shared** (counts for both kids).
+
+Initials mark the exception, not the rule: an item that applies to **all configured
+kids** — shared, or explicitly labeled for every kid — shows **no initials**. Only an
+item belonging to a proper subset of the kids is labeled. The **Today/Tomorrow panels
+and the day strip behave identically in this regard**.
+
 (A per-kid mascot icon, e.g. a lion vs. a giraffe, is an alternative distinguisher kept
 open for later.)
 
@@ -672,7 +679,6 @@ candidates for the strip icons.
 
 - A lone shared-event icon is **unlabeled** (the only label-free case).
 - A solo icon is labeled with that kid's initial (e.g. `S`).
-- A shared event shown alongside a solo icon is labeled with both initials (`A B`).
 
 ---
 

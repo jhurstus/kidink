@@ -1,0 +1,189 @@
+/* ============================================================================
+   today.css — the Today module (spec §10): the creased-corner tab, the
+   Morning/Day/Evening bucket sub-panels, event rows, and the reserved weather
+   slot. The vertical sizes here (panel padding, tab height, gaps, header and
+   row heights, weather slot) feed the row-budget geometry in app/today.py —
+   keep the two in sync.
+   ============================================================================ */
+
+/* Fills the outer comic_panel. The 68px top padding clears the pop-out tab
+   (its face bottom lands 59px into the panel: 70px tall, popped 11px up); the
+   column is 924px, so the bucket area gets 924 - 68 - 16 - 14 - 210 = 616px
+   (_AVAILABLE_H in app/today.py). Italic to match the day strip's type. */
+.today {
+  position: absolute;
+  inset: 0;
+  padding: 68px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-style: italic;
+}
+
+/* The "TODAY!" tab — the shared corner-tab slip at display size (the face is
+   taller than the strip date box's 48px default to carry the bigger type).
+   A sibling of the comic_panel, absolutely positioned against .today-pane so
+   it pops up and left past the panel's clipped corner. */
+.today-tab {
+  position: absolute;
+  top: -11px;
+  left: -14px;
+  z-index: 3;
+  font-size: 42px;
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.today-tab .corner-tab-face {
+  height: 64px;
+  padding: 0 22px;
+}
+
+.today-buckets {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* One bucket's cell. The body inside is absolutely positioned, so the bucket
+   has no intrinsic height: the template sets an explicit height computed from
+   its row count (50 + 66·rows — see today.html); leftover column space pools
+   below the buckets. */
+.today-bucket {
+  flex: none;
+}
+
+/* Inside the bucket's comic_panel. The 10px top padding + 34px header + 12px
+   bottom padding are _HEADER_BLOCK_H's ingredients in app/today.py. The 12px
+   flex gap and bottom padding reuse the body's 12px left inset, so the space
+   between rows and under the last icon equals the space left of the icons. */
+.today-bucket-body {
+  position: absolute;
+  inset: 0;
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header type: the strip's .day-name style (400 weight, NorB Pen inherited)
+   at title size, led by the time-of-day glyph. */
+.today-bucket-header {
+  flex: none;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 0px;
+  font-size: 31px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #000;
+}
+
+.today-bucket-icon {
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
+/* Fixed event row (_ROW_H's 60px base; the bucket height is computed from the
+   row count, so rows sit at a constant tight pitch). */
+.today-row {
+  flex: none;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Icon slot: every icon box is a uniform 60px square, so titles align and the
+   boxes sit flush left on the same edge as the bucket header's glyph. */
+.today-row-icon {
+  flex: none;
+  width: 60px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Shrink-wraps the icon so the kid badge can anchor to the icon's own
+   bottom-right corner. */
+.today-icon-frame {
+  position: relative;
+  display: inline-flex;
+}
+
+/* A uniform 60×60 inked frame; the transparent icon aspect-fits inside it
+   (object-fit: contain — never stretched), border-box so the framed box is
+   exactly the 60px row base. */
+.today-icon {
+  display: block;
+  box-sizing: border-box;
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  padding: 2px;
+  border: 1px solid #000;
+  border-radius: 8px;
+}
+
+/* §7.3 fallback chip for a missing/failed icon — the strip chip's cream, in
+   the same inked frame as a real icon. */
+.today-chip {
+  box-sizing: border-box;
+  width: 60px;
+  height: 60px;
+  background: #f4efe0;
+  border: 1px solid #000;
+  border-radius: 8px;
+}
+
+/* Kid initials (§8) in a subscript badge: a small white plate overlapping the
+   icon's bottom-right corner. Present only when the event concerns a proper
+   subset of the configured kids. */
+.today-kids {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  box-sizing: border-box;
+  min-width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.today-kid {
+  font-size: 20px;
+  font-weight: 700;
+  font-style: normal;
+}
+
+/* Title: upright and light, setting the event text apart from the italic
+   headers/labels around it. */
+.today-row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 31px;
+  font-style: normal;
+  font-weight: 200;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Reserved footprint for the weather subpanel (§10.3) — empty until weather
+   lands. Its height is already subtracted from _AVAILABLE_H in app/today.py. */
+.today-weather-slot {
+  flex: none;
+  height: 210px;
+}

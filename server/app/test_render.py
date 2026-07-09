@@ -240,6 +240,74 @@ def test_render_debug_images_lists_render_images(tmp_path: Path) -> None:
     assert "/admin/images?img=1" in debug
 
 
+# Two events on the render date Wed 2026-06-03: an 08:00 one (morning) and a
+# 19:00 one (evening) — so the Today panel shows those two buckets and no Day.
+TODAY_ICS = (
+    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
+    "BEGIN:VEVENT\nUID:breakfast\nSUMMARY:Breakfast\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T080000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T090000\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:movie\nSUMMARY:Movie night\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T190000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T200000\nEND:VEVENT\n"
+    "END:VCALENDAR\n"
+)
+
+
+def test_render_today_buckets_only_nonempty(tmp_path: Path) -> None:
+    # Assert on the bucket CSS class names, not the header words ("DAY" is a
+    # substring of every weekday name in the strip).
+    text = (
+        _app_with_ics(TODAY_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert "today-bucket-morning" in text
+    assert "today-bucket-evening" in text
+    assert "today-bucket-day" not in text
+    assert "Breakfast" in text
+    assert "Movie night" in text
+
+
+def test_render_today_has_tab_and_reserved_weather_slot() -> None:
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    assert "today-tab" in text
+    assert "corner-tab" in text
+    assert "today-weather-slot" in text
+    assert "today-bucket-" not in text  # empty day: no buckets at all
+
+
+def test_render_today_rows_show_icons(tmp_path: Path) -> None:
+    text = (
+        _app_with_ics(TODAY_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    # Match the img tag, not the bare class name — "today-icon" is a substring
+    # of the always-present "today-icon-frame" wrapper.
+    assert '<img class="today-icon"' in text
+    assert "today-chip" not in text
+
+
+def test_render_today_rows_fall_back_to_chip(tmp_path: Path) -> None:
+    # §7.3: a failed generation leaves the row's title next to a blank chip.
+    text = (
+        _app_with_ics(TODAY_ICS, tmp_path, _generate_boom)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert "today-chip" in text
+    assert '<img class="today-icon"' not in text
+    assert "Breakfast" in text
+
+
 def test_render_returns_500_when_fetch_fails() -> None:
     app = create_app()
 

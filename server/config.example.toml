@@ -28,3 +28,15 @@ app_storage_path = ".storage"
 # model (gpt-image-2).
 # [module_model_tiers]
 # Calendar = "gpt-image-2"
+
+# Kids shown on the board (§8, §18): full name plus the short label (initials)
+# rendered next to their events. Events' `labels` values (event-description TOML,
+# §6.4) are matched case-insensitively against `label`; an event with no labels
+# is shared and shows every kid's label. Order matters: it fixes each kid's badge
+# color and label position.
+# [[kids]]
+# name = "Julia"
+# label = "J"
+# [[kids]]
+# name = "Sam"
+# label = "S"

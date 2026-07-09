@@ -48,8 +48,11 @@ body {
    gap: 15px;
 }
 
-/* Left column: the full-height Today panel, fixed 510px wide (spec §10). */
+/* Left column: the full-height Today panel, fixed 610px wide (spec §10).
+   Positioned so the module's pop-out TODAY! tab (an absolute sibling of the
+   panel, see today.css) anchors to this cell's corner. */
 .today-pane {
+   position: relative;
    width: 610px;
    height: 100%;
 }

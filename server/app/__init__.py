@@ -14,6 +14,7 @@ from app.images import (
     images_bp,
     make_calendar_icon_resolver,
 )
+from app.today import build_today
 
 
 def create_app() -> Flask:
@@ -45,15 +46,22 @@ def create_app() -> Flask:
             app.logger.warning("family calendar render failed: %s", type(exc).__name__)
             abort(500)
         # Missing AI images are generated inline here (§3.6); an individual
-        # image failure falls back to a chip (§7.3), never a 500.
+        # image failure falls back to a chip (§7.3), never a 500. One resolver
+        # is shared across modules so the strip and the Today rows reuse the
+        # same image records and ?debug_images= stays deduplicated.
         rendered_images: list[RenderedImage] = []
-        strip = build_day_strip(
-            target, events, make_calendar_icon_resolver(rendered_images)
-        )
+        resolver = make_calendar_icon_resolver(rendered_images)
+        strip = build_day_strip(target, events, resolver)
+        today_panel = build_today(target, events, settings.kids, resolver)
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None
         )
-        return render_template("board.html", strip=strip, debug_images=debug_images)
+        return render_template(
+            "board.html",
+            strip=strip,
+            today_panel=today_panel,
+            debug_images=debug_images,
+        )
 
     @app.get("/panel")
     def panel() -> str:

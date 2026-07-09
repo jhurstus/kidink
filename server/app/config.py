@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -22,6 +22,17 @@ from pydantic_settings import (
 # see config.example.toml for its shape. A missing file is fine — the model
 # defaults apply.
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
+
+
+class Kid(BaseModel):
+    """One child shown on the board (spec §8, §18)."""
+
+    name: str
+    """Full name; the future pose/figure mapping (§18) will key off this."""
+
+    label: str
+    """Initials rendered next to the kid's events (§8), matched case-insensitively
+    against events' ``labels`` override values (§6.4)."""
 
 
 class Settings(BaseSettings):
@@ -61,6 +72,10 @@ class Settings(BaseSettings):
     module_model_tiers: dict[str, str] = Field(default_factory=dict)
     """Per-module image-model overrides (§18), e.g. ``{"Calendar": "gpt-image-2"}``.
     Modules absent from the map use the default model."""
+
+    kids: list[Kid] = Field(default_factory=list)
+    """The children shown on the board (§8, §18), in display order — the order
+    fixes each kid's badge color and label position on event rows."""
 
     @field_validator("app_storage_path")
     @classmethod

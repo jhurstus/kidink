@@ -1,7 +1,7 @@
 import pytest
 from pydantic import SecretStr, ValidationError
 
-from app.config import CONFIG_PATH, Settings, get_settings
+from app.config import CONFIG_PATH, Kid, Settings, get_settings
 
 
 def _settings(**overrides: object) -> Settings:
@@ -74,6 +74,28 @@ def test_app_storage_path_relative_value_resolved() -> None:
 def test_app_storage_path_absolute_value_kept() -> None:
     settings = _settings(app_storage_path="/tmp/kidink-store")
     assert str(settings.app_storage_path) == "/tmp/kidink-store"
+
+
+def test_kids_defaults_empty() -> None:
+    # Assert the model default, not the loaded value: the developer's local
+    # config.toml legitimately configures kids (like timezone above).
+    field = Settings.model_fields["kids"]
+    assert not field.is_required()
+    assert field.default_factory() == []
+
+
+def test_kids_parsed_from_tables() -> None:
+    # The TOML shape is a list of {name, label} tables ([[kids]]); order is
+    # preserved because it fixes each kid's badge color (§8).
+    settings = _settings(
+        kids=[{"name": "Julia", "label": "J"}, {"name": "Sam", "label": "S"}]
+    )
+    assert settings.kids == [Kid(name="Julia", label="J"), Kid(name="Sam", label="S")]
+
+
+def test_kid_label_is_required() -> None:
+    with pytest.raises(ValidationError):
+        _settings(kids=[{"name": "Julia"}])
 
 
 def test_module_model_tiers_defaults_empty() -> None:

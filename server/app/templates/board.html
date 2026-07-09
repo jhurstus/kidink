@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/comic.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/board.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/day_strip.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/today.css') }}" />
 </head>
 
 <body>
@@ -25,7 +26,7 @@
     a right column of Tomorrow over a 2×2 grid of Countdown / Dinner / Chore /
     Joke. Sizes flex to fill; module panels stretch to their cell (board.css). -#}
     <div class="content">
-      <div class="today-pane">{{ today() }}</div>
+      <div class="today-pane">{{ today(today_panel) }}</div>
       <div class="right-pane">
         <div class="tomorrow-cell">{{ tomorrow() }}</div>
         <div class="module-grid">
