@@ -32,7 +32,7 @@ class Kid(BaseModel):
 
     label: str
     """Initials rendered next to the kid's events (§8), matched case-insensitively
-    against events' ``labels`` override values (§6.4)."""
+    against events' ``kids`` override values (§6.4)."""
 
 
 class Settings(BaseSettings):

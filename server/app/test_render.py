@@ -154,7 +154,9 @@ def test_render_shows_event_icon(tmp_path: Path) -> None:
         .text
     )
 
-    assert "day-icon" in text
+    # Match the img tag, not the bare class name — "day-icon" is a substring
+    # of the always-present-with-events "day-icons" row wrapper.
+    assert '<img class="day-icon"' in text
     assert "/images/generated/1" in text
     assert "Soccer practice" in text  # alt text
     assert "day-event-chip" not in text
@@ -203,7 +205,7 @@ def test_render_falls_back_to_chip_on_generation_failure(tmp_path: Path) -> None
     assert response.status_code == 200
     assert "day-event-chip" in response.text
     assert "Soccer practice" in response.text
-    assert "day-icon" not in response.text
+    assert '<img class="day-icon"' not in response.text
 
 
 def test_render_shows_event_icon_on_today_burst_cell(tmp_path: Path) -> None:
@@ -288,8 +290,6 @@ def test_render_today_rows_show_icons(tmp_path: Path) -> None:
         .text
     )
 
-    # Match the img tag, not the bare class name — "today-icon" is a substring
-    # of the always-present "today-icon-frame" wrapper.
     assert '<img class="today-icon"' in text
     assert "today-chip" not in text
 

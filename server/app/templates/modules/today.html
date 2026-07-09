@@ -15,6 +15,7 @@ slack distributes proportionally. Layout constants live in static/css/today.css
 and must stay in sync with the row-budget geometry in app/today.py.
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
+{% from "macros/kids.html" import kid_badges %}
 {% from "macros/tab.html" import corner_tab %}
 
 {#- Comic time-of-day glyph for a bucket header: rising sun / sun / moon, drawn
@@ -54,26 +55,20 @@ as inline SVG with a thin black ink outline (in-palette yellows). -#}
 {%- endif -%}
 {%- endmacro %}
 
-{#- One event row: AI icon (or the §7.3 fallback chip) with the kid initials
-(§8) in a subscript badge box overlapping its bottom-right corner, then the
+{#- One event row: AI icon (or the §7.3 fallback chip) with the shared kid
+badge (§8, macros/kids.html) overlapping its bottom-right corner, then the
 title. The icon slot is fixed-width so titles align across rows; a badge is
 present only when the event concerns a proper subset of the kids. -#}
 {% macro today_row(row) -%}
 <div class="today-row">
   <div class="today-row-icon">
-    <div class="today-icon-frame">
+    <div class="kid-badge-anchor">
       {%- if row.icon_url -%}
       <img class="today-icon" src="{{ row.icon_url }}" alt="{{ row.title }}" />
       {%- else -%}
       <div class="today-chip"></div>
       {%- endif -%}
-      {%- if row.kids %}
-      <div class="today-kids">
-        {%- for kid in row.kids -%}
-        <span class="today-kid" style="color: {{ kid.color }}">{{ kid.initial }}</span>
-        {%- endfor -%}
-      </div>
-      {%- endif %}
+      {{- kid_badges(row.kids) -}}
     </div>
   </div>
   <div class="today-row-title">{{ row.title }}</div>

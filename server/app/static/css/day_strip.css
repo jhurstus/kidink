@@ -67,6 +67,16 @@
   gap: 4px;
 }
 
+/* The day's one or two §9.2 icon picks, side by side when the kids' top events
+   differ. Each pick sits in a shared .kid-badge-anchor (comic.css) so its kid
+   badge can overlap the icon's bottom-right corner. */
+.day-icons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
 /* The day's AI event icon (spec §9.2): a transparent PNG drawn directly on the
    halftone cell, no white plate. Stored at native generation resolution and
    sized here by HEIGHT alone: every icon renders 60px tall with width following
@@ -77,6 +87,24 @@
   display: block;
   height: 60px;
   width: auto;
+}
+
+/* A two-icon day gives up the width freedom: each icon aspect-fits a 60×60 box
+   so the pair reliably fits its cell. A lone icon keeps the height-only sizing
+   above. (Kid badges still poke past the box — they overlap by design.) */
+.day-icons:has(> :nth-child(2)) .day-icon {
+  height: auto;
+  max-width: 60px;
+  max-height: 60px;
+}
+
+/* Nudge a pair's LEFT icon outward (in cells and bursts alike): its badge
+   pokes into the inter-icon gap, so the pair otherwise reads tighter between
+   the icons than around them. A relative shift, so the flex centering (and the
+   right icon) stay put; lone icons are untouched. */
+.day-icons:has(> :nth-child(2))> :first-child {
+  position: relative;
+  left: -5px;
 }
 
 .day-name {
@@ -109,6 +137,12 @@
   border: 2px solid #000;
   border-radius: 8px;
   padding: 2px 8px;
+}
+
+/* Two picks side by side: halve each fallback chip's text width so the pair
+   still fits a 182px cell. */
+.day-icons:has(> :nth-child(2)) .day-event {
+  max-width: 72px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -203,6 +237,47 @@
 .day-burst-sunday .day-burst-content {
   top: 40%;
   left: 7%;
+}
+
+/* Per-day framing for a TWO-icon day specifically (§9.2): the pair is wider
+   than a lone icon, so it may sit differently in each burst's open body. These
+   move the ICONS within the burst art — the content overlay's top/bottom/left/
+   right framing, same vocabulary as the single-icon rules above (the burst
+   image itself is positioned by the .day-burst-<day> pixel offsets below, not
+   here). Hand-tune by screenshot; a day showing one icon keeps the rules
+   above unchanged. */
+.day-burst-monday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  left: 1%;
+}
+
+.day-burst-tuesday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  top: 36%;
+  left: 7%;
+}
+
+.day-burst-wednesday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  top: 39%;
+  left: 8%;
+}
+
+.day-burst-thursday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  top: 39%;
+  left: 0%;
+}
+
+.day-burst-friday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  left: 6%;
+}
+
+.day-burst-saturday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  top: 42%;
+  left: 3%;
+}
+
+.day-burst-sunday .day-burst-content:has(.day-icons > :nth-child(2)) {
+  top: 40%;
+  left: 12%;
+
 }
 
 /* Per-day vertical offset: tuned by screenshot so each image's baked-in day name

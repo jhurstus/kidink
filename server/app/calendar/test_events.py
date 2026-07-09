@@ -169,12 +169,12 @@ def test_description_overrides_flow_into_event() -> None:
             "Soccer",
             "20260603T120000",
             "20260603T130000",
-            r'DESCRIPTION:interesting = 250\nlabels = ["J"]',
+            r'DESCRIPTION:interesting = 250\nkids = ["J"]',
         )
     )
     (event,) = expand_events(ics, WEEK, TZ)
     assert event.overrides.interesting == 250
-    assert event.overrides.labels == ["J"]
+    assert event.overrides.kids == ["J"]
 
 
 def test_chore_split_variants_and_partition() -> None:

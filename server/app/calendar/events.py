@@ -50,7 +50,7 @@ class CalendarEvent:
     """Override if set, else derived from start/end (spec §6.4)."""
 
     overrides: EventOverrides
-    """Parsed TOML description: interesting, labels, countdown_eligible, …."""
+    """Parsed TOML description: interesting, kids, countdown_eligible, …."""
 
 
 def expand_events(ics_text: str, week: Sequence[date], tz: str) -> list[CalendarEvent]:

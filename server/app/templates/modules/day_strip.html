@@ -4,7 +4,9 @@ day_strip.html — the day-of-week strip module (spec §9).
 A full-width strip: the Monday–Sunday cells of the target week, weekdays and
 weekend in separate group panels, with the full date superimposed (rotated) over
 the top-left corner. The current day is replaced by a wider starburst cell. Each
-day shows the AI icon of its top event (falling back to a title-text chip).
+day shows one or two AI icons per the §9.2 per-kid selection (falling back to
+title-text chips), each carrying the shared kid badge (§8) when it belongs to a
+proper subset of the kids.
 
 The two group boxes sit directly on the strip (no enclosing panel); everything
 is plain divs — no comic_panel anywhere in the strip. Layout (flex rows, gaps,
@@ -13,18 +15,31 @@ siblings of the groups, laid over the strip.
 
 day_strip(strip):
 strip a DayStrip view model (see app/day_strip.py), with:
-.week list[DayCell] (Mon..Sun)
+.week list[DayCell] (Mon..Sun); a cell's .icons are its §9.2
+DayIcon picks (.title/.icon_url/.kids)
 .date_label formatted corner date, e.g. "June 3, 2026"
 =========================================================================== -#}
+{% from "macros/kids.html" import kid_badges %}
 
-{#- A day's event content: the AI icon for its top event (spec §9.2), or — when
-the icon is missing/failed — the comic fallback chip with the title text (§7.3).
-Shared by normal cells and the today burst. -#}
+{#- A day's event content: the day's one or two §9.2 icon picks in a row — for
+each, the event's AI icon or (when the image is missing/failed) the comic
+fallback chip with the title text (§7.3), plus the shared kid badge (§8) when
+the pick belongs to a proper subset of the kids. Shared by normal cells and the
+today burst. -#}
 {% macro day_event(day) -%}
-{%- if day.icon_url -%}
-<img class="day-icon" src="{{ day.icon_url }}" alt="{{ day.event_title }}" />
-{%- elif day.event_title -%}
-<div class="day-event day-event-chip">{{ day.event_title }}</div>
+{%- if day.icons -%}
+<div class="day-icons">
+  {%- for icon in day.icons -%}
+  <div class="kid-badge-anchor">
+    {%- if icon.icon_url -%}
+    <img class="day-icon" src="{{ icon.icon_url }}" alt="{{ icon.title }}" />
+    {%- else -%}
+    <div class="day-event day-event-chip">{{ icon.title }}</div>
+    {%- endif -%}
+    {{- kid_badges(icon.kids) -}}
+  </div>
+  {%- endfor -%}
+</div>
 {%- endif -%}
 {%- endmacro %}
 

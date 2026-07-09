@@ -1,0 +1,21 @@
+{#- ===========================================================================
+kids.html — the kid-initials badge (spec §8): a small white plate of colored
+initials overlapping the bottom-right corner of an event icon, shared by the
+Today/Tomorrow rows and the day strip. The icon (or fallback chip) must be
+wrapped in a .kid-badge-anchor so the badge can anchor to the icon's own
+corner; both are styled in comic.css.
+
+kid_badges(kids): kids is a list of KidBadge view models (.initial / .color,
+see app/event_rows.py). Emits nothing for an empty list — an item that applies
+to every configured kid is unlabeled (§8's proper-subset rule).
+=========================================================================== -#}
+
+{% macro kid_badges(kids) -%}
+{%- if kids -%}
+<div class="kid-badges">
+  {%- for kid in kids -%}
+  <span class="kid-badge" style="color: {{ kid.color }}">{{ kid.initial }}</span>
+  {%- endfor -%}
+</div>
+{%- endif -%}
+{%- endmacro %}

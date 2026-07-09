@@ -2,30 +2,29 @@
 
 Builds the seven Mon–Sun day cells for a target date: each cell's name, its
 fixed per-day border color (see DAY_PALETTE — hues picked for separability on
-the six-ink panel, spec §5.5), whether it is "today", and the AI icon (plus
-title) of its most-interesting (non-chore) event. The per-kid one/two-icon
-selection of §9.2 is deferred — each cell shows a single icon for its top
-event, with the title as fallback text.
+the six-ink panel, spec §5.5), whether it is "today", and the day's one or two
+event icons per the §9.2 per-kid selection: each kid's most-interesting
+candidate event, merged into one icon when the kids agree, side by side when
+they differ. Icon labels follow the event's own kid assignment (§8): only an
+event belonging to a proper subset of the kids carries initials, so a shared
+event's icon is always unlabeled — even next to a kid-specific icon.
 """
 
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date
 
 from app.calendar import CalendarEvent
+from app.config import Kid
 from app.dates import week_of
-
-# Structural stand-in for app.images.IconResolver (kept as a plain Callable so
-# this module needs no images import): a batch of item descriptions -> a
-# description -> icon-URL-or-None mapping, resolved in one call so missing
-# images can generate concurrently behind it.
-type _IconResolver = Callable[[Sequence[str]], Mapping[str, str | None]]
-
-
-def _no_icons(item_descriptions: Sequence[str]) -> Mapping[str, str | None]:
-    """Default resolver: no icons — keeps build_day_strip pure by default."""
-    return {}
-
+from app.event_rows import (
+    IconResolver,
+    KidBadge,
+    assigned_kids,
+    icon_key,
+    kid_badges,
+    no_icons,
+)
 
 # Per-day cell color, Monday..Sunday: the day's dominant saturated color, drawn
 # as each white cell's 3px border (see the day_cell macro). Full-cell tints and
@@ -75,6 +74,22 @@ _GROUP_GAP = 32
 
 
 @dataclass(frozen=True)
+class DayIcon:
+    """One event icon in a day cell (§9.2)."""
+
+    title: str
+    """The event title: the icon's alt text and the §7.3 fallback-chip text."""
+
+    icon_url: str | None
+    """``None`` -> the template renders the fallback chip (§7.3)."""
+
+    kids: list[KidBadge]
+    """The event's own §8 kid badges: empty unless the event belongs to a
+    proper subset of the configured kids — a shared event's icon is unlabeled
+    even beside a kid-specific one (§9.2)."""
+
+
+@dataclass(frozen=True)
 class DayCell:
     """One day box in the strip."""
 
@@ -85,8 +100,9 @@ class DayCell:
     width: int
     burst: str | None
     burst_cx: int | None
-    event_title: str | None
-    icon_url: str | None
+    icons: list[DayIcon]
+    """The day's one or two event icons (§9.2), in kid config order; empty for
+    an event-less day."""
 
 
 @dataclass(frozen=True)
@@ -100,44 +116,60 @@ class DayStrip:
 def build_day_strip(
     target: date,
     events: Iterable[CalendarEvent] = (),
-    icon_resolver: _IconResolver = _no_icons,
+    kids: Sequence[Kid] = (),
+    icon_resolver: IconResolver = no_icons,
 ) -> DayStrip:
     """Build the full day-strip view model for the resolved render date ``target``.
 
     ``events`` are the week's expanded calendar events (see
     :func:`app.calendar.expand_events`); they are grouped by local day and each
-    cell shows an icon for its most-interesting non-chore event. All seven
-    days' icons are resolved through ``icon_resolver`` in a single batch — so
-    missing images can generate concurrently (see
-    :data:`app.images.IconResolver`; the default resolves nothing, keeping the
-    view model a pure function of its inputs).
+    cell shows the §9.2 per-kid icon selection over its non-chore events.
+    ``kids`` (config order, :class:`app.config.Kid`) drives both the per-kid
+    candidacy and the icon badges. All seven days' icons are resolved through
+    ``icon_resolver`` in a single batch — so missing images can generate
+    concurrently (see :data:`app.images.IconResolver`; the default resolves
+    nothing, keeping the view model a pure function of its inputs).
     """
     by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
         by_day.setdefault(event.local_day, []).append(event)
     return DayStrip(
-        week=_build_week_cells(week_of(target), target, by_day, icon_resolver),
+        week=_build_week_cells(week_of(target), target, by_day, kids, icon_resolver),
         date_label=_format_date_label(target),
     )
 
 
-def _top_event(day_events: list[CalendarEvent]) -> CalendarEvent | None:
-    """The day's most-interesting non-chore event, or ``None``.
+def _rank_key(event: CalendarEvent) -> tuple:
+    """Candidate rank: ``interesting`` descending, ties broken by title ascending
+    — a total order, so each pick is deterministic for a given day (spec §3.4)."""
+    return (-event.overrides.interesting, event.title)
 
-    Ranked by ``interesting`` descending, ties broken by title ascending — a total
-    order, so the choice is deterministic for a given day (spec §3.4). Chores are
-    excluded from the strip (§6.5, §9.2). The full per-kid one/two-icon selection
-    of §9.2 is deferred; this picks a single event per day.
+
+def _day_picks(
+    day_events: list[CalendarEvent], kids: Sequence[Kid]
+) -> list[CalendarEvent]:
+    """The day's shown events per the §9.2 per-kid selection.
+
+    A kid's candidates are the day's non-chore events that apply to them —
+    shared, or assigned to them (see :func:`app.event_rows.assigned_kids`);
+    their pick is the most-interesting candidate. Kids agreeing on one event
+    share a single entry, so the result has 0..len(kids) entries in kid config
+    order. With no kids configured the day degrades to one overall pick.
     """
     candidates = [event for event in day_events if not event.is_chore]
     if not candidates:
-        return None
-    return min(candidates, key=lambda e: (-e.overrides.interesting, e.title))
-
-
-def _icon_key(event: CalendarEvent) -> str:
-    """The event's image key: ``icon_description`` or its title (§6.4/§7.1)."""
-    return event.overrides.icon_description or event.title
+        return []
+    if not kids:
+        return [min(candidates, key=_rank_key)]
+    picks: list[CalendarEvent] = []
+    for i in range(len(kids)):
+        mine = [e for e in candidates if i in assigned_kids(e, kids)]
+        if not mine:
+            continue
+        top = min(mine, key=_rank_key)
+        if not any(top is pick for pick in picks):
+            picks.append(top)
+    return picks
 
 
 def _cell_width(i: int, active_idx: int | None) -> int:
@@ -178,26 +210,27 @@ def _build_week_cells(
     week: list[date],
     target: date,
     by_day: dict[date, list[CalendarEvent]],
-    icon_resolver: _IconResolver,
+    kids: Sequence[Kid],
+    icon_resolver: IconResolver,
 ) -> list[DayCell]:
     """Build the seven ``DayCell``s for ``week`` (Mon..Sun), flagging ``target``.
 
     ``week`` must be the seven Mon–Sun dates (see ``dates.week_of``); ``by_day``
-    maps each local day to its events. The days' top events are resolved to
-    icon URLs through one batched ``icon_resolver`` call, keyed by each event's
-    ``icon_description`` (falling back to its title, §6.4/§7.1).
+    maps each local day to its events. The days' picked events (§9.2) are
+    resolved to icon URLs through one batched ``icon_resolver`` call, keyed by
+    each event's ``icon_description`` (falling back to its title, §6.4/§7.1).
     """
     # The today cell sits at index ``target.weekday()`` (week is Mon-first). It gets
     # a burst — and triggers the width redistribution — only if that weekday has one.
     active_idx = target.weekday() if target.weekday() in BURST_BY_WEEKDAY else None
     widths = [_cell_width(i, active_idx) for i in range(7)]
     cx = round(_burst_center_x(widths, active_idx)) if active_idx is not None else None
-    best_by_day = [_top_event(by_day.get(day, [])) for day in week]
-    icons = icon_resolver([_icon_key(best) for best in best_by_day if best is not None])
+    picks_by_day = [_day_picks(by_day.get(day, []), kids) for day in week]
+    icons = icon_resolver(
+        [icon_key(event) for picks in picks_by_day for event in picks]
+    )
     cells: list[DayCell] = []
     for i, (day, palette) in enumerate(zip(week, DAY_PALETTE, strict=True)):
-        best = best_by_day[i]
-        icon_url = icons.get(_icon_key(best)) if best is not None else None
         cells.append(
             DayCell(
                 name=palette["name"],
@@ -207,8 +240,14 @@ def _build_week_cells(
                 width=widths[i],
                 burst=BURST_BY_WEEKDAY[i] if i == active_idx else None,
                 burst_cx=cx if i == active_idx else None,
-                event_title=best.title if best is not None else None,
-                icon_url=icon_url,
+                icons=[
+                    DayIcon(
+                        title=event.title,
+                        icon_url=icons.get(icon_key(event)),
+                        kids=kid_badges(event, kids),
+                    )
+                    for event in picks_by_day[i]
+                ],
             )
         )
     return cells

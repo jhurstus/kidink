@@ -3,7 +3,8 @@ from datetime import date, datetime
 
 from app.calendar import CalendarEvent, EventOverrides, TimeOfDay
 from app.config import Kid
-from app.today import KID_COLORS, build_today
+from app.event_rows import KID_COLORS
+from app.today import build_today
 
 TARGET = date(2026, 6, 3)  # Wednesday
 
@@ -23,7 +24,7 @@ def _event(
     hour: int | None = None,
     minute: int = 0,
     all_day: bool = False,
-    labels: list[str] | None = None,
+    kids: list[str] | None = None,
     icon_description: str | None = None,
 ) -> CalendarEvent:
     """A minimal event for Today bucketing/ranking tests."""
@@ -45,7 +46,7 @@ def _event(
         time_of_day=time_of_day,
         overrides=EventOverrides(
             interesting=interesting,
-            labels=labels or [],
+            kids=kids or [],
             icon_description=icon_description,
         ),
     )
@@ -205,35 +206,35 @@ def test_shared_event_shows_no_badges() -> None:
 
 
 def test_labeled_event_shows_matching_kid_only() -> None:
-    panel = build_today(TARGET, [_event("Swim", labels=["S"])], kids=KIDS)
+    panel = build_today(TARGET, [_event("Swim", kids=["S"])], kids=KIDS)
 
     badges = panel.buckets[0].rows[0].kids
     assert [(b.initial, b.color) for b in badges] == [("S", KID_COLORS[1])]
 
 
 def test_labels_match_case_insensitively() -> None:
-    panel = build_today(TARGET, [_event("Swim", labels=["s"])], kids=KIDS)
+    panel = build_today(TARGET, [_event("Swim", kids=["s"])], kids=KIDS)
 
     assert [b.initial for b in panel.buckets[0].rows[0].kids] == ["S"]
 
 
 def test_event_labeled_for_every_kid_shows_no_badges() -> None:
     # Explicitly labeled for all configured kids == shared: unlabeled (§8).
-    panel = build_today(TARGET, [_event("Trip", labels=["S", "J"])], kids=KIDS)
+    panel = build_today(TARGET, [_event("Trip", kids=["S", "J"])], kids=KIDS)
 
     assert panel.buckets[0].rows[0].kids == []
 
 
 def test_labels_match_kid_name_too() -> None:
     # A label value may be the kid's full name instead of the short label (§8).
-    panel = build_today(TARGET, [_event("Swim", labels=["sam"])], kids=KIDS)
+    panel = build_today(TARGET, [_event("Swim", kids=["sam"])], kids=KIDS)
 
     badges = panel.buckets[0].rows[0].kids
     assert [(b.initial, b.color) for b in badges] == [("S", KID_COLORS[1])]
 
 
 def test_unknown_labels_yield_no_badges() -> None:
-    panel = build_today(TARGET, [_event("Visit", labels=["X"])], kids=KIDS)
+    panel = build_today(TARGET, [_event("Visit", kids=["X"])], kids=KIDS)
 
     assert panel.buckets[0].rows[0].kids == []
 

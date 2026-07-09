@@ -7,14 +7,14 @@ def test_full_valid_toml_sets_every_field() -> None:
     overrides = parse_overrides(
         'time_of_day = "evening"\n'
         "interesting = 200\n"
-        'labels = ["J", "S"]\n'
+        'kids = ["J", "S"]\n'
         "countdown_eligible = true\n"
         'icon_description = "soccer ball"'
     )
     assert overrides == EventOverrides(
         time_of_day=TimeOfDay.EVENING,
         interesting=200,
-        labels=["J", "S"],
+        kids=["J", "S"],
         countdown_eligible=True,
         icon_description="soccer ball",
     )
@@ -49,9 +49,9 @@ def test_unknown_keys_are_ignored_and_siblings_kept() -> None:
 
 
 def test_invalid_interesting_falls_back_keeping_siblings() -> None:
-    overrides = parse_overrides('interesting = "lots"\nlabels = ["J"]')
+    overrides = parse_overrides('interesting = "lots"\nkids = ["J"]')
     assert overrides.interesting == 100  # default
-    assert overrides.labels == ["J"]  # sibling preserved
+    assert overrides.kids == ["J"]  # sibling preserved
 
 
 def test_non_positive_interesting_falls_back_to_default() -> None:
@@ -65,13 +65,13 @@ def test_invalid_time_of_day_falls_back_keeping_siblings() -> None:
     assert overrides.countdown_eligible is True  # sibling preserved
 
 
-def test_bad_labels_element_drops_the_whole_field() -> None:
-    # Field-level granularity (§6.3): one bad element reverts labels to its default.
-    assert parse_overrides('labels = ["J", 5]').labels == []
+def test_bad_kids_element_drops_the_whole_field() -> None:
+    # Field-level granularity (§6.3): one bad element reverts kids to its default.
+    assert parse_overrides('kids = ["J", 5]').kids == []
 
 
 def test_multiple_bad_fields_keep_only_the_valid_one() -> None:
     overrides = parse_overrides(
-        'interesting = "x"\ntime_of_day = "noon"\nlabels = ["J", "S"]'
+        'interesting = "x"\ntime_of_day = "noon"\nkids = ["J", "S"]'
     )
-    assert overrides == EventOverrides(labels=["J", "S"])
+    assert overrides == EventOverrides(kids=["J", "S"])

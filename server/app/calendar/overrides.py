@@ -51,8 +51,9 @@ class EventOverrides(BaseModel):
     interesting: PositiveInt = 100
     """Ranking weight, higher = more interesting (spec §6.4)."""
 
-    labels: list[str] = Field(default_factory=list)
-    """Kid initials / UI treatments (spec §8, §9.2)."""
+    kids: list[str] = Field(default_factory=list)
+    """Kid assignment (spec §8, §9.2): each entry names a configured kid by
+    label (initials) or full name, matching the app config's ``kids`` list."""
 
     countdown_eligible: bool = False
     """Whether the event may appear in the Countdown module (spec §12)."""

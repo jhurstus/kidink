@@ -51,7 +51,7 @@ def create_app() -> Flask:
         # same image records and ?debug_images= stays deduplicated.
         rendered_images: list[RenderedImage] = []
         resolver = make_calendar_icon_resolver(rendered_images)
-        strip = build_day_strip(target, events, resolver)
+        strip = build_day_strip(target, events, settings.kids, resolver)
         today_panel = build_today(target, events, settings.kids, resolver)
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None

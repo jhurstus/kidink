@@ -9,30 +9,13 @@ event's AI icon URL, its kid badges (§8), and its title. The weather subpanel
 geometry constants below already subtract it.
 """
 
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 
 from app.calendar import CalendarEvent, TimeOfDay
 from app.config import Kid
-
-# Structural stand-in for app.images.IconResolver (kept as a plain Callable so
-# this module needs no images import): a batch of item descriptions -> a
-# description -> icon-URL-or-None mapping, resolved in one call so missing
-# images can generate concurrently behind it.
-type _IconResolver = Callable[[Sequence[str]], Mapping[str, str | None]]
-
-
-def _no_icons(item_descriptions: Sequence[str]) -> Mapping[str, str | None]:
-    """Default resolver: no icons — keeps build_today pure by default."""
-    return {}
-
-
-# Per-kid badge color by config position (kid 0, kid 1). Red and blue are the
-# panel's two strongest, most separable ink hues (§5.5); solid ink is fine for
-# text (§5.3). A curated design choice, not deployment config — promotable to a
-# Settings field later if more kids or custom colors are ever needed.
-KID_COLORS = ["#e02b20", "#4aa8e8"]
+from app.event_rows import IconResolver, KidBadge, icon_key, kid_badges, no_icons
 
 # Row-budget geometry (§10.1/§4.1), mirroring static/css/today.css — keep in sync.
 # The bucket area is what remains of the 924px column after the top padding
@@ -49,14 +32,6 @@ _ROW_H = 72
 
 # Bucket display order and header text (§10): Morning → Day → Evening.
 _BUCKET_ORDER = [TimeOfDay.MORNING, TimeOfDay.DAY, TimeOfDay.EVENING]
-
-
-@dataclass(frozen=True)
-class KidBadge:
-    """One kid initial shown on an event row (§8)."""
-
-    initial: str
-    color: str
 
 
 @dataclass(frozen=True)
@@ -102,7 +77,7 @@ def build_today(
     target: date,
     events: Iterable[CalendarEvent] = (),
     kids: Sequence[Kid] = (),
-    icon_resolver: _IconResolver = _no_icons,
+    icon_resolver: IconResolver = no_icons,
 ) -> TodayPanel:
     """Build the Today panel view model for the resolved render date ``target``.
 
@@ -118,7 +93,7 @@ def build_today(
     selected = _select([e for e in events if e.local_day == target and not e.is_chore])
     icons = icon_resolver(
         [
-            _icon_key(event)
+            icon_key(event)
             for time_of_day in _BUCKET_ORDER
             for event in selected.get(time_of_day, [])
         ]
@@ -190,43 +165,12 @@ def _select(
     return buckets
 
 
-def _icon_key(event: CalendarEvent) -> str:
-    """The event's image key: ``icon_description`` or its title (§6.4/§7.1)."""
-    return event.overrides.icon_description or event.title
-
-
 def _build_row(
     event: CalendarEvent, kids: Sequence[Kid], icons: Mapping[str, str | None]
 ) -> TodayRow:
     """One event row, its icon looked up from the batch-resolved ``icons``."""
     return TodayRow(
         title=event.title,
-        icon_url=icons.get(_icon_key(event)),
-        kids=_kid_badges(event, kids),
+        icon_url=icons.get(icon_key(event)),
+        kids=kid_badges(event, kids),
     )
-
-
-def _kid_badges(event: CalendarEvent, kids: Sequence[Kid]) -> list[KidBadge]:
-    """The row's kid badges (§8), in config order.
-
-    Badges mark a *proper subset* of the configured kids: an event that applies
-    to everyone — shared (no labels) or explicitly labeled for every kid —
-    shows no badges, matching the day strip's unlabeled lone shared icon
-    (§8/§9.2). A label value matches a kid's ``label`` or ``name``,
-    case-insensitively; labels matching no configured kid yield nothing (the
-    event was explicitly assigned, just not to these kids).
-    """
-    labels = {label.casefold() for label in event.overrides.labels}
-    if not labels:
-        return []
-    matched = [
-        (i, kid)
-        for i, kid in enumerate(kids)
-        if kid.label.casefold() in labels or kid.name.casefold() in labels
-    ]
-    if len(matched) == len(kids):
-        return []
-    return [
-        KidBadge(initial=kid.label, color=KID_COLORS[i % len(KID_COLORS)])
-        for i, kid in matched
-    ]

@@ -462,7 +462,7 @@ These are the fields of the `EventOverrides` Pydantic model (§6.3):
 | `time_of_day` | enum | derived | `morning` / `day` / `evening` override (see below). |
 | `icon_description` | string | title | Fed to the AI image prompt instead of the title. |
 | `interesting` | int (>0) | `100` | Higher = more interesting; drives ranking. |
-| `labels` | list[string] | `[]` | Kid assignment and UI treatments (§8, §9.2). |
+| `kids` | list[string] | `[]` | Kid assignment (§8, §9.2); aligns with the app config's `kids` list (§18). |
 | `countdown_eligible` | bool | `false` | Eligible to appear in the Countdown module. |
 
 **Time-of-day derivation** (when not overridden), in the configured timezone:
@@ -623,9 +623,10 @@ fetch over HTTP. There are two kinds:
 
 Events may pertain to one kid or both. Instead of small face icons (the kids look alike
 and tiny faces reproduce poorly), each item shows the **initials** of the kid or kids it
-concerns, in a colorful comic font, taken from the event's `labels` field. A label value
-matches a configured kid by that kid's **label (initials) or name, case-insensitively**.
-An event with **no kid label is shared** (counts for both kids).
+concerns, in a colorful comic font, taken from the event's `kids` field (§6.4 — named to
+align with the app config's `kids` list, §18). A `kids` entry matches a configured kid by
+that kid's **label (initials) or name, case-insensitively**.
+An event with an **empty `kids` field is shared** (counts for both kids).
 
 Initials mark the exception, not the rule: an item that applies to **all configured
 kids** — shared, or explicitly labeled for every kid — shows **no initials**. Only an
@@ -678,10 +679,14 @@ candidates for the strip icons.
   labeled with that kid's initial.
 - **Neither kid has a candidate** → **no icon** (the empty-day treatment).
 
-**Labels** appear whenever any shown icon belongs to just one kid:
+**Labels** follow the shown event's own kid assignment (§8), independent of why its
+icon was picked:
 
-- A lone shared-event icon is **unlabeled** (the only label-free case).
-- A solo icon is labeled with that kid's initial (e.g. `S`).
+- A **shared** event's icon is always **unlabeled** — even when it appears beside a
+  kid-specific icon (one single-kid event + one shared event → only the kid-specific
+  icon carries an initial).
+- An event assigned to a **proper subset** of the kids is labeled with those kids'
+  initials (e.g. `S`).
 
 ---
 

@@ -50,7 +50,7 @@
 
 /* One bucket's cell. The body inside is absolutely positioned, so the bucket
    has no intrinsic height: the template sets an explicit height computed from
-   its row count (50 + 66·rows — see today.html); leftover column space pools
+   its row count (56 + 72·rows — see today.html); leftover column space pools
    below the buckets. */
 .today-bucket {
   flex: none;
@@ -108,13 +108,6 @@
   justify-content: flex-start;
 }
 
-/* Shrink-wraps the icon so the kid badge can anchor to the icon's own
-   bottom-right corner. */
-.today-icon-frame {
-  position: relative;
-  display: inline-flex;
-}
-
 /* A uniform 60×60 inked frame; the transparent icon aspect-fits inside it
    (object-fit: contain — never stretched), border-box so the framed box is
    exactly the 60px row base. */
@@ -140,32 +133,8 @@
   border-radius: 8px;
 }
 
-/* Kid initials (§8) in a subscript badge: a small white plate overlapping the
-   icon's bottom-right corner. Present only when the event concerns a proper
-   subset of the configured kids. */
-.today-kids {
-  position: absolute;
-  right: -7px;
-  bottom: -5px;
-  box-sizing: border-box;
-  min-width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 4px;
-  background: #fff;
-  border: 1px solid #000;
-  border-radius: 6px;
-  line-height: 1;
-}
-
-.today-kid {
-  font-size: 20px;
-  font-weight: 700;
-  font-style: normal;
-}
+/* The kid-initials badge and its .kid-badge-anchor icon wrapper are the shared
+   §8 component (.kid-badge* in comic.css, emitted by macros/kids.html). */
 
 /* Title: upright and light, setting the event text apart from the italic
    headers/labels around it. */

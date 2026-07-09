@@ -147,3 +147,39 @@
   width: 18px;
   height: 18px;
 }
+
+/* ---------------------------------------------------------------------------
+   Kid-initials badge (macros/kids.html, spec §8) — a small white plate of
+   colored initials overlapping the bottom-right corner of an event icon,
+   shared by the Today/Tomorrow rows and the day strip. The icon (or fallback
+   chip) sits inside a .kid-badge-anchor so the badge can anchor to the icon's
+   own corner.
+   --------------------------------------------------------------------------- */
+.kid-badge-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.kid-badges {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  box-sizing: border-box;
+  min-width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 4px;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.kid-badge {
+  font-size: 20px;
+  font-weight: 700;
+  font-style: normal;
+}
