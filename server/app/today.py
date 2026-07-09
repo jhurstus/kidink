@@ -9,7 +9,7 @@ event's AI icon URL, its kid badges (§8), and its title. The weather subpanel
 geometry constants below already subtract it.
 """
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time
 
@@ -17,13 +17,15 @@ from app.calendar import CalendarEvent, TimeOfDay
 from app.config import Kid
 
 # Structural stand-in for app.images.IconResolver (kept as a plain Callable so
-# this module needs no images import): item description -> icon URL or None.
-type _IconResolver = Callable[[str], str | None]
+# this module needs no images import): a batch of item descriptions -> a
+# description -> icon-URL-or-None mapping, resolved in one call so missing
+# images can generate concurrently behind it.
+type _IconResolver = Callable[[Sequence[str]], Mapping[str, str | None]]
 
 
-def _no_icons(item_description: str) -> str | None:
+def _no_icons(item_descriptions: Sequence[str]) -> Mapping[str, str | None]:
     """Default resolver: no icons — keeps build_today pure by default."""
-    return None
+    return {}
 
 
 # Per-kid badge color by config position (kid 0, kid 1). Red and blue are the
@@ -107,11 +109,20 @@ def build_today(
     ``events`` are the week's expanded calendar events (see
     :func:`app.calendar.expand_events`); only ``target``'s non-chore events are
     shown. ``kids`` (config order, :class:`app.config.Kid`) drives the row
-    badges (§8). Icons for the surviving rows are resolved through
-    ``icon_resolver`` (see :data:`app.images.IconResolver`; the default resolves
-    nothing, keeping the view model a pure function of its inputs).
+    badges (§8). The surviving rows' icons are resolved through
+    ``icon_resolver`` in a single batch — so missing images can generate
+    concurrently — after the cap, never for dropped events (see
+    :data:`app.images.IconResolver`; the default resolves nothing, keeping the
+    view model a pure function of its inputs).
     """
     selected = _select([e for e in events if e.local_day == target and not e.is_chore])
+    icons = icon_resolver(
+        [
+            _icon_key(event)
+            for time_of_day in _BUCKET_ORDER
+            for event in selected.get(time_of_day, [])
+        ]
+    )
     buckets: list[TodayBucket] = []
     for i, time_of_day in enumerate(_BUCKET_ORDER):
         bucket_events = selected.get(time_of_day)
@@ -122,7 +133,7 @@ def build_today(
                 name=time_of_day.value.upper(),
                 key=time_of_day.value,
                 seed=target.toordinal() + i + 1,
-                rows=[_build_row(e, kids, icon_resolver) for e in bucket_events],
+                rows=[_build_row(e, kids, icons) for e in bucket_events],
             )
         )
     return TodayPanel(seed=target.toordinal(), buckets=buckets)
@@ -179,13 +190,18 @@ def _select(
     return buckets
 
 
+def _icon_key(event: CalendarEvent) -> str:
+    """The event's image key: ``icon_description`` or its title (§6.4/§7.1)."""
+    return event.overrides.icon_description or event.title
+
+
 def _build_row(
-    event: CalendarEvent, kids: Sequence[Kid], icon_resolver: _IconResolver
+    event: CalendarEvent, kids: Sequence[Kid], icons: Mapping[str, str | None]
 ) -> TodayRow:
-    """One event row, resolving its icon (keyed like the day strip, §7.1)."""
+    """One event row, its icon looked up from the batch-resolved ``icons``."""
     return TodayRow(
         title=event.title,
-        icon_url=icon_resolver(event.overrides.icon_description or event.title),
+        icon_url=icons.get(_icon_key(event)),
         kids=_kid_badges(event, kids),
     )
 

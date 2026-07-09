@@ -8,7 +8,7 @@ selection of §9.2 is deferred — each cell shows a single icon for its top
 event, with the title as fallback text.
 """
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -16,13 +16,15 @@ from app.calendar import CalendarEvent
 from app.dates import week_of
 
 # Structural stand-in for app.images.IconResolver (kept as a plain Callable so
-# this module needs no images import): item description -> icon URL or None.
-type _IconResolver = Callable[[str], str | None]
+# this module needs no images import): a batch of item descriptions -> a
+# description -> icon-URL-or-None mapping, resolved in one call so missing
+# images can generate concurrently behind it.
+type _IconResolver = Callable[[Sequence[str]], Mapping[str, str | None]]
 
 
-def _no_icons(item_description: str) -> str | None:
+def _no_icons(item_descriptions: Sequence[str]) -> Mapping[str, str | None]:
     """Default resolver: no icons — keeps build_day_strip pure by default."""
-    return None
+    return {}
 
 
 # Per-day cell color, Monday..Sunday: the day's dominant saturated color, drawn
@@ -104,9 +106,11 @@ def build_day_strip(
 
     ``events`` are the week's expanded calendar events (see
     :func:`app.calendar.expand_events`); they are grouped by local day and each
-    cell shows an icon for its most-interesting non-chore event, resolved
-    through ``icon_resolver`` (see :data:`app.images.IconResolver`; the default
-    resolves nothing, keeping the view model a pure function of its inputs).
+    cell shows an icon for its most-interesting non-chore event. All seven
+    days' icons are resolved through ``icon_resolver`` in a single batch — so
+    missing images can generate concurrently (see
+    :data:`app.images.IconResolver`; the default resolves nothing, keeping the
+    view model a pure function of its inputs).
     """
     by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
@@ -129,6 +133,11 @@ def _top_event(day_events: list[CalendarEvent]) -> CalendarEvent | None:
     if not candidates:
         return None
     return min(candidates, key=lambda e: (-e.overrides.interesting, e.title))
+
+
+def _icon_key(event: CalendarEvent) -> str:
+    """The event's image key: ``icon_description`` or its title (§6.4/§7.1)."""
+    return event.overrides.icon_description or event.title
 
 
 def _cell_width(i: int, active_idx: int | None) -> int:
@@ -174,21 +183,21 @@ def _build_week_cells(
     """Build the seven ``DayCell``s for ``week`` (Mon..Sun), flagging ``target``.
 
     ``week`` must be the seven Mon–Sun dates (see ``dates.week_of``); ``by_day``
-    maps each local day to its events. Each day's top event is resolved to an
-    icon URL through ``icon_resolver``, keyed by the event's ``icon_description``
-    (falling back to its title, §6.4/§7.1).
+    maps each local day to its events. The days' top events are resolved to
+    icon URLs through one batched ``icon_resolver`` call, keyed by each event's
+    ``icon_description`` (falling back to its title, §6.4/§7.1).
     """
     # The today cell sits at index ``target.weekday()`` (week is Mon-first). It gets
     # a burst — and triggers the width redistribution — only if that weekday has one.
     active_idx = target.weekday() if target.weekday() in BURST_BY_WEEKDAY else None
     widths = [_cell_width(i, active_idx) for i in range(7)]
     cx = round(_burst_center_x(widths, active_idx)) if active_idx is not None else None
+    best_by_day = [_top_event(by_day.get(day, [])) for day in week]
+    icons = icon_resolver([_icon_key(best) for best in best_by_day if best is not None])
     cells: list[DayCell] = []
     for i, (day, palette) in enumerate(zip(week, DAY_PALETTE, strict=True)):
-        best = _top_event(by_day.get(day, []))
-        icon_url = None
-        if best is not None:
-            icon_url = icon_resolver(best.overrides.icon_description or best.title)
+        best = best_by_day[i]
+        icon_url = icons.get(_icon_key(best)) if best is not None else None
         cells.append(
             DayCell(
                 name=palette["name"],

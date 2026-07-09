@@ -1,12 +1,13 @@
 """Calendar-module image unit: icon sizing, prompt construction, icon resolver.
 
-The per-module logic of spec §7.5 for calendar-event icons (day strip now;
-today/tomorrow panels later, which share the same icon size per §9.2). The
-resolver is what view-model builders call: item description in, servable icon
-URL (or ``None`` on failure) out — generation happens inline behind it (§3.6).
+The per-module logic of spec §7.5 for calendar-event icons (day strip and the
+Today panel, which share the same icon size per §9.2). The resolver is what
+view-model builders call: a batch of item descriptions in, a description →
+servable-URL mapping (``None`` per failure) out — generation happens inline
+behind it (§3.6), concurrently across the batch's missing images.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from flask import current_app, url_for
@@ -14,7 +15,7 @@ from flask import current_app, url_for
 from app.config import get_settings
 from app.images.db import ImageSpec
 from app.images.generate import DEFAULT_IMAGE_MODEL
-from app.images.store import ensure_image
+from app.images.store import ensure_images
 
 CALENDAR_ICON_MODULE = "Calendar"
 
@@ -24,8 +25,13 @@ CALENDAR_ICON_MODULE = "Calendar"
 CALENDAR_ICON_W = 60
 CALENDAR_ICON_H = 60
 
-type IconResolver = Callable[[str], str | None]
-"""Maps an item description to a servable icon URL, or ``None`` on failure."""
+type IconResolver = Callable[[Sequence[str]], Mapping[str, str | None]]
+"""Maps item descriptions to servable icon URLs (``None`` per failed item).
+
+Batch-shaped so a render's missing icons can generate concurrently
+(:func:`app.images.store.ensure_images`): a view-model builder hands over every
+description it needs in one call.
+"""
 
 
 @dataclass(frozen=True)
@@ -92,37 +98,53 @@ def calendar_icon_prompt(item_description: str) -> str:
 def make_calendar_icon_resolver(
     collected: list[RenderedImage],
 ) -> IconResolver:
-    """Build the day-strip icon resolver for the current request.
+    """Build the calendar icon resolver for the current request.
 
-    Must be called (and the resolver used) inside a request context. Every
-    successfully resolved image is appended to ``collected``, which ``/render``
-    hands to the ``?debug_images=1`` listing (§3.5).
+    Must be called (and the resolver used) inside a request context. Each call
+    resolves a whole batch: missing images generate concurrently inside
+    :func:`app.images.store.ensure_images`. Every successfully resolved image
+    is appended to ``collected``, which ``/render`` hands to the
+    ``?debug_images=1`` listing (§3.5).
     """
     settings = get_settings()
     storage_root = current_app.config["APP_STORAGE_PATH"]
     generate = current_app.config["GENERATE_IMAGE_BYTES"]
     model = settings.module_model_tiers.get(CALENDAR_ICON_MODULE, DEFAULT_IMAGE_MODEL)
 
-    def resolve(item_description: str) -> str | None:
-        spec = ImageSpec(
-            module=CALENDAR_ICON_MODULE,
-            item_description=item_description,
-            width=CALENDAR_ICON_W,
-            height=CALENDAR_ICON_H,
-        )
-        image_id = ensure_image(
-            spec,
-            calendar_icon_prompt(item_description),
+    def resolve(item_descriptions: Sequence[str]) -> dict[str, str | None]:
+        # Dedupe preserving order: a repeated description (a recurring event,
+        # or the strip and Today sharing an event) is one logical image. The
+        # empty guard keeps event-less renders from ever touching storage.
+        unique = list(dict.fromkeys(item_descriptions))
+        if not unique:
+            return {}
+        specs = [
+            ImageSpec(
+                module=CALENDAR_ICON_MODULE,
+                item_description=item_description,
+                width=CALENDAR_ICON_W,
+                height=CALENDAR_ICON_H,
+            )
+            for item_description in unique
+        ]
+        image_ids = ensure_images(
+            [(spec, calendar_icon_prompt(spec.item_description)) for spec in specs],
             storage_root=storage_root,
             generate=generate,
             api_key=settings.openai_api_key,
             model=model,
         )
-        if image_id is None:
-            return None
-        rendered = RenderedImage(id=image_id, spec=spec)
-        if rendered not in collected:  # a recurring event resolves once per day
-            collected.append(rendered)
-        return url_for("images.generated_image", image_id=image_id)
+        resolved: dict[str, str | None] = {}
+        for spec, image_id in zip(specs, image_ids, strict=True):
+            if image_id is None:
+                resolved[spec.item_description] = None
+                continue
+            rendered = RenderedImage(id=image_id, spec=spec)
+            if rendered not in collected:  # resolves once across strip + Today
+                collected.append(rendered)
+            resolved[spec.item_description] = url_for(
+                "images.generated_image", image_id=image_id
+            )
+        return resolved
 
     return resolve

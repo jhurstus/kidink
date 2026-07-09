@@ -1,4 +1,5 @@
 import io
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +12,7 @@ from app.images.generate import GenerateImageBytes, ImageGenerationError
 from app.images.store import (
     candidate_path,
     ensure_image,
+    ensure_images,
     image_path,
     regenerate_candidate,
 )
@@ -112,6 +114,112 @@ def test_unkeyable_generation_is_a_failure(tmp_path: Path) -> None:
     Image.fromarray(pixels, "RGB").save(out, format="PNG")
     assert _ensure(tmp_path, CountingGenerator(out.getvalue())) is None
     assert "KeyingError" in (tmp_path / "gen_failures.log").read_text()
+
+
+def _spec(item: str) -> ImageSpec:
+    return ImageSpec(module="Calendar", item_description=item, width=100, height=60)
+
+
+def _ensure_batch(
+    tmp_path: Path, requests: list[tuple[ImageSpec, str]], generate: GenerateImageBytes
+) -> list[int | None]:
+    return ensure_images(
+        requests,
+        storage_root=tmp_path,
+        generate=generate,
+        api_key=API_KEY,
+        model="gpt-image-2",
+    )
+
+
+def test_ensure_images_assigns_ids_serially_in_request_order(tmp_path: Path) -> None:
+    # Records are created before any (parallel) generation runs, so a cold
+    # batch's id assignment is deterministic (§3.4) regardless of which
+    # generation finishes first.
+    generator = CountingGenerator(keyable_png())
+    ids = _ensure_batch(
+        tmp_path, [(_spec(f"item {i}"), f"p{i}") for i in range(3)], generator
+    )
+
+    assert ids == [1, 2, 3]
+    assert len(generator.prompts) == 3
+    assert all(image_path(tmp_path, i).exists() for i in (1, 2, 3))
+
+
+def test_ensure_images_failure_hits_only_its_own_item(tmp_path: Path) -> None:
+    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+        if prompt == "boom":
+            raise ImageGenerationError("image generation failed: Boom")
+        return keyable_png()
+
+    good, bad = _ensure_batch(
+        tmp_path, [(_spec("ok"), "fine"), (_spec("broken"), "boom")], generate
+    )
+
+    assert good is not None and image_path(tmp_path, good).exists()
+    assert bad is None
+    log = (tmp_path / "gen_failures.log").read_text()
+    assert "item='broken'" in log and "item='ok'" not in log
+
+
+def test_ensure_images_duplicate_key_generates_once(tmp_path: Path) -> None:
+    generator = CountingGenerator(keyable_png())
+    first, second = _ensure_batch(
+        tmp_path, [(_spec("Soccer"), "p"), (_spec("Soccer"), "p")], generator
+    )
+
+    assert first == second and first is not None
+    assert len(generator.prompts) == 1
+
+
+def test_concurrent_ensure_of_same_record_generates_once(tmp_path: Path) -> None:
+    # Two renders racing on the same cold record: the second must block on the
+    # per-record generation lock and, once inside, find the file already
+    # written — one API call total, no clobbered temp file, no false failure.
+    entered = threading.Event()
+    release = threading.Event()
+    prompts: list[str] = []
+
+    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+        prompts.append(prompt)
+        entered.set()
+        assert release.wait(timeout=10)
+        return keyable_png()
+
+    results: list[int | None] = []
+
+    def run() -> None:
+        results.append(_ensure(tmp_path, generate))
+
+    first = threading.Thread(target=run)
+    first.start()
+    assert entered.wait(timeout=10)  # first generation is now mid-flight
+    second = threading.Thread(target=run)
+    second.start()
+    release.set()
+    first.join(timeout=10)
+    second.join(timeout=10)
+
+    assert len(prompts) == 1
+    assert results[0] is not None and results[0] == results[1]
+    assert image_path(tmp_path, results[0]).exists()
+
+
+def test_ensure_images_generates_concurrently(tmp_path: Path) -> None:
+    # Both generations must be in flight at once: each blocks on a two-party
+    # barrier, so a serial implementation would deadlock the first call until
+    # the timeout (surfacing as BrokenBarrierError) instead of passing.
+    barrier = threading.Barrier(2)
+
+    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+        barrier.wait(timeout=10)
+        return keyable_png()
+
+    ids = _ensure_batch(
+        tmp_path, [(_spec("first"), "p1"), (_spec("second"), "p2")], generate
+    )
+
+    assert ids == [1, 2]
 
 
 def test_regeneration_uses_stored_prompt(tmp_path: Path) -> None:

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, datetime
 
 from app.calendar import CalendarEvent, EventOverrides, TimeOfDay
@@ -51,15 +52,17 @@ def _event(
 
 
 class _RecordingResolver:
-    """Icon-resolver stub that records the item descriptions it is asked for."""
+    """Batch icon-resolver stub recording the item descriptions it is asked for."""
 
     def __init__(self, url: str | None = "http://icons/1") -> None:
         self.url = url
         self.items: list[str] = []
+        self.calls = 0
 
-    def __call__(self, item_description: str) -> str | None:
-        self.items.append(item_description)
-        return self.url
+    def __call__(self, item_descriptions: Sequence[str]) -> dict[str, str | None]:
+        self.calls += 1
+        self.items.extend(item_descriptions)
+        return {item: self.url for item in item_descriptions}
 
 
 def _titles(panel, key: str) -> list[str]:
@@ -250,7 +253,9 @@ def test_icons_resolved_only_for_surviving_rows() -> None:
     build_today(TARGET, events, icon_resolver=resolver)
 
     # 10 events, one visible bucket -> 7 rows; the dropped three never reach
-    # the resolver (no wasted generations).
+    # the resolver (no wasted generations), and the whole panel resolves in a
+    # single batch so missing images can generate concurrently.
+    assert resolver.calls == 1
     assert sorted(resolver.items) == sorted(f"D{i}" for i in range(7))
 
 

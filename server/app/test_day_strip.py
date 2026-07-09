@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from datetime import date, datetime
 
 from app.calendar import CalendarEvent, EventOverrides, TimeOfDay
@@ -29,15 +30,15 @@ def _event(
 
 
 class _RecordingResolver:
-    """Icon-resolver stub that records the item descriptions it is asked for."""
+    """Batch icon-resolver stub recording the item descriptions it is asked for."""
 
     def __init__(self, url: str | None = "http://icons/1") -> None:
         self.url = url
         self.items: list[str] = []
 
-    def __call__(self, item_description: str) -> str | None:
-        self.items.append(item_description)
-        return self.url
+    def __call__(self, item_descriptions: Sequence[str]) -> dict[str, str | None]:
+        self.items.extend(item_descriptions)
+        return {item: self.url for item in item_descriptions}
 
 
 def test_build_day_strip_marks_exactly_one_today() -> None:

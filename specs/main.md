@@ -523,7 +523,10 @@ image is used as-is.
 ### 7.2 Generation
 
 Missing images are generated via the OpenAI image API, **inline** during `/render`
-(§3.6). Cost is a non-issue (≈1–2 calls/day), so quality is the priority:
+(§3.6). Within one render, a batch's missing images are generated **concurrently**
+(records are created serially first, so id assignment stays deterministic, §3.4) —
+a cold day costs roughly one generation of wall-clock, not one per image. Cost is
+a non-issue (≈1–2 calls/day), so quality is the priority:
 
 - **Model:** `gpt-image-2`, configurable per module.
 - **Prompt:** the record's **`prompt`** column (§7.1, §7.5).
