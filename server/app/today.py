@@ -3,19 +3,27 @@
 Builds the target date's non-chore events into Morning/Day/Evening buckets:
 selection is capped by the §10.1 row-budget geometry (worst-case-three-headers
 budget, then backfill of freed header rows into already-visible buckets), while
-display order within a bucket is chronological (§10.2). Each row carries the
-event's AI icon URL, its kid badges (§8), and its title. The weather subpanel
-(§10.3) is not built yet; its space is reserved by the template, and the
-geometry constants below already subtract it.
+display order within a bucket is chronological (§10.2). The row/badge/icon
+machinery shared with the Tomorrow panel lives in :mod:`app.event_rows`. The
+weather subpanel (§10.3) is not built yet; its space is reserved by the
+template, and the geometry constants below already subtract it.
 """
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date
 
 from app.calendar import CalendarEvent, TimeOfDay
 from app.config import Kid
-from app.event_rows import IconResolver, KidBadge, icon_key, kid_badges, no_icons
+from app.event_rows import (
+    EventRow,
+    IconResolver,
+    build_row,
+    display_key,
+    no_icons,
+    rank_key,
+    resolve_icons,
+)
 
 # Row-budget geometry (§10.1/§4.1), mirroring static/css/today.css — keep in sync.
 # The bucket area is what remains of the 924px column after the top padding
@@ -35,17 +43,6 @@ _BUCKET_ORDER = [TimeOfDay.MORNING, TimeOfDay.DAY, TimeOfDay.EVENING]
 
 
 @dataclass(frozen=True)
-class TodayRow:
-    """One event row: icon + kid badge(s) + title (§10)."""
-
-    title: str
-    icon_url: str | None
-    """``None`` -> the template renders the fallback chip (§7.3)."""
-
-    kids: list[KidBadge]
-
-
-@dataclass(frozen=True)
 class TodayBucket:
     """One visible time-of-day sub-panel."""
 
@@ -59,7 +56,7 @@ class TodayBucket:
     seed: int
     """Border seed for the bucket's comic sub-panel (date-pure, §3.4)."""
 
-    rows: list[TodayRow]
+    rows: list[EventRow]
 
 
 @dataclass(frozen=True)
@@ -81,7 +78,7 @@ def build_today(
 ) -> TodayPanel:
     """Build the Today panel view model for the resolved render date ``target``.
 
-    ``events`` are the week's expanded calendar events (see
+    ``events`` are the render window's expanded calendar events (see
     :func:`app.calendar.expand_events`); only ``target``'s non-chore events are
     shown. ``kids`` (config order, :class:`app.config.Kid`) drives the row
     badges (§8). The surviving rows' icons are resolved through
@@ -91,12 +88,13 @@ def build_today(
     view model a pure function of its inputs).
     """
     selected = _select([e for e in events if e.local_day == target and not e.is_chore])
-    icons = icon_resolver(
+    icons = resolve_icons(
         [
-            icon_key(event)
+            event
             for time_of_day in _BUCKET_ORDER
             for event in selected.get(time_of_day, [])
-        ]
+        ],
+        icon_resolver,
     )
     buckets: list[TodayBucket] = []
     for i, time_of_day in enumerate(_BUCKET_ORDER):
@@ -108,34 +106,10 @@ def build_today(
                 name=time_of_day.value.upper(),
                 key=time_of_day.value,
                 seed=target.toordinal() + i + 1,
-                rows=[_build_row(e, kids, icons) for e in bucket_events],
+                rows=[build_row(e, kids, icons) for e in bucket_events],
             )
         )
     return TodayPanel(seed=target.toordinal(), buckets=buckets)
-
-
-def _rank_key(event: CalendarEvent) -> tuple:
-    """Selection rank (§10.1): ``interesting`` desc, then title, then start.
-
-    The start component makes the order total even for identical
-    interesting+title pairs, keeping the cap deterministic (§3.4).
-    """
-    return (-event.overrides.interesting, event.title, _start_key(event))
-
-
-def _start_key(event: CalendarEvent) -> tuple[int, time]:
-    """Chronological key: all-day events first (§10.2), then by start time."""
-    # The isinstance check narrows start to datetime for the type checker; a
-    # bare date start implies all-day anyway (see CalendarEvent).
-    if event.all_day or not isinstance(event.start, datetime):
-        return (0, time.min)
-    return (1, event.start.time())
-
-
-def _display_key(event: CalendarEvent) -> tuple:
-    """Within-bucket display order (§10.2): chronological, all-day first, ties
-    by ``interesting`` desc then title."""
-    return (*_start_key(event), -event.overrides.interesting, event.title)
 
 
 def _select(
@@ -149,7 +123,7 @@ def _select(
     next events by rank, but only into already-visible buckets (never creating
     a new header). Overflow is dropped silently (§4.1).
     """
-    ranked = sorted(day_events, key=_rank_key)
+    ranked = sorted(day_events, key=rank_key)
     budget = (_AVAILABLE_H - len(_BUCKET_ORDER) * _HEADER_BLOCK_H) // _ROW_H
     survivors = ranked[:budget]
     visible = {e.time_of_day for e in survivors}
@@ -160,17 +134,6 @@ def _select(
         if event.time_of_day in visible:
             survivors.append(event)
     buckets: dict[TimeOfDay, list[CalendarEvent]] = {}
-    for event in sorted(survivors, key=_display_key):
+    for event in sorted(survivors, key=display_key):
         buckets.setdefault(event.time_of_day, []).append(event)
     return buckets
-
-
-def _build_row(
-    event: CalendarEvent, kids: Sequence[Kid], icons: Mapping[str, str | None]
-) -> TodayRow:
-    """One event row, its icon looked up from the batch-resolved ``icons``."""
-    return TodayRow(
-        title=event.title,
-        icon_url=icons.get(icon_key(event)),
-        kids=kid_badges(event, kids),
-    )

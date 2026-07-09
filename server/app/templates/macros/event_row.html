@@ -1,0 +1,27 @@
+{#- ===========================================================================
+event_row.html — one shared calendar-event row, used by the Today (§10) and
+Tomorrow (§11) modules: AI icon (or the §7.3 fallback chip) with the shared kid
+badge (§8, macros/kids.html) overlapping its bottom-right corner, then the
+title. The icon slot is fixed-width so titles align across rows; a badge is
+present only when the event concerns a proper subset of the kids.
+
+event_row(row): row is an EventRow view model (see app/event_rows.py), with
+.title/.icon_url/.kids. Styled by static/css/event_rows.css.
+=========================================================================== -#}
+{% from "macros/kids.html" import kid_badges %}
+
+{% macro event_row(row) -%}
+<div class="event-row">
+  <div class="event-row-icon">
+    <div class="kid-badge-anchor">
+      {%- if row.icon_url -%}
+      <img class="event-icon" src="{{ row.icon_url }}" alt="{{ row.title }}" />
+      {%- else -%}
+      <div class="event-chip"></div>
+      {%- endif -%}
+      {{- kid_badges(row.kids) -}}
+    </div>
+  </div>
+  <div class="event-row-title">{{ row.title }}</div>
+</div>
+{%- endmacro %}

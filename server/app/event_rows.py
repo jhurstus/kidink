@@ -2,13 +2,16 @@
 
 The Today/Tomorrow panels and the day-of-week strip all turn calendar events
 into icon-plus-kid-badge items. This module holds the pieces they share — the
-batch icon-resolver seam, the event -> image key, and the §8 kid assignment and
-badge rules — so the per-module view models stay thin and agree on the
-semantics.
+batch icon-resolver seam, the event -> image key, the §8 kid assignment and
+badge rules, and the row vocabulary of the list panels (the :class:`EventRow`
+view model, the rank/display sort keys, and the row builder) — so the
+per-module view models stay thin and agree on the semantics. Panel-specific
+geometry (row budgets) and grouping stay in the owning modules.
 """
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, time
 
 from app.calendar import CalendarEvent
 from app.config import Kid
@@ -28,6 +31,18 @@ def no_icons(item_descriptions: Sequence[str]) -> Mapping[str, str | None]:
 def icon_key(event: CalendarEvent) -> str:
     """The event's image key: ``icon_description`` or its title (§6.4/§7.1)."""
     return event.overrides.icon_description or event.title
+
+
+def resolve_icons(
+    events: Sequence[CalendarEvent], icon_resolver: IconResolver
+) -> Mapping[str, str | None]:
+    """Batch-resolve the icons for ``events`` in a single resolver call.
+
+    One call per panel — after the row cap, never for dropped events — so
+    missing images can generate concurrently (§7.2) and no generation is
+    wasted on events that won't render.
+    """
+    return icon_resolver([icon_key(event) for event in events])
 
 
 # Per-kid badge color by config position (kid 0, kid 1). Red and blue are the
@@ -82,3 +97,49 @@ def kid_badges(event: CalendarEvent, kids: Sequence[Kid]) -> list[KidBadge]:
     if len(assigned) == len(kids):
         return []
     return [kid_badge(i, kids) for i in assigned]
+
+
+@dataclass(frozen=True)
+class EventRow:
+    """One event row: icon + kid badge(s) + title (§10/§11)."""
+
+    title: str
+    icon_url: str | None
+    """``None`` -> the template renders the fallback chip (§7.3)."""
+
+    kids: list[KidBadge]
+
+
+def rank_key(event: CalendarEvent) -> tuple:
+    """Selection rank (§4.1): ``interesting`` desc, then title, then start.
+
+    The start component makes the order total even for identical
+    interesting+title pairs, keeping the cap deterministic (§3.4).
+    """
+    return (-event.overrides.interesting, event.title, start_key(event))
+
+
+def start_key(event: CalendarEvent) -> tuple[int, time]:
+    """Chronological key: all-day events first (§10.2), then by start time."""
+    # The isinstance check narrows start to datetime for the type checker; a
+    # bare date start implies all-day anyway (see CalendarEvent).
+    if event.all_day or not isinstance(event.start, datetime):
+        return (0, time.min)
+    return (1, event.start.time())
+
+
+def display_key(event: CalendarEvent) -> tuple:
+    """Display order (§10.2/§11): chronological, all-day first, ties by
+    ``interesting`` desc then title."""
+    return (*start_key(event), -event.overrides.interesting, event.title)
+
+
+def build_row(
+    event: CalendarEvent, kids: Sequence[Kid], icons: Mapping[str, str | None]
+) -> EventRow:
+    """One event row, its icon looked up from the batch-resolved ``icons``."""
+    return EventRow(
+        title=event.title,
+        icon_url=icons.get(icon_key(event)),
+        kids=kid_badges(event, kids),
+    )

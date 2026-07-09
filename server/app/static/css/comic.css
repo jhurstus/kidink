@@ -148,6 +148,29 @@
   height: 18px;
 }
 
+/* The module header tab ("TODAY!" / "TOMORROW!") — the corner-tab slip at one
+   shared display size (the face is taller than the strip date box's 48px
+   default to carry the bigger type). A sibling of the module's comic_panel
+   (which clips its contents), absolutely positioned against the module's
+   layout cell so it pops up and left past the panel's clipped corner; the
+   module body's top padding must clear it (the face bottom lands 59px into
+   the panel: 70px tall, popped 11px up). */
+.module-tab {
+  position: absolute;
+  top: -11px;
+  left: -8px;
+  z-index: 3;
+  font-size: 42px;
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.module-tab .corner-tab-face {
+  height: 64px;
+  padding: 0 22px;
+}
+
 /* ---------------------------------------------------------------------------
    Kid-initials badge (macros/kids.html, spec §8) — a small white plate of
    colored initials overlapping the bottom-right corner of an event icon,

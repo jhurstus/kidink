@@ -1,0 +1,69 @@
+/* ============================================================================
+   event_rows.css — the shared calendar-event row (specs §10/§11), used by the
+   Today and Tomorrow modules via the event_row macro: fixed-height icon +
+   kid-badge + title rows. The 60px row base plus each module's flex gap feed
+   the row-budget geometry in app/today.py and app/tomorrow.py — keep in sync.
+   ============================================================================ */
+
+/* Fixed event row (the 72px _ROW_H is this 60px base + the owning module's
+   12px flex gap; the modules size their containers from the row count, so
+   rows sit at a constant tight pitch). */
+.event-row {
+  flex: none;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Icon slot: every icon box is a uniform 60px square, so titles align and the
+   boxes sit flush left on the same edge (e.g. under Today's bucket-header
+   glyph). */
+.event-row-icon {
+  flex: none;
+  width: 60px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* A uniform 60×60 inked frame; the transparent icon aspect-fits inside it
+   (object-fit: contain — never stretched), border-box so the framed box is
+   exactly the 60px row base. */
+.event-icon {
+  display: block;
+  box-sizing: border-box;
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  padding: 2px;
+  border: 1px solid #000;
+  border-radius: 8px;
+}
+
+/* §7.3 fallback chip for a missing/failed icon — the strip chip's cream, in
+   the same inked frame as a real icon. */
+.event-chip {
+  box-sizing: border-box;
+  width: 60px;
+  height: 60px;
+  background: #f4efe0;
+  border: 1px solid #000;
+  border-radius: 8px;
+}
+
+/* The kid-initials badge and its .kid-badge-anchor icon wrapper are the shared
+   §8 component (.kid-badge* in comic.css, emitted by macros/kids.html). */
+
+/* Title: upright and light, setting the event text apart from the italic
+   headers/labels around it. */
+.event-row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 31px;
+  font-style: normal;
+  font-weight: 200;
+  color: #000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

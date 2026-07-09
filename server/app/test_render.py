@@ -290,8 +290,8 @@ def test_render_today_rows_show_icons(tmp_path: Path) -> None:
         .text
     )
 
-    assert '<img class="today-icon"' in text
-    assert "today-chip" not in text
+    assert '<img class="event-icon"' in text
+    assert "event-chip" not in text
 
 
 def test_render_today_rows_fall_back_to_chip(tmp_path: Path) -> None:
@@ -303,9 +303,51 @@ def test_render_today_rows_fall_back_to_chip(tmp_path: Path) -> None:
         .text
     )
 
-    assert "today-chip" in text
-    assert '<img class="today-icon"' not in text
+    assert "event-chip" in text
+    assert '<img class="event-icon"' not in text
     assert "Breakfast" in text
+
+
+def test_render_tomorrow_shows_next_days_events(tmp_path: Path) -> None:
+    # EVENT_ICS's event is on Fri 2026-06-05; rendered against Thu 2026-06-04
+    # it is tomorrow's, so its row lands inside the Tomorrow panel.
+    text = (
+        _app_with_ics(EVENT_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-04")
+        .text
+    )
+
+    tomorrow_rows = text.split('class="tomorrow-rows"')[1].split("tomorrow-weather")[0]
+    assert "Soccer practice" in tomorrow_rows
+    assert '<img class="event-icon"' in tomorrow_rows
+
+
+def test_render_tomorrow_has_tab_and_reserved_weather_slot() -> None:
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    assert "tomorrow-tab" in text
+    assert "tomorrow-weather-slot" in text
+    assert "event-row" not in text  # empty day: no rows at all
+
+
+def test_render_tomorrow_crosses_into_next_week_on_sunday(tmp_path: Path) -> None:
+    # Rendered on Sunday 2026-06-07, tomorrow is Monday of the NEXT week — the
+    # event-expansion window must extend past the strip's Mon–Sun (§11).
+    ics = (
+        "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
+        "BEGIN:VEVENT\nUID:library\nSUMMARY:Library visit\n"
+        "DTSTART;TZID=America/Los_Angeles:20260608T100000\n"
+        "DTEND;TZID=America/Los_Angeles:20260608T110000\nEND:VEVENT\nEND:VCALENDAR\n"
+    )
+    text = (
+        _app_with_ics(ics, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-07")
+        .text
+    )
+
+    assert "Library visit" in text
 
 
 def test_render_returns_500_when_fetch_fails() -> None:

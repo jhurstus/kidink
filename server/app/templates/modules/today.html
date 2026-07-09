@@ -7,7 +7,7 @@ today(panel):
 panel a TodayPanel view model (see app/today.py), with:
 .seed border seed for the outer panel
 .buckets non-empty TodayBuckets (Morning→Day→Evening), each with
-.name/.key/.seed/.rows; a row has .title/.icon_url/.kids
+.name/.key/.seed/.rows; rows render via the shared event_row macro
 
 Each bucket is its own comic_panel with the same vocabulary as the outer panel
 (white, thin black border). Buckets flex-grow by their row count so the column's
@@ -15,7 +15,7 @@ slack distributes proportionally. Layout constants live in static/css/today.css
 and must stay in sync with the row-budget geometry in app/today.py.
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
-{% from "macros/kids.html" import kid_badges %}
+{% from "macros/event_row.html" import event_row %}
 {% from "macros/tab.html" import corner_tab %}
 
 {#- Comic time-of-day glyph for a bucket header: rising sun / sun / moon, drawn
@@ -55,31 +55,11 @@ as inline SVG with a thin black ink outline (in-palette yellows). -#}
 {%- endif -%}
 {%- endmacro %}
 
-{#- One event row: AI icon (or the §7.3 fallback chip) with the shared kid
-badge (§8, macros/kids.html) overlapping its bottom-right corner, then the
-title. The icon slot is fixed-width so titles align across rows; a badge is
-present only when the event concerns a proper subset of the kids. -#}
-{% macro today_row(row) -%}
-<div class="today-row">
-  <div class="today-row-icon">
-    <div class="kid-badge-anchor">
-      {%- if row.icon_url -%}
-      <img class="today-icon" src="{{ row.icon_url }}" alt="{{ row.title }}" />
-      {%- else -%}
-      <div class="today-chip"></div>
-      {%- endif -%}
-      {{- kid_badges(row.kids) -}}
-    </div>
-  </div>
-  <div class="today-row-title">{{ row.title }}</div>
-</div>
-{%- endmacro %}
-
 {% macro today(panel) -%}
 {#- The tab is a SIBLING of the panel, not a child: comic_panel clips its
 contents (overflow:hidden), and the tab pops up-left past the panel's corner
 (absolute against .today-pane; see today.css). -#}
-<div class="today-tab">{% call corner_tab() %}Today!{% endcall %}</div>
+<div class="module-tab today-tab">{% call corner_tab() %}Today!{% endcall %}</div>
 {% call comic_panel(width=610, height=924, bg='#fff', halftones=[],
 border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
 'seed': panel.seed}) %}
@@ -96,7 +76,7 @@ border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
       'seed': bucket.seed}) %}
       <div class="today-bucket-body">
         <div class="today-bucket-header">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
-        {%- for row in bucket.rows %}{{ today_row(row) }}{% endfor -%}
+        {%- for row in bucket.rows %}{{ event_row(row) }}{% endfor -%}
       </div>
       {% endcall %}
     </div>

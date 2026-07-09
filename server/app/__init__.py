@@ -5,7 +5,7 @@ from flask import Flask, abort, render_template, request
 from app.calendar import CalendarFetchError, expand_events, fetch_ics
 from app.comic import comic_border_path
 from app.config import get_settings
-from app.dates import resolve_date, week_of
+from app.dates import render_days, resolve_date
 from app.day_strip import build_day_strip
 from app.images import (
     RenderedImage,
@@ -15,6 +15,7 @@ from app.images import (
     make_calendar_icon_resolver,
 )
 from app.today import build_today
+from app.tomorrow import build_tomorrow
 
 
 def create_app() -> Flask:
@@ -41,18 +42,19 @@ def create_app() -> Flask:
         target = resolve_date(request.args.get("date"), now=now, tz=settings.timezone)
         try:
             ics_text = app.config["FETCH_ICS"](settings.family_calendar_ics_url)
-            events = expand_events(ics_text, week_of(target), settings.timezone)
+            events = expand_events(ics_text, render_days(target), settings.timezone)
         except (CalendarFetchError, ValueError) as exc:
             app.logger.warning("family calendar render failed: %s", type(exc).__name__)
             abort(500)
         # Missing AI images are generated inline here (§3.6); an individual
         # image failure falls back to a chip (§7.3), never a 500. One resolver
-        # is shared across modules so the strip and the Today rows reuse the
-        # same image records and ?debug_images= stays deduplicated.
+        # is shared across modules so the strip and the Today/Tomorrow rows
+        # reuse the same image records and ?debug_images= stays deduplicated.
         rendered_images: list[RenderedImage] = []
         resolver = make_calendar_icon_resolver(rendered_images)
         strip = build_day_strip(target, events, settings.kids, resolver)
         today_panel = build_today(target, events, settings.kids, resolver)
+        tomorrow_panel = build_tomorrow(target, events, settings.kids, resolver)
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None
         )
@@ -60,6 +62,7 @@ def create_app() -> Flask:
             "board.html",
             strip=strip,
             today_panel=today_panel,
+            tomorrow_panel=tomorrow_panel,
             debug_images=debug_images,
         )
 

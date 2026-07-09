@@ -67,9 +67,13 @@ body {
    gap: 15px;
 }
 
-/* Tomorrow spans the right column at a fixed height (spec §11). */
+/* Tomorrow spans the right column at a fixed height (spec §11): sized so the
+   list area fits three event rows after the module tab's top padding (see
+   tomorrow.css / app/tomorrow.py). Positioned so the pop-out TOMORROW! tab
+   (an absolute sibling of the panel) anchors to this cell's corner. */
 .tomorrow-cell {
-   height: 280px;
+   position: relative;
+   height: 295px;
 }
 
 /* Countdown / Dinner / Chore / Joke — an equal-portioned 2×2 grid filling the

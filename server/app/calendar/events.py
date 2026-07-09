@@ -53,26 +53,27 @@ class CalendarEvent:
     """Parsed TOML description: interesting, kids, countdown_eligible, …."""
 
 
-def expand_events(ics_text: str, week: Sequence[date], tz: str) -> list[CalendarEvent]:
-    """Expand ``ics_text`` into the concrete events of ``week`` (Mon..Sun), in ``tz``.
+def expand_events(ics_text: str, days: Sequence[date], tz: str) -> list[CalendarEvent]:
+    """Expand ``ics_text`` into the concrete events of ``days``, in ``tz``.
 
-    ``week`` is the seven Mon–Sun dates (see :func:`app.dates.week_of`). May raise
-    ``ValueError`` (and similar) if the ICS is unparseable; the caller maps that to a
-    500 (spec, §13 contrasts the meal-plan's friendly fallback).
+    ``days`` is a contiguous ascending span of local dates (see
+    :func:`app.dates.render_days`). May raise ``ValueError`` (and similar) if the
+    ICS is unparseable; the caller maps that to a 500 (spec, §13 contrasts the
+    meal-plan's friendly fallback).
     """
     calendar = icalendar.Calendar.from_ical(ics_text)
     zone = ZoneInfo(tz)
-    # Local-midnight window covering the whole week, end-exclusive at the next Monday.
-    window_start = datetime.combine(week[0], time.min, zone)
-    window_end = datetime.combine(week[-1] + timedelta(days=1), time.min, zone)
+    # Local-midnight window covering the whole span, end-exclusive at the next day.
+    window_start = datetime.combine(days[0], time.min, zone)
+    window_end = datetime.combine(days[-1] + timedelta(days=1), time.min, zone)
 
     occurrences = recurring_ical_events.of(calendar).between(window_start, window_end)
     events: list[CalendarEvent] = []
     for component in occurrences:
         event = _to_event(component, zone)
         # Guard the rare tz-edge occurrence the window includes but whose local day
-        # falls just outside Mon..Sun.
-        if event is not None and week[0] <= event.local_day <= week[-1]:
+        # falls just outside the span.
+        if event is not None and days[0] <= event.local_day <= days[-1]:
             events.append(event)
     return events
 

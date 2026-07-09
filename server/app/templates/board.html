@@ -8,7 +8,9 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/comic.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/board.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/day_strip.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/event_rows.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/today.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tomorrow.css') }}" />
 </head>
 
 <body>
@@ -28,7 +30,7 @@
     <div class="content">
       <div class="today-pane">{{ today(today_panel) }}</div>
       <div class="right-pane">
-        <div class="tomorrow-cell">{{ tomorrow() }}</div>
+        <div class="tomorrow-cell">{{ tomorrow(tomorrow_panel) }}</div>
         <div class="module-grid">
           <div class="grid-cell">{{ countdown() }}</div>
           <div class="grid-cell">{{ dinner() }}</div>

@@ -2,7 +2,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 
-from app.dates import resolve_date, week_of
+from app.dates import render_days, resolve_date, week_of
 
 
 def test_resolve_date_uses_explicit_arg() -> None:
@@ -53,3 +53,15 @@ def test_week_of_when_target_is_monday() -> None:
 
     assert week[0] == date(2026, 6, 1)
     assert week[6] == date(2026, 6, 7)
+
+
+def test_render_days_is_the_week_midweek() -> None:
+    # Wednesday: tomorrow (Thursday) is already inside the week — no extension.
+    assert render_days(date(2026, 6, 3)) == week_of(date(2026, 6, 3))
+
+
+def test_render_days_extends_past_sunday() -> None:
+    # Sunday: the Tomorrow panel needs next Monday, one day past the week.
+    days = render_days(date(2026, 6, 7))
+
+    assert days == [*week_of(date(2026, 6, 7)), date(2026, 6, 8)]

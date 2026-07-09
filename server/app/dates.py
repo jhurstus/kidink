@@ -36,3 +36,17 @@ def week_of(target: date) -> list[date]:
     """
     monday = target - timedelta(days=target.weekday())
     return [monday + timedelta(days=i) for i in range(7)]
+
+
+def render_days(target: date) -> list[date]:
+    """The contiguous, ascending local days one render needs events for.
+
+    The Mon–Sun week of ``target`` (the day strip, §9) plus the day after
+    ``target`` (the Tomorrow panel, §11) — which extends past the week only
+    when ``target`` is a Sunday, appending the next Monday.
+    """
+    days = week_of(target)
+    tomorrow = target + timedelta(days=1)
+    if tomorrow > days[-1]:
+        days.append(tomorrow)
+    return days
