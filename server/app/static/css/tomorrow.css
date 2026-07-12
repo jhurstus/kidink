@@ -23,19 +23,31 @@
 /* The "TOMORROW!" tab is the shared .module-tab (comic.css), anchored to
    .tomorrow-cell. */
 
-/* The event list claims the panel's left half. The 12px flex gap is _ROW_H's
-   ingredient in app/tomorrow.py (12 + the rows' 60px base). */
+/* The event list claims everything left of the weather slot (absolutely
+   positioned; it shrink-wraps to ~468px — icon + kid figure + bar at the
+   §11 compact overlaps in weather.css — plus the 16px right padding, hence
+   the 490px carve-out). The 12px flex gap is _ROW_H's ingredient in
+   app/tomorrow.py (12 + the rows' 60px base). */
 .tomorrow-rows {
-  flex: 1 1 0;
+  flex: none;
+  width: calc(100% - 490px);
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-/* Reserved footprint for the weather subpanel (§11: clothing kid + temperature
-   bar) — the panel's right half, empty until weather lands. */
+/* The weather subpanel's slot (§11: condition icon + clothing kid +
+   temperature bar, packed compact). Unlike the event list it escapes the
+   68px tab clearance (the tab pops out over the panel's LEFT corner only),
+   rising to 34px from the panel top: 295 - 34 - 11 = 250px tall, exactly
+   Today's slot height, so the weather assets render at one shared pinned
+   size (weather.css). The width shrink-wraps the row at the §11 overlaps
+   (weather.css) and leftover panel width goes to the event list instead. */
 .tomorrow-weather-slot {
-  flex: 1 1 0;
-  min-width: 0;
+  position: absolute;
+  top: 34px;
+  bottom: 11px;
+  right: 16px;
+  width: fit-content;
 }

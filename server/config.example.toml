@@ -19,6 +19,16 @@ family_calendar_ics_url = "https://calendar.google.com/calendar/ical/REPLACE_ME/
 # the KIDINK_OPENAI_API_KEY env var, never here.
 openai_api_key = "sk-REPLACE_ME"
 
+# Google Maps Platform API key for the Weather API (§ Weather). REQUIRED — the
+# server fails to start without it. This is a SECRET: keep it only in config.toml
+# (gitignored) or the KIDINK_GOOGLE_MAPS_API_KEY env var, never here.
+google_maps_api_key = "REPLACE_ME"
+
+# Weather location (§ Weather): the daily forecast is fetched for these
+# coordinates. Defaults to downtown San Francisco — set your home's coordinates.
+latitude = 37.7749
+longitude = -122.4194
+
 # Root directory for app-managed storage (§18): sqlite.db (image metadata),
 # gen_images/ (generated PNGs), prompt_images/ (prompt attachments). A relative
 # path is resolved against this directory (server/).

@@ -28,9 +28,9 @@ from app.event_rows import (
 # Row-budget geometry (§10.1/§4.1), mirroring static/css/today.css — keep in sync.
 # The bucket area is what remains of the 924px column after the top padding
 # (68, clearing the pop-out TODAY! tab), the bottom padding (16), the reserved
-# weather slot (210), and the flex gap above it (14):
-# 924 - 68 - 16 - 14 - 210 = 616.
-_AVAILABLE_H = 616
+# weather slot (250), and the flex gap above it (14):
+# 924 - 68 - 16 - 14 - 250 = 576.
+_AVAILABLE_H = 576
 # Per-visible-bucket overhead: 10px body top padding + 34px header row + 12px
 # bottom padding + a 12px inter-bucket-gap allowance (over-counted by one gap
 # for k buckets — deliberate slack, left below the buckets).

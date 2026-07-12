@@ -1,0 +1,83 @@
+/* ============================================================================
+   weather.css — the weather subpanel (spec §10.3/§11, § Weather), shared by
+   Today and Tomorrow. The subpanel fills its host's reserved slot (both are
+   250px tall). Left to right: condition icon → clothing kid → temperature
+   bar. The icon and kid figure are hand-made static images
+   (§ Weather inventory, static/img/weather/); the bar is an authored SVG.
+   ============================================================================ */
+
+/* Items stack from the left with a tight gap: the bar sits right after the
+   kid figure instead of being pinned to the slot's right edge, keeping its
+   temp label clear of the panel's drawn border on any digit width. */
+.weather {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Image boxes are PINNED pixel sizes (§ Weather: "pixel sizes are pinned at
+   layout time"), identical wherever the subpanel appears, so one set of
+   hand-made images renders at the same dimensions in Today and Tomorrow.
+   Both hosts give the subpanel a 250px-tall slot (Tomorrow's rises past the
+   tab clearance to match Today's — tomorrow.css), so the kid figure fills
+   that height. The condition icon is the square of the § Weather inventory.
+   object-fit aspect-fits art into the box — never stretched. */
+.weather-condition {
+  flex: none;
+  display: block;
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+}
+
+.weather-kid {
+  flex: none;
+  display: block;
+  width: 250px;
+  height: 250px;
+  object-fit: contain;
+}
+
+/* Today only: tuck the kid figure toward the condition icon (tuned by eye);
+   the compensating right margin keeps the bar where it is. */
+.today-weather-slot .weather-kid {
+  margin-left: -12px;
+  margin-right: 12px;
+}
+
+/* Tomorrow only (§11): the slot is carved out of the event list's width, so
+   the row packs horizontally compact — the icon/figure/bar boxes overlap
+   (net ~52px at each seam after the flex gap). The art carries generous
+   left/right transparency, so no ink collides. The event list's carve-out in
+   tomorrow.css assumes the slot width these overlaps produce — keep in sync. */
+.tomorrow-weather-slot .weather-condition {
+  margin-right: -60px;
+}
+
+.tomorrow-weather-slot .weather-bar {
+  margin-left: -60px;
+}
+
+/* The temperature bar SVG spans the slot's full height (width follows from
+   the viewBox aspect). As the row's last flex item it sits flush against the
+   slot's right edge = the event buckets' right border, and the viewBox is
+   trimmed so the temp label ends there too (see weather.html). Overflow stays
+   visible so a rare three-digit label extends a few px instead of clipping. */
+.weather-bar {
+  flex: none;
+  height: 100%;
+  overflow: visible;
+  /* Pull the bar closer to the kid figure than the shared flex gap
+     (tuned by eye). */
+  margin-left: -8px;
+}
+
+/* Light like the event-row titles (event_rows.css, weight 200), but italic. */
+.weather-bar-high {
+  font-size: 26px;
+  font-weight: 200;
+  font-style: italic;
+  fill: #000;
+}

@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/event_rows.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/today.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tomorrow.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}" />
 </head>
 
 <body>
@@ -28,9 +29,9 @@
     a right column of Tomorrow over a 2×2 grid of Countdown / Dinner / Chore /
     Joke. Sizes flex to fill; module panels stretch to their cell (board.css). -#}
     <div class="content">
-      <div class="today-pane">{{ today(today_panel) }}</div>
+      <div class="today-pane">{{ today(today_panel, weather) }}</div>
       <div class="right-pane">
-        <div class="tomorrow-cell">{{ tomorrow(tomorrow_panel) }}</div>
+        <div class="tomorrow-cell">{{ tomorrow(tomorrow_panel, tomorrow_weather) }}</div>
         <div class="module-grid">
           <div class="grid-cell">{{ countdown() }}</div>
           <div class="grid-cell">{{ dinner() }}</div>

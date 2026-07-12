@@ -10,6 +10,7 @@ def _settings(**overrides: object) -> Settings:
         "timezone": "UTC",
         "family_calendar_ics_url": SecretStr("https://example.com/cal.ics"),
         "openai_api_key": SecretStr("sk-test-not-a-real-key"),
+        "google_maps_api_key": SecretStr("maps-test-not-a-real-key"),
     }
     kwargs.update(overrides)
     return Settings(**kwargs)
@@ -56,6 +57,23 @@ def test_openai_api_key_is_required_and_secret() -> None:
     settings = _settings(openai_api_key=SecretStr("sk-super-secret"))
     assert "sk-super-secret" not in repr(settings)
     assert settings.openai_api_key.get_secret_value() == "sk-super-secret"
+
+
+def test_google_maps_api_key_is_required_and_secret() -> None:
+    # § Weather / §18: the Maps key is required, and must never leak via
+    # repr/str (it rides in the forecast request URL).
+    assert Settings.model_fields["google_maps_api_key"].is_required()
+    settings = _settings(google_maps_api_key=SecretStr("maps-super-secret"))
+    assert "maps-super-secret" not in repr(settings)
+    assert settings.google_maps_api_key.get_secret_value() == "maps-super-secret"
+
+
+def test_weather_location_defaults_to_san_francisco() -> None:
+    # § Weather / §18: lat/long have a plausible default so a fresh checkout
+    # renders. Assert the model defaults, not the loaded values — the local
+    # config.toml legitimately sets the home's real coordinates.
+    assert Settings.model_fields["latitude"].default == pytest.approx(37.7749)
+    assert Settings.model_fields["longitude"].default == pytest.approx(-122.4194)
 
 
 def test_app_storage_path_defaults_relative_to_server_dir() -> None:

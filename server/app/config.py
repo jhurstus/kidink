@@ -63,6 +63,21 @@ class Settings(BaseSettings):
     ``KIDINK_OPENAI_API_KEY``.
     """
 
+    google_maps_api_key: SecretStr
+    """Google Maps Platform API key for the Weather API (§ Weather, §18).
+
+    Required: a missing value fails fast at startup. Held as ``SecretStr`` so the
+    key never lands in a repr, log, or traceback (it rides in the request URL's
+    query string, so the URL is a secret too). Supplied via ``config.toml`` or
+    ``KIDINK_GOOGLE_MAPS_API_KEY``.
+    """
+
+    latitude: float = 37.7749
+    longitude: float = -122.4194
+    """Weather location (§ Weather, §18). Defaults to downtown San Francisco so
+    a fresh checkout renders plausible weather; set the home's real coordinates
+    in ``config.toml``."""
+
     app_storage_path: Path = Path(".storage")
     """Root for all app-managed storage (§18): ``sqlite.db``, ``gen_images/``,
     ``prompt_images/``. A relative path is resolved against the ``server/``

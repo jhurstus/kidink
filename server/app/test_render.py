@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
+import pytest
 from flask import Flask
 from PIL import Image
 from pydantic import SecretStr
@@ -11,6 +12,7 @@ from app import create_app
 from app.calendar import CalendarFetchError
 from app.config import get_settings
 from app.images import ImageGenerationError
+from app.weather import DayForecast, WeatherFetchError
 
 DAY_NAMES = [
     "MONDAY",
@@ -34,6 +36,25 @@ EVENT_ICS = (
     "DTEND;TZID=America/Los_Angeles:20260605T130000\n"
     "DESCRIPTION:interesting = 300\nEND:VEVENT\nEND:VCALENDAR\n"
 )
+
+
+# A mild partly-cloudy day: 66°F high → normal outfit, arrow mid-bar.
+_FAKE_DAY = DayForecast(
+    high_f=66.0,
+    condition_type="PARTLY_CLOUDY",
+    precip_percent=10,
+    precip_type="RAIN",
+    thunderstorm_percent=0,
+    cloud_cover_percent=45,
+)
+
+
+class _EveryDayForecast(dict):
+    """Fake forecast mapping serving _FAKE_DAY for any date, so tests don't
+    couple their ?date= choices to a hand-built forecast horizon."""
+
+    def get(self, key: object, default: object = None) -> DayForecast:
+        return _FAKE_DAY
 
 
 def _keyable_png() -> bytes:
@@ -71,6 +92,7 @@ def _app_with_ics(
     """
     app = create_app()
     app.config["FETCH_ICS"] = lambda url: ics
+    app.config["FETCH_FORECAST"] = lambda *args, **kwargs: _EveryDayForecast()
     app.config["GENERATE_IMAGE_BYTES"] = generate or _generate_unexpected
     if storage is not None:
         app.config["APP_STORAGE_PATH"] = storage
@@ -282,6 +304,195 @@ def test_render_today_has_tab_and_reserved_weather_slot() -> None:
     assert "today-bucket-" not in text  # empty day: no buckets at all
 
 
+def test_render_today_weather_subpanel() -> None:
+    # The fake forecast (66°F, partly cloudy, dry) renders the §10.3 subpanel:
+    # condition placeholder, clothing-kid placeholder, and the SVG temp bar
+    # with the arrow's high label. 66°F is a normal-outfit day.
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    assert "weather-condition" in text
+    assert "partly cloudy" in text
+    assert "weather-kid" in text
+    assert "normal outfit" in text
+    assert "weather-bar" in text
+    assert "66°" in text
+
+
+def _weather_sections(text: str) -> tuple[str, str]:
+    """Split a render into (today's, tomorrow's) weather-subpanel HTML.
+
+    Document order is fixed: the Today pane precedes the right pane, so the
+    today slot's markup runs from its class name to the tomorrow slot's.
+    """
+    today_on = text.split("today-weather-slot", 1)[1]
+    today_section, tomorrow_section = today_on.split("tomorrow-weather-slot", 1)
+    return today_section, tomorrow_section
+
+
+def _featured_kid(section: str) -> str:
+    # The clothing-kid placeholder renders "<Name>: <outfit> outfit".
+    kids = get_settings().kids
+    return next(k.name for k in kids if f"{k.name}:" in section)
+
+
+def test_render_tomorrow_weather_subpanel() -> None:
+    # §11: tomorrow's subpanel matches today's — condition icon + clothing kid
+    # + temperature bar; its SVG defs carry the tomorrow uid so ids don't
+    # collide with today's.
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    _, tomorrow_section = _weather_sections(text)
+    assert "weather-condition" in tomorrow_section
+    assert "weather-kid" in tomorrow_section
+    assert "weather-bar" in tomorrow_section
+    assert "wx-tomorrow-clip" in tomorrow_section
+    assert "66°" in tomorrow_section
+
+
+def test_render_weather_kid_flip_flops_daily() -> None:
+    # The featured kid alternates with the date seed (§ Weather). The local
+    # config's kids drive the names; assert Today's kid differs across two
+    # consecutive days.
+    client = _app_with_ics(EMPTY_ICS).test_client()
+    if len(get_settings().kids) < 2:
+        pytest.skip("flip-flop needs two configured kids")
+
+    first, _ = _weather_sections(client.get("/render?date=2026-06-03").text)
+    second, _ = _weather_sections(client.get("/render?date=2026-06-04").text)
+
+    assert _featured_kid(first) != _featured_kid(second)
+
+
+def test_render_weather_panels_feature_different_kids() -> None:
+    # § Weather flip-flop: the same render features one kid in Today and the
+    # other in Tomorrow.
+    if len(get_settings().kids) < 2:
+        pytest.skip("flip-flop needs two configured kids")
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    today_section, tomorrow_section = _weather_sections(text)
+    assert _featured_kid(today_section) != _featured_kid(tomorrow_section)
+
+
+def test_render_fetches_forecast_once() -> None:
+    # One forecast fetch serves both panels — never one call per subpanel.
+    app = _app_with_ics(EMPTY_ICS)
+    calls: list[object] = []
+
+    def counting_fetch(*args: object, **kwargs: object) -> dict:
+        calls.append(args)
+        return _EveryDayForecast()
+
+    app.config["FETCH_FORECAST"] = counting_fetch
+    app.test_client().get("/render?date=2026-06-03")
+
+    assert len(calls) == 1
+
+
+def test_render_weather_debug_overrides() -> None:
+    # §3.5: each weather_* arg replaces its slice of the forecast in BOTH
+    # panels; the fake forecast would otherwise say partly cloudy / 66°.
+    text = (
+        _app_with_ics(EMPTY_ICS)
+        .test_client()
+        .get(
+            "/render?date=2026-06-03"
+            "&weather_icon=snow&weather_outfit=rain&weather_temp=95"
+        )
+        .text
+    )
+
+    today_section, tomorrow_section = _weather_sections(text)
+    assert "img/weather/snow.png" in today_section
+    assert "rain outfit" in today_section
+    assert "95°" in today_section
+    assert "rain outfit" in tomorrow_section
+    assert "95°" in tomorrow_section
+    assert "partly cloudy" not in text
+    assert "66°" not in text
+
+
+def test_render_weather_temp_drives_outfit_derivation() -> None:
+    # A lone weather_temp flows into the outfit cutoffs too: 95°F is a hot
+    # day even though the fake forecast's 66° would be a normal one.
+    text = (
+        _app_with_ics(EMPTY_ICS)
+        .test_client()
+        .get("/render?date=2026-06-03&weather_temp=95")
+        .text
+    )
+
+    assert "95°" in text
+    assert "hot outfit" in text
+    assert "normal outfit" not in text
+
+
+def test_render_all_weather_overrides_skip_the_fetch() -> None:
+    # §3.5: with every weather_* arg set there is nothing real left to show,
+    # so the forecast fetch is skipped outright.
+    app = _app_with_ics(EMPTY_ICS)
+    calls: list[object] = []
+
+    def counting_fetch(*args: object, **kwargs: object) -> dict:
+        calls.append(args)
+        return _EveryDayForecast()
+
+    app.config["FETCH_FORECAST"] = counting_fetch
+    text = (
+        app.test_client()
+        .get(
+            "/render?date=2026-06-03"
+            "&weather_icon=thunder&weather_outfit=cold&weather_temp=40"
+        )
+        .text
+    )
+
+    assert calls == []
+    assert "img/weather/thunder.png" in text
+    assert "cold outfit" in text
+    assert "40°" in text
+
+
+def test_render_weather_temp_renders_panel_without_forecast() -> None:
+    # weather_temp alone previews the subpanels even when the forecast is
+    # unavailable (fetch failure -> empty horizon -> synthesized day).
+    app = _app_with_ics(EMPTY_ICS)
+
+    def boom(*args: object, **kwargs: object) -> dict:
+        raise WeatherFetchError("weather forecast fetch failed")
+
+    app.config["FETCH_FORECAST"] = boom
+    text = app.test_client().get("/render?date=2026-06-03&weather_temp=80").text
+
+    assert "weather-bar" in text
+    assert "80°" in text
+    assert "hot outfit" in text
+
+
+def test_render_invalid_weather_override_is_400() -> None:
+    client = _app_with_ics(EMPTY_ICS).test_client()
+
+    assert client.get("/render?date=2026-06-03&weather_icon=sunnny").status_code == 400
+    assert client.get("/render?date=2026-06-03&weather_outfit=wet").status_code == 400
+    assert client.get("/render?date=2026-06-03&weather_temp=warm").status_code == 400
+
+
+def test_render_survives_weather_fetch_failure() -> None:
+    # Weather degrades softly (unlike the calendar): the board still renders,
+    # the slot keeps its footprint, and the subpanel is simply absent.
+    app = _app_with_ics(EMPTY_ICS)
+
+    def boom(*args: object, **kwargs: object) -> dict:
+        raise WeatherFetchError("weather forecast fetch failed")
+
+    app.config["FETCH_FORECAST"] = boom
+    response = app.test_client().get("/render?date=2026-06-03")
+
+    assert response.status_code == 200
+    assert "today-weather-slot" in response.text
+    assert "weather-bar" not in response.text
+
+
 def test_render_today_rows_show_icons(tmp_path: Path) -> None:
     text = (
         _app_with_ics(TODAY_ICS, tmp_path, _generate_ok)
@@ -370,11 +581,13 @@ def test_render_returns_500_on_unparseable_feed() -> None:
 def test_render_does_not_leak_secrets(tmp_path: Path) -> None:
     ics_secret = get_settings().family_calendar_ics_url.get_secret_value()
     api_key = get_settings().openai_api_key.get_secret_value()
+    maps_key = get_settings().google_maps_api_key.get_secret_value()
     client = _app_with_ics(EVENT_ICS, tmp_path, _generate_boom).test_client()
     text = client.get("/render?date=2026-06-03").text
 
     assert ics_secret not in text
     assert api_key not in text
+    assert maps_key not in text
     # The on-disk failure log carries the item and prompt but never a secret.
     failure_log = (tmp_path / "gen_failures.log").read_text()
     assert api_key not in failure_log

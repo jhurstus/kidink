@@ -157,6 +157,10 @@ activemq-data/
 /arduino/mockup/mockup.h
 /server/.eink-out/
 
+# playwright-cli session artifacts (page snapshots / console logs, written
+# under the invoking cwd)
+.playwright-cli/
+
 # Environments
 .env
 .envrc

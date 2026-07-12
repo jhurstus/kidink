@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from flask import Flask, abort, render_template, request
 
@@ -16,6 +16,33 @@ from app.images import (
 )
 from app.today import build_today
 from app.tomorrow import build_tomorrow
+from app.weather import (
+    Condition,
+    Outfit,
+    WeatherFetchError,
+    WeatherPanel,
+    build_weather,
+    fetch_forecast,
+    override_high,
+)
+from app.weather.admin import weather_admin_bp
+
+
+def _weather_overrides() -> tuple[Condition | None, Outfit | None, int | None]:
+    """Parse the ``?weather_icon``/``?weather_outfit``/``?weather_temp`` debug
+    args (§3.5) from the current request; a value outside the supported names
+    (or a non-integer temp) aborts with a 400 rather than being ignored."""
+    icon = request.args.get("weather_icon")
+    outfit = request.args.get("weather_outfit")
+    temp = request.args.get("weather_temp")
+    try:
+        return (
+            Condition(icon) if icon else None,
+            Outfit(outfit) if outfit else None,
+            int(temp) if temp else None,
+        )
+    except ValueError:
+        abort(400, description="invalid weather_* debug arg")
 
 
 def create_app() -> Flask:
@@ -26,11 +53,13 @@ def create_app() -> Flask:
     # Injectable seams (mirror app.config["NOW"]): tests override these with fakes
     # so the suite never hits the network or the developer's real storage.
     app.config.setdefault("FETCH_ICS", fetch_ics)
+    app.config.setdefault("FETCH_FORECAST", fetch_forecast)
     app.config.setdefault("GENERATE_IMAGE_BYTES", generate_image_bytes)
     app.config.setdefault("APP_STORAGE_PATH", settings.app_storage_path)
 
     app.register_blueprint(images_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(weather_admin_bp)
 
     @app.get("/")
     def index() -> str:
@@ -46,6 +75,43 @@ def create_app() -> Flask:
         except (CalendarFetchError, ValueError) as exc:
             app.logger.warning("family calendar render failed: %s", type(exc).__name__)
             abort(500)
+        condition_override, outfit_override, temp_override = _weather_overrides()
+        # Weather degrades softly: on a fetch failure (or a target outside the
+        # forecast horizon) the subpanels render empty but keep their
+        # footprint, rather than failing the whole board. The message never
+        # carries the request URL (it holds the API key). One fetch serves
+        # both panels — the returned mapping covers the whole horizon — and
+        # with every weather_* debug arg set (§3.5) nothing real is left to
+        # show, so the fetch is skipped outright.
+        forecast: dict = {}
+        if None in (condition_override, outfit_override, temp_override):
+            try:
+                forecast = app.config["FETCH_FORECAST"](
+                    settings.google_maps_api_key, settings.latitude, settings.longitude
+                )
+            except WeatherFetchError as exc:
+                app.logger.warning("weather fetch failed: %s", type(exc).__name__)
+
+        def panel_weather(day: date, slot: int) -> WeatherPanel | None:
+            """One subpanel's view model, debug overrides applied (§3.5).
+
+            Both panels seed the kid flip-flop off the same target date; the
+            slot offset keeps them on different kids the same day (§ Weather).
+            """
+            day_forecast = override_high(forecast.get(day), temp_override)
+            if day_forecast is None:
+                return None
+            return build_weather(
+                target,
+                day_forecast,
+                settings.kids,
+                slot=slot,
+                condition_override=condition_override,
+                outfit_override=outfit_override,
+            )
+
+        weather = panel_weather(target, 0)
+        tomorrow_weather = panel_weather(target + timedelta(days=1), 1)
         # Missing AI images are generated inline here (§3.6); an individual
         # image failure falls back to a chip (§7.3), never a 500. One resolver
         # is shared across modules so the strip and the Today/Tomorrow rows
@@ -63,6 +129,8 @@ def create_app() -> Flask:
             strip=strip,
             today_panel=today_panel,
             tomorrow_panel=tomorrow_panel,
+            weather=weather,
+            tomorrow_weather=tomorrow_weather,
             debug_images=debug_images,
         )
 

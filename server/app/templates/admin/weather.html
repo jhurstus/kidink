@@ -1,0 +1,51 @@
+<!doctype html>
+{#- Admin: the full § Weather static-image inventory (see app/weather/admin.py).
+Each cell renders its asset from static/img/weather/<name>.png at the pinned
+board display size (weather.css: 180×180 condition icons, 250×250 kid
+figures); assets that don't exist yet show as broken images. The grid is
+sized to fit the 1600×1200 panel so it can be pushed to the device for an
+on-ink check. -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — weather images</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px 24px; width: 1600px; box-sizing: border-box; background: #fff; }
+    h1 { font-size: 28px; margin: 0 0 12px; }
+    h2 { font-size: 22px; margin: 16px 0 8px; }
+    .grid { display: flex; flex-wrap: wrap; gap: 16px; }
+    figure { margin: 0; text-align: center; }
+    figcaption { font-family: monospace; font-size: 14px; margin-top: 4px; }
+    img { display: block; border: 1px dashed #bbb; background:
+      repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px; }
+  </style>
+</head>
+<body>
+  <h1>Weather images</h1>
+
+  <h2>Condition icons (180×180)</h2>
+  <div class="grid">
+    {% for name in conditions %}
+    <figure>
+      <img src="{{ url_for('static', filename='img/weather/' ~ name ~ '.png') }}" width="180" height="180"
+        alt="{{ name }}" />
+      <figcaption>{{ name }}.png</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+
+  {% for kid in kid_rows %}
+  <h2>{{ kid.name }} — outfit figures (250×250)</h2>
+  <div class="grid">
+    {% for name in kid.figures %}
+    <figure>
+      <img src="{{ url_for('static', filename='img/weather/' ~ name ~ '.png') }}" width="250" height="250"
+        alt="{{ name }}" />
+      <figcaption>{{ name }}.png</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</body>
+</html>

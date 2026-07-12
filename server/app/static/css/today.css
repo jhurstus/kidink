@@ -8,7 +8,7 @@
 
 /* Fills the outer comic_panel. The 68px top padding clears the pop-out tab
    (its face bottom lands 59px into the panel: 70px tall, popped 11px up); the
-   column is 924px, so the bucket area gets 924 - 68 - 16 - 14 - 210 = 616px
+   column is 924px, so the bucket area gets 924 - 68 - 16 - 14 - 250 = 576px
    (_AVAILABLE_H in app/today.py). Italic to match the day strip's type. */
 .today {
   position: absolute;
@@ -72,9 +72,10 @@
   height: 30px;
 }
 
-/* Reserved footprint for the weather subpanel (§10.3) — empty until weather
-   lands. Its height is already subtracted from _AVAILABLE_H in app/today.py. */
+/* The weather subpanel's slot (§10.3). Its height is already subtracted from
+   _AVAILABLE_H in app/today.py — at this size the extra height comes out of
+   the column's pooled slack, so no event-row capacity is lost. */
 .today-weather-slot {
   flex: none;
-  height: 210px;
+  height: 250px;
 }

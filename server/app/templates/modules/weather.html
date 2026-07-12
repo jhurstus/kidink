@@ -1,0 +1,89 @@
+{#- ===========================================================================
+weather.html — the weather subpanel (spec §10.3/§11, § Weather), shared by
+Today and Tomorrow.
+
+weather(panel, uid='today'):
+panel a WeatherPanel view model (see app/weather/view.py), with:
+.condition icon bucket (sunny/…/snow — also the future asset name)
+.kid_name/.outfit/.figure the clothing kid and its future asset name
+.bar .high_f (rounded label) and .arrow_percent (0=top … 100=bottom)
+uid distinct per instance — prefixes the SVG pattern/clip ids so
+Today's and Tomorrow's defs never collide on one page
+
+Left to right (§10.3/§11): condition icon → clothing kid → temperature bar.
+The condition icon and clothing figure are hand-made static assets under
+static/img/weather/ (§ Weather inventory; browse them at /admin/weather) —
+ones not drawn yet render as broken images. The temperature bar is an
+authored SVG (§ Weather: no hand-made images). Tomorrow's slot packs the same
+row horizontally compact (§11) via scoped overlaps in weather.css.
+=========================================================================== -#}
+
+{#- The temperature bar (§ Weather): a vertical five-band scale, hottest at the
+top — red / orange / yellow / light-blue / blue, all flat fills (the orange
+and light-blue were Ben-Day dot patterns; flat won by eye — the device
+quantizer dithers them anyway). A flame caps the hot end, a snowflake the
+cold end, and a blue arrow floats over the bar pointing at the day's high. -#}
+{#- The viewBox ends where the widest two-digit label ends ("88°" at x≈119),
+with no trailing dead space: the SVG sits flush against the slot's right edge
+so the whole bar+arrow+label group is right-aligned and every two-digit label
+stays inside it. A rare three-digit label overflows the viewBox by a few px
+(overflow is visible in weather.css) into the panel padding rather than
+pushing the group left. -#}
+{% macro temp_bar(bar, uid='today') -%}
+{%- set arrow_y = 28 + 154 * bar.arrow_percent / 100 -%}
+<svg class="weather-bar" viewBox="0 0 119 210" aria-hidden="true">
+  <defs>
+    <clipPath id="wx-{{ uid }}-clip">
+      <rect x="24" y="28" width="40" height="154" rx="6" />
+    </clipPath>
+  </defs>
+  {#- Heat endcap: a flame over the hot end. -#}
+  <path
+    d="M44 2 C 42 6.5, 38 9.5, 38 14.5 A 6.5 6.5 0 0 0 51 14.5 C 51 11.5, 49.5 9, 47.5 7 C 47.5 9.5, 46 11, 44.6 11.5 C 43.8 8.5, 43.6 5, 44 2 Z"
+    fill="#ff0000" stroke="#000" stroke-width="2" stroke-linejoin="round" />
+  {#- The five bands, hottest → coldest, equal fifths of the 154px bar. -#}
+  <g clip-path="url(#wx-{{ uid }}-clip)">
+    <rect x="24" y="28" width="40" height="30.8" fill="#ff0000" />
+    <rect x="24" y="58.8" width="40" height="30.8" fill="#ef9b44" />
+    <rect x="24" y="89.6" width="40" height="30.8" fill="#ffff00" />
+    <rect x="24" y="120.4" width="40" height="30.8" fill="#8ec4f2" />
+    <rect x="24" y="151.2" width="40" height="30.8" fill="#2b55c8" />
+    <g stroke="#000" stroke-width="1.5">
+      <line x1="24" y1="58.8" x2="64" y2="58.8" />
+      <line x1="24" y1="89.6" x2="64" y2="89.6" />
+      <line x1="24" y1="120.4" x2="64" y2="120.4" />
+      <line x1="24" y1="151.2" x2="64" y2="151.2" />
+    </g>
+  </g>
+  <rect x="24" y="28" width="40" height="154" rx="6" fill="none" stroke="#000" stroke-width="3" />
+  {#- Cold endcap: a snowflake under the cold end. Stroked lines can't carry
+  an SVG outline, so a fatter black copy is drawn underneath the blue one —
+  reading as the same black ink edge as the flame above. -#}
+  <g stroke="#000" stroke-width="6.5" stroke-linecap="round">
+    <line x1="37" y1="198" x2="51" y2="198" />
+    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
+    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
+  </g>
+  <g stroke="#2b55c8" stroke-width="3" stroke-linecap="round">
+    <line x1="37" y1="198" x2="51" y2="198" />
+    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
+    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
+  </g>
+  {#- The arrow: floats over the bar's right edge, tip on the day's high. -#}
+  <polygon points="52,{{ '%.1f' | format(arrow_y) }} 76,{{ '%.1f' | format(arrow_y - 11) }} 76,{{ '%.1f' | format(arrow_y + 11) }}"
+    fill="#000" stroke="#000" stroke-width="2.5" stroke-linejoin="round" />
+  <text class="weather-bar-high" x="80" y="{{ '%.1f' | format(arrow_y + 8) }}">{{ bar.high_f }}°</text>
+</svg>
+{%- endmacro %}
+
+{% macro weather(panel, uid='today') -%}
+<div class="weather">
+  <img class="weather-condition" src="{{ url_for('static', filename='img/weather/' ~ panel.condition ~ '.png') }}"
+    alt="{{ panel.condition.replace('_', ' ') }}" />
+  {%- if panel.figure %}
+  <img class="weather-kid" src="{{ url_for('static', filename='img/weather/' ~ panel.figure ~ '.png') }}"
+    alt="{{ panel.kid_name }}: {{ panel.outfit }} outfit" />
+  {%- endif %}
+  {{ temp_bar(panel.bar, uid) }}
+</div>
+{%- endmacro %}

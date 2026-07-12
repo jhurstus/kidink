@@ -5,8 +5,9 @@ chronological list — no morning/day/evening buckets. Selection is capped by
 the §4.1 row-budget geometry (``floor(available_height / row_height)``,
 dropping the lowest-``interesting`` events silently), while display order is
 chronological (§11). The row/badge/icon machinery shared with the Today panel
-lives in :mod:`app.event_rows`. The weather subpanel (§11) is not built yet;
-the template reserves the panel's right half for it.
+lives in :mod:`app.event_rows`. The weather subpanel filling the panel's right
+half is built separately (:func:`app.weather.build_weather`, slot 1) and
+passed to the template alongside this model.
 """
 
 from collections.abc import Iterable, Sequence

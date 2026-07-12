@@ -1,13 +1,16 @@
 {#- ===========================================================================
 today.html — the Today module (spec §10). Full left column: a creased-corner
-"TODAY" tab, the Morning/Day/Evening event buckets, and a reserved (empty for
-now) slot for the weather subpanel (§10.3).
+"TODAY" tab, the Morning/Day/Evening event buckets, and the weather subpanel
+(§10.3) at the bottom.
 
-today(panel):
+today(panel, weather):
 panel a TodayPanel view model (see app/today.py), with:
 .seed border seed for the outer panel
 .buckets non-empty TodayBuckets (Morning→Day→Evening), each with
 .name/.key/.seed/.rows; rows render via the shared event_row macro
+weather a WeatherPanel view model (see app/weather/view.py), or none when
+the forecast is unavailable — the slot then stays empty but keeps
+its footprint (the row budget already subtracts it)
 
 Each bucket is its own comic_panel with the same vocabulary as the outer panel
 (white, thin black border). Buckets flex-grow by their row count so the column's
@@ -17,6 +20,7 @@ and must stay in sync with the row-budget geometry in app/today.py.
 {% from "macros/comic.html" import comic_panel %}
 {% from "macros/event_row.html" import event_row %}
 {% from "macros/tab.html" import corner_tab %}
+{% from "modules/weather.html" import weather as weather_subpanel %}
 
 {#- Comic time-of-day glyph for a bucket header: rising sun / sun / moon, drawn
 as inline SVG with a thin black ink outline (in-palette yellows). -#}
@@ -55,7 +59,7 @@ as inline SVG with a thin black ink outline (in-palette yellows). -#}
 {%- endif -%}
 {%- endmacro %}
 
-{% macro today(panel) -%}
+{% macro today(panel, weather=none) -%}
 {#- The tab is a SIBLING of the panel, not a child: comic_panel clips its
 contents (overflow:hidden), and the tab pops up-left past the panel's corner
 (absolute against .today-pane; see today.css). -#}
@@ -82,9 +86,11 @@ border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
     </div>
     {%- endfor %}
   </div>
-  {#- Reserved footprint for the weather subpanel (§10.3) — intentionally empty
-  until weather lands; the row budget in app/today.py already subtracts it. -#}
-  <div class="today-weather-slot"></div>
+  {#- The weather subpanel (§10.3). The slot keeps its footprint even when the
+  forecast is unavailable; the row budget in app/today.py already subtracts it. -#}
+  <div class="today-weather-slot">
+    {%- if weather %}{{ weather_subpanel(weather, uid='today') }}{% endif -%}
+  </div>
 </div>
 {% endcall %}
 {%- endmacro %}

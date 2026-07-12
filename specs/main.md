@@ -136,6 +136,16 @@ directly. They are invisible to the ESP32 in normal operation:
   included in the render**: each image's id and logical key and a link to the image admin
   endpoint (§7.4, via its `img=` arg) to view and edit that image's prompt (consumed
   by `/render`).
+- **`?weather_icon=<name>` / `?weather_outfit=<name>` / `?weather_temp=<int>`** —
+  override the corresponding slice of the weather subpanels (§ Weather), for
+  previewing any icon/outfit/bar state: `weather_icon` takes a condition bucket
+  name (`sunny`, `partly_cloudy`, `cloudy`, `light_rain`, `rain`, `thunder`,
+  `snow`), `weather_outfit` an outfit name (`hot`, `normal`, `cold`, `rain`), and
+  `weather_temp` an integer °F high that both the temperature bar and the outfit
+  derivation use. Overrides apply to **both** panels; a value outside the
+  supported names is a 400. `weather_temp` alone is enough to render the
+  subpanels even when no forecast is available, and when **all three** are set
+  the weather fetch is skipped entirely (consumed by `/render`).
 
 ### 3.6 Warm-up prerenders
 
@@ -736,8 +746,11 @@ differences:
   start time, ties broken by `interesting` then title.
 - Fewer events typically fit (smaller panel), via the same row-budget logic.
 
-Tomorrow's **weather subpanel**, left to right: **clothing kid → temperature bar** (no
-condition icon).
+Tomorrow's **weather subpanel** fills the panel's right side and matches Today's,
+left to right: **condition icon → clothing kid → temperature bar**. To leave the
+event list its width, the row packs **horizontally compact**: the icon, figure, and
+bar may touch or slightly overlap (the art carries generous side transparency, so
+no ink collides).
 
 ---
 
@@ -752,7 +765,7 @@ defaults to Celsius). For each date we read the **daytime** forecast:
 `thunderstormProbability`, cloud cover, and the day's high. Google's own condition icons
 are ignored.
 
-### Condition icon (Today only)
+### Condition icon (Today and Tomorrow)
 
 A single shared set of **seven** hand-made icons: **sunny, partly cloudy, cloudy, light
 rain, rain, thunder, snow**. Google's long condition enum is mapped onto these seven,
@@ -791,10 +804,19 @@ condition icons. The bar needs no hand-made images.
 ### Hand-made image inventory
 
 Seven condition icons + eight clothing figures = **15 images**. Being hand-made rather
-than generated, they are **static assets served by name** (e.g. `sunny`, `<kid>_rain`),
-not rows in the image database (§7.6). Pixel sizes are pinned at layout time (kid figures
-run taller than the square condition icons). These are the only non-AI images in the
-system, alongside the bugbug creature poses (§16).
+than generated, they are **static assets served by name** (e.g. `sunny`, `kid0_rain`),
+not rows in the image database (§7.6); the files live under `static/img/weather/`.
+Figure names carry the kid's **config-order index** (`kid0`, `kid1`, …), never the
+kid's name — the files are committed, and the kids' names must not land in the
+public repo (names live only in the gitignored config, §18).
+Pixel sizes are pinned at layout time (kid figures run taller than the square condition
+icons). These are the only non-AI images in the system, alongside the bugbug creature
+poses (§16).
+
+**Weather admin page.** `GET /admin/weather` shows the whole inventory in one grid —
+every condition icon and every configured kid's outfit figures, each at its pinned
+board display size — sized to fit the 1600 × 1200 panel so the set can be pushed to
+the device for an on-ink check.
 
 ---
 

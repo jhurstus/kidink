@@ -1,13 +1,18 @@
 {#- ===========================================================================
 tomorrow.html — the Tomorrow module (spec §11). Top of the right column: a
-creased-corner "TOMORROW" tab and a single chronological event list (no
-morning/day/evening buckets), rendered with the shared event_row macro. The
-panel's right half is a reserved (empty for now) slot for the weather subpanel.
+creased-corner "TOMORROW" tab, a single chronological event list (no
+morning/day/evening buckets) rendered with the shared event_row macro, and
+the weather subpanel filling the panel's right half.
 
-tomorrow(panel):
+tomorrow(panel, weather):
 panel a TomorrowPanel view model (see app/tomorrow.py), with:
 .seed border seed for the panel
 .rows EventRows in chronological order (shared event_row macro)
+weather a WeatherPanel view model (see app/weather/view.py) for the day
+after the target — condition icon + clothing kid + temperature
+bar, packed horizontally compact (§11) — or none when the
+forecast is unavailable (the slot then stays empty but keeps its
+footprint)
 
 Layout constants live in static/css/tomorrow.css and must stay in sync with
 the row-budget geometry in app/tomorrow.py.
@@ -15,8 +20,9 @@ the row-budget geometry in app/tomorrow.py.
 {% from "macros/comic.html" import comic_panel %}
 {% from "macros/event_row.html" import event_row %}
 {% from "macros/tab.html" import corner_tab %}
+{% from "modules/weather.html" import weather as weather_subpanel %}
 
-{% macro tomorrow(panel) -%}
+{% macro tomorrow(panel, weather=none) -%}
 {#- Like Today's, the tab is a SIBLING of the panel: comic_panel clips its
 contents (overflow:hidden), and the tab pops up-left past the panel's corner
 (absolute against .tomorrow-cell; see tomorrow.css). -#}
@@ -28,9 +34,12 @@ border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
   <div class="tomorrow-rows">
     {%- for row in panel.rows %}{{ event_row(row) }}{% endfor -%}
   </div>
-  {#- Reserved footprint for the weather subpanel (§11: clothing kid +
-  temperature bar) — intentionally empty until weather lands. -#}
-  <div class="tomorrow-weather-slot"></div>
+  {#- The weather subpanel (§11: condition icon + clothing kid + temperature
+  bar, packed compact). The slot keeps its footprint when the forecast is
+  unavailable. -#}
+  <div class="tomorrow-weather-slot">
+    {%- if weather %}{{ weather_subpanel(weather, uid='tomorrow') }}{% endif -%}
+  </div>
 </div>
 {% endcall %}
 {%- endmacro %}
