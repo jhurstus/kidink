@@ -31,8 +31,10 @@ class WeatherFetchError(Exception):
 class DayForecast:
     """One day's daytime forecast, reduced to the fields the board uses."""
 
-    high_f: float
-    """The day's high, °F (the forecast is requested in imperial units)."""
+    feels_like_high_f: float
+    """The day's "feels like" high, °F (the forecast is requested in imperial
+    units); drives the outfit cutoffs and the temperature bar. Falls back to
+    the plain high when the API omits a usable feels-like value."""
 
     condition_type: str
     """Google's raw condition enum for the daytime, e.g. ``PARTLY_CLOUDY``."""
@@ -95,35 +97,51 @@ def fetch_forecast(
 def _parse_day(entry: object) -> tuple[date, DayForecast] | None:
     """Parse one ``forecastDays`` element, or ``None`` if it is unusable.
 
-    The display date and a Fahrenheit high are essential (clothing and the
-    temperature bar hang off the high — misread units would dress the kids
-    wrong); the daytime condition fields default benignly when absent, as they
-    legitimately are for today's entry once the daytime window has passed.
+    The display date and a Fahrenheit "feels like" high are essential (clothing
+    and the temperature bar hang off it — misread units would dress the kids
+    wrong), though the plain high serves as its fallback; the daytime condition
+    fields default benignly when absent, as they legitimately are for today's
+    entry once the daytime window has passed.
     """
     if not isinstance(entry, dict):
         return None
     # ty narrows the isinstance to dict[Never, Never]; re-widen the value shape.
     fields = cast("dict[str, Any]", entry)
     display = fields.get("displayDate") or {}
-    temperature = fields.get("maxTemperature") or {}
     try:
         day = date(display["year"], display["month"], display["day"])
-        high_f = float(temperature["degrees"])
     except TypeError, KeyError, ValueError:
         return None
-    if temperature.get("unit") != "FAHRENHEIT":
+    feels_like_high_f = _fahrenheit(fields.get("feelsLikeMaxTemperature"))
+    if feels_like_high_f is None:
+        feels_like_high_f = _fahrenheit(fields.get("maxTemperature"))
+    if feels_like_high_f is None:
         return None
     daytime = fields.get("daytimeForecast") or {}
     condition = (daytime.get("weatherCondition") or {}).get("type")
     probability = (daytime.get("precipitation") or {}).get("probability") or {}
     return day, DayForecast(
-        high_f=high_f,
+        feels_like_high_f=feels_like_high_f,
         condition_type=str(condition or ""),
         precip_percent=_as_percent(probability.get("percent")),
         precip_type=str(probability.get("type") or "RAIN"),
         thunderstorm_percent=_as_percent(daytime.get("thunderstormProbability")),
         cloud_cover_percent=_as_percent(daytime.get("cloudCover")),
     )
+
+
+def _fahrenheit(value: object) -> float | None:
+    """A temperature object's °F reading, or ``None`` if it is unusable."""
+    if not isinstance(value, dict):
+        return None
+    # ty narrows the isinstance to dict[Never, Never]; re-widen the value shape.
+    fields = cast("dict[str, Any]", value)
+    if fields.get("unit") != "FAHRENHEIT":
+        return None
+    try:
+        return float(fields["degrees"])
+    except TypeError, KeyError, ValueError:
+        return None
 
 
 def _as_percent(value: object) -> int:

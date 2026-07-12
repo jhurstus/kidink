@@ -38,9 +38,9 @@ EVENT_ICS = (
 )
 
 
-# A mild partly-cloudy day: 66°F high → normal outfit, arrow mid-bar.
+# A mild partly-cloudy day: 66°F feels-like high → normal outfit, arrow mid-bar.
 _FAKE_DAY = DayForecast(
-    high_f=66.0,
+    feels_like_high_f=66.0,
     condition_type="PARTLY_CLOUDY",
     precip_percent=10,
     precip_type="RAIN",

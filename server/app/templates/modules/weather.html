@@ -22,7 +22,8 @@ row horizontally compact (§11) via scoped overlaps in weather.css.
 top — red / orange / yellow / light-blue / blue, all flat fills (the orange
 and light-blue were Ben-Day dot patterns; flat won by eye — the device
 quantizer dithers them anyway). A flame caps the hot end, a snowflake the
-cold end, and a blue arrow floats over the bar pointing at the day's high. -#}
+cold end, and a blue arrow floats over the bar pointing at the day's
+"feels like" high. -#}
 {#- The viewBox ends where the widest two-digit label ends ("88°" at x≈119),
 with no trailing dead space: the SVG sits flush against the slot's right edge
 so the whole bar+arrow+label group is right-aligned and every two-digit label
@@ -69,7 +70,7 @@ pushing the group left. -#}
     <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
     <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
   </g>
-  {#- The arrow: floats over the bar's right edge, tip on the day's high. -#}
+  {#- The arrow: floats over the bar's right edge, tip on the feels-like high. -#}
   <polygon points="52,{{ '%.1f' | format(arrow_y) }} 76,{{ '%.1f' | format(arrow_y - 11) }} 76,{{ '%.1f' | format(arrow_y + 11) }}"
     fill="#000" stroke="#000" stroke-width="2.5" stroke-linejoin="round" />
   <text class="weather-bar-high" x="80" y="{{ '%.1f' | format(arrow_y + 8) }}">{{ bar.high_f }}°</text>

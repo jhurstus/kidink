@@ -14,7 +14,7 @@ _KIDS = [Kid(name="Alice", label="A"), Kid(name="Bob", label="B")]
 
 def _day(
     *,
-    high: float = 66.0,
+    feels_like: float = 66.0,
     condition: str = "PARTLY_CLOUDY",
     precip: int = 10,
     precip_type: str = "RAIN",
@@ -22,7 +22,7 @@ def _day(
     cloud: int = 45,
 ) -> DayForecast:
     return DayForecast(
-        high_f=high,
+        feels_like_high_f=feels_like,
         condition_type=condition,
         precip_percent=precip,
         precip_type=precip_type,
@@ -88,11 +88,12 @@ def test_unknown_dry_type_falls_back_to_cloud_cover() -> None:
     assert _condition(_day(condition="HAZE", cloud=71)) == Condition.CLOUDY
 
 
-# --- Outfit selection (§ Weather: PoP ≥ 25% → rain, else by the high) ---
+# --- Outfit selection (§ Weather: PoP ≥ 25% → rain, else by the
+# "feels like" high) ---
 
 
 @pytest.mark.parametrize(
-    ("high", "precip", "outfit"),
+    ("feels_like", "precip", "outfit"),
     [
         (66.0, 25, Outfit.RAIN),  # rain overrides temperature
         (45.0, 24, Outfit.COLD),
@@ -103,8 +104,9 @@ def test_unknown_dry_type_falls_back_to_cloud_cover() -> None:
         (95.0, 0, Outfit.HOT),
     ],
 )
-def test_outfit_cutoffs(high: float, precip: int, outfit: Outfit) -> None:
-    assert build_weather(_TARGET, _day(high=high, precip=precip)).outfit == outfit
+def test_outfit_cutoffs(feels_like: float, precip: int, outfit: Outfit) -> None:
+    panel = build_weather(_TARGET, _day(feels_like=feels_like, precip=precip))
+    assert panel.outfit == outfit
 
 
 # --- Kid flip-flop (§ Weather: date-seeded, Today/Tomorrow offset) ---
@@ -130,7 +132,7 @@ def test_slot_offsets_the_flip_flop() -> None:
 def test_figure_is_kid_index_and_outfit_asset_name() -> None:
     # The asset name carries the kid's config-order INDEX, never the name —
     # the committed image files must not leak the kids' names (§ Weather).
-    panel = build_weather(_TARGET, _day(high=80.0), _KIDS)
+    panel = build_weather(_TARGET, _day(feels_like=80.0), _KIDS)
 
     expected_index = _TARGET.toordinal() % len(_KIDS)
     assert panel.kid_name == _KIDS[expected_index].name
@@ -165,17 +167,17 @@ def test_condition_and_outfit_overrides_replace_derivation() -> None:
 
 
 def test_override_high_passes_through_without_a_debug_temp() -> None:
-    day = _day(high=60.0)
+    day = _day(feels_like=60.0)
 
     assert override_high(day, None) is day
     assert override_high(None, None) is None
 
 
 def test_override_high_replaces_the_high_only() -> None:
-    day = override_high(_day(high=60.0, precip=30), 95)
+    day = override_high(_day(feels_like=55.0, precip=30), 95)
 
     assert day is not None
-    assert day.high_f == 95.0
+    assert day.feels_like_high_f == 95.0
     assert day.precip_percent == 30  # the rest of the forecast is untouched
 
 
@@ -183,7 +185,7 @@ def test_override_high_synthesizes_a_day_when_forecast_is_missing() -> None:
     day = override_high(None, 80)
 
     assert day is not None
-    assert day.high_f == 80.0
+    assert day.feels_like_high_f == 80.0
     # The synthesized day is clear and dry: hot outfit, sunny bucket.
     panel = build_weather(_TARGET, day, _KIDS)
     assert panel.outfit == Outfit.HOT
@@ -194,11 +196,21 @@ def test_override_high_synthesizes_a_day_when_forecast_is_missing() -> None:
 
 
 def test_high_is_rounded_for_the_label() -> None:
-    assert build_weather(_TARGET, _day(high=61.8)).bar.high_f == 62
+    assert build_weather(_TARGET, _day(feels_like=61.8)).bar.high_f == 62
+
+
+def test_bar_and_outfit_both_read_the_feels_like_high() -> None:
+    # § Weather: the whole subpanel answers "how will it feel outside?" — the
+    # bar points at, and the clothing cutoffs read, the same feels-like high.
+    panel = build_weather(_TARGET, _day(feels_like=51.8))
+
+    assert panel.bar.high_f == 52
+    assert panel.bar.arrow_percent == pytest.approx(77.1, abs=0.05)
+    assert panel.outfit == Outfit.COLD
 
 
 @pytest.mark.parametrize(
-    ("high", "percent"),
+    ("feels_like", "percent"),
     [
         (30.0, 100.0),  # clamped at the cold end
         (42.5, 100.0),
@@ -211,12 +223,15 @@ def test_high_is_rounded_for_the_label() -> None:
         (105.0, 0.0),  # clamped at the hot end
     ],
 )
-def test_arrow_position_at_band_edges(high: float, percent: float) -> None:
-    assert build_weather(_TARGET, _day(high=high)).bar.arrow_percent == percent
+def test_arrow_position_at_band_edges(feels_like: float, percent: float) -> None:
+    panel = build_weather(_TARGET, _day(feels_like=feels_like))
+    assert panel.bar.arrow_percent == percent
 
 
 def test_arrow_position_is_monotonic_in_the_high() -> None:
     highs = [float(h) for h in range(30, 106)]
-    positions = [build_weather(_TARGET, _day(high=h)).bar.arrow_percent for h in highs]
+    positions = [
+        build_weather(_TARGET, _day(feels_like=h)).bar.arrow_percent for h in highs
+    ]
 
     assert positions == sorted(positions, reverse=True)

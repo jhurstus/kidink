@@ -19,6 +19,8 @@ def _day_payload(
     *,
     high: float = 61.8,
     unit: str = "FAHRENHEIT",
+    feels_like: float | None = 58.4,
+    feels_like_unit: str = "FAHRENHEIT",
     daytime: dict | None = None,
 ) -> dict:
     """One forecastDays element in the API's real shape (trimmed)."""
@@ -26,6 +28,11 @@ def _day_payload(
         "displayDate": {"year": year, "month": month, "day": day},
         "maxTemperature": {"unit": unit, "degrees": high},
     }
+    if feels_like is not None:
+        entry["feelsLikeMaxTemperature"] = {
+            "unit": feels_like_unit,
+            "degrees": feels_like,
+        }
     if daytime is not None:
         entry["daytimeForecast"] = daytime
     return entry
@@ -58,7 +65,7 @@ def test_fetch_parses_days(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert forecast == {
         date(2026, 7, 9): DayForecast(
-            high_f=61.8,
+            feels_like_high_f=58.4,
             condition_type="CLEAR",
             precip_percent=10,
             precip_type="RAIN",
@@ -101,19 +108,44 @@ def test_missing_daytime_forecast_defaults_benignly(
     forecast = fetch_forecast(_KEY, 37.0, -122.0)
 
     day = forecast[date(2026, 7, 9)]
-    assert day.high_f == 61.8
+    assert day.feels_like_high_f == 58.4
     assert day.condition_type == ""
     assert day.precip_percent == 0
     assert day.thunderstorm_percent == 0
 
 
+def test_feels_like_high_falls_back_to_the_plain_high(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A missing or non-Fahrenheit feels-like high falls back to the plain
+    # high rather than dropping the day; and either alone is enough — a day
+    # carrying only a usable feels-like high still parses.
+    payload = {
+        "forecastDays": [
+            _day_payload(day=9, feels_like=None),
+            _day_payload(day=10, feels_like=17.2, feels_like_unit="CELSIUS"),
+            {
+                "displayDate": {"year": 2026, "month": 7, "day": 11},
+                "feelsLikeMaxTemperature": {"unit": "FAHRENHEIT", "degrees": 71.3},
+            },
+        ]
+    }
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: _FakeResponse(payload))
+
+    forecast = fetch_forecast(_KEY, 37.0, -122.0)
+
+    assert forecast[date(2026, 7, 9)].feels_like_high_f == 61.8
+    assert forecast[date(2026, 7, 10)].feels_like_high_f == 61.8
+    assert forecast[date(2026, 7, 11)].feels_like_high_f == 71.3
+
+
 def test_unusable_days_are_skipped_leniently(monkeypatch: pytest.MonkeyPatch) -> None:
-    # A day missing its high, a non-Fahrenheit day (misread units would dress
+    # A day missing both highs, a non-Fahrenheit day (misread units would dress
     # the kids wrong), and a non-dict entry are each dropped; the rest survive.
     payload = {
         "forecastDays": [
             {"displayDate": {"year": 2026, "month": 7, "day": 8}},
-            _day_payload(day=9, unit="CELSIUS", high=16.5),
+            _day_payload(day=9, unit="CELSIUS", high=16.5, feels_like=None),
             "not-a-dict",
             _day_payload(day=10, high=70.0),
         ]

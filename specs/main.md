@@ -141,8 +141,8 @@ directly. They are invisible to the ESP32 in normal operation:
   previewing any icon/outfit/bar state: `weather_icon` takes a condition bucket
   name (`sunny`, `partly_cloudy`, `cloudy`, `light_rain`, `rain`, `thunder`,
   `snow`), `weather_outfit` an outfit name (`hot`, `normal`, `cold`, `rain`), and
-  `weather_temp` an integer °F high that both the temperature bar and the outfit
-  derivation use. Overrides apply to **both** panels; a value outside the
+  `weather_temp` an integer °F "feels like" high that both the temperature bar
+  and the outfit derivation use. Overrides apply to **both** panels; a value outside the
   supported names is a 400. `weather_temp` alone is enough to render the
   subpanels even when no forecast is available, and when **all three** are set
   the weather fetch is skipped entirely (consumed by `/render`).
@@ -762,8 +762,9 @@ From the **Google Maps Platform Weather API** daily forecast. Configuration supp
 Google Maps API key and a latitude/longitude. We request **imperial units** (the API
 defaults to Celsius). For each date we read the **daytime** forecast:
 `weatherCondition.type`, `precipitation.probability` (percent and RAIN/SNOW type),
-`thunderstormProbability`, cloud cover, and the day's high. Google's own condition icons
-are ignored.
+`thunderstormProbability`, cloud cover, and the day's **"feels like" high**
+(`feelsLikeMaxTemperature`, falling back to the plain `maxTemperature` when
+unusable). Google's own condition icons are ignored.
 
 ### Condition icon (Today and Tomorrow)
 
@@ -779,17 +780,20 @@ A figure of the relevant kid showing what to wear. **Four outfits** per kid — 
 normal, cold, rain — i.e. **eight** hand-made figures. Selection for the day:
 
 - daytime **PoP ≥ 25%** → **rain gear** (overrides temperature);
-- otherwise by the day's high: **< 60°F** cold, **60–72°F** normal, **> 72°F** hot.
+- otherwise by the day's "feels like" high: **< 60°F** cold, **60–72°F** normal,
+  **> 72°F** hot.
 
 **Flip-flop:** which kid is featured in Today vs. Tomorrow alternates each day,
 deterministically from the date seed.
 
 ### Temperature bar (Today and Tomorrow — identical UI)
 
-A CSS-rendered vertical bar of five bands with an arrow pointing to the day's high.
-Segments use the palette (light-blue and orange are halftone blends):
+A CSS-rendered vertical bar of five bands with an arrow pointing to the day's
+**"feels like" high** — the bar answers "how will it feel outside?", so wind chill
+and humidity count. Segments use the palette (light-blue and orange are halftone
+blends):
 
-| Band | High (°F) | Color |
+| Band | Feels-like high (°F) | Color |
 |---|---|---|
 | Coldest | ≤ 50 | blue |
 | Cold | 51–59 | light-blue (halftone) |
@@ -798,8 +802,8 @@ Segments use the palette (light-blue and orange are halftone blends):
 | Hottest | ≥ 76 | red |
 
 These five bands are deliberately **not** the three clothing cutoffs — two separate
-systems sharing one input (the high). Optional decorative sun/snow endcaps may reuse the
-condition icons. The bar needs no hand-made images.
+systems sharing one input (the "feels like" high). Optional decorative sun/snow
+endcaps may reuse the condition icons. The bar needs no hand-made images.
 
 ### Hand-made image inventory
 
