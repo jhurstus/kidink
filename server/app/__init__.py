@@ -2,12 +2,18 @@ from datetime import UTC, date, datetime, timedelta
 
 from flask import Flask, abort, render_template, request
 
-from app.calendar import CalendarFetchError, expand_events, fetch_ics
+from app.calendar import CalendarEvent, CalendarFetchError, expand_events, fetch_ics
 from app.comic import comic_border_path
 from app.config import get_settings
 from app.countdown import build_countdown, make_countdown_hero_resolver
 from app.dates import render_days, resolve_date
 from app.day_strip import build_day_strip
+from app.dinner import (
+    build_dinner,
+    dinner_admin_bp,
+    make_dinner_hero_resolver,
+    stored_override,
+)
 from app.images import (
     RenderedImage,
     admin_bp,
@@ -54,6 +60,7 @@ def create_app() -> Flask:
     # Injectable seams (mirror app.config["NOW"]): tests override these with fakes
     # so the suite never hits the network or the developer's real storage.
     app.config.setdefault("FETCH_ICS", fetch_ics)
+    app.config.setdefault("FETCH_MEALPLAN_ICS", fetch_ics)
     app.config.setdefault("FETCH_FORECAST", fetch_forecast)
     app.config.setdefault("GENERATE_IMAGE_BYTES", generate_image_bytes)
     app.config.setdefault("APP_STORAGE_PATH", settings.app_storage_path)
@@ -61,6 +68,7 @@ def create_app() -> Flask:
     app.register_blueprint(images_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(weather_admin_bp)
+    app.register_blueprint(dinner_admin_bp)
 
     @app.get("/")
     def index() -> str:
@@ -76,6 +84,18 @@ def create_app() -> Flask:
         except (CalendarFetchError, ValueError) as exc:
             app.logger.warning("family calendar render failed: %s", type(exc).__name__)
             abort(500)
+        # Dinner degrades softly (§13), unlike the family calendar: a meal-plan
+        # fetch/parse failure logs (type name only - the message could echo the
+        # secret URL) and falls through to the "Mystery dinner!" card, though a
+        # stored per-date override (/admin/meals) still supplies a name.
+        meal_events: list[CalendarEvent] = []
+        try:
+            meal_ics = app.config["FETCH_MEALPLAN_ICS"](
+                settings.anylist_mealplan_ics_url
+            )
+            meal_events = expand_events(meal_ics, [target], settings.timezone)
+        except (CalendarFetchError, ValueError) as exc:
+            app.logger.warning("meal plan fetch failed: %s", type(exc).__name__)
         condition_override, outfit_override, temp_override = _weather_overrides()
         # Weather degrades softly: on a fetch failure (or a target outside the
         # forecast horizon) the subpanels render empty but keep their
@@ -125,6 +145,12 @@ def create_app() -> Flask:
         countdown_panel = build_countdown(
             target, events, hero_resolver=make_countdown_hero_resolver(rendered_images)
         )
+        dinner_panel = build_dinner(
+            target,
+            meal_events,
+            override=stored_override(app.config["APP_STORAGE_PATH"], target),
+            hero_resolver=make_dinner_hero_resolver(rendered_images),
+        )
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None
         )
@@ -134,6 +160,7 @@ def create_app() -> Flask:
             today_panel=today_panel,
             tomorrow_panel=tomorrow_panel,
             countdown_panel=countdown_panel,
+            dinner_panel=dinner_panel,
             weather=weather,
             tomorrow_weather=tomorrow_weather,
             debug_images=debug_images,

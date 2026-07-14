@@ -14,6 +14,14 @@ timezone = "US/Pacific"
 #   https://calendar.google.com/calendar/ical/<calendar-id>/public/basic.ics
 family_calendar_ics_url = "https://calendar.google.com/calendar/ical/REPLACE_ME/public/basic.ics"
 
+# Anylist meal-plan ICS feed (dinner, §6.1, §13). REQUIRED - the server fails to
+# start without it. This is a SECRET, unauthenticated URL: keep it only in
+# config.toml (gitignored) or the KIDINK_ANYLIST_MEALPLAN_ICS_URL env var, never
+# here. Anylist generates the subscription link under Meal Plan > calendar
+# export, e.g.
+#   https://icalendar.anylist.com/<token>.ics
+anylist_mealplan_ics_url = "https://icalendar.anylist.com/REPLACE_ME.ics"
+
 # OpenAI API key for AI image generation (§7.2). REQUIRED — the server fails to
 # start without it. This is a SECRET: keep it only in config.toml (gitignored) or
 # the KIDINK_OPENAI_API_KEY env var, never here.

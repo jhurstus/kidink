@@ -9,6 +9,7 @@ def _settings(**overrides: object) -> Settings:
     kwargs: dict = {
         "timezone": "UTC",
         "family_calendar_ics_url": SecretStr("https://example.com/cal.ics"),
+        "anylist_mealplan_ics_url": SecretStr("https://example.com/meals.ics"),
         "openai_api_key": SecretStr("sk-test-not-a-real-key"),
         "google_maps_api_key": SecretStr("maps-test-not-a-real-key"),
     }
@@ -49,6 +50,17 @@ def test_family_calendar_ics_url_is_secret() -> None:
     )
     assert "secret.example" not in repr(settings)
     assert settings.family_calendar_ics_url.get_secret_value().endswith("feed.ics")
+
+
+def test_anylist_mealplan_ics_url_is_required_and_secret() -> None:
+    # §18: the meal-plan ICS URL is required config, and must never leak via
+    # repr/str (it is a secret, unauthenticated URL).
+    assert Settings.model_fields["anylist_mealplan_ics_url"].is_required()
+    settings = _settings(
+        anylist_mealplan_ics_url=SecretStr("https://meals-secret.example/feed.ics")
+    )
+    assert "meals-secret.example" not in repr(settings)
+    assert settings.anylist_mealplan_ics_url.get_secret_value().endswith("feed.ics")
 
 
 def test_openai_api_key_is_required_and_secret() -> None:

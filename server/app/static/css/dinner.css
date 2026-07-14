@@ -1,0 +1,103 @@
+/* ============================================================================
+   dinner.css - the Dinner module (spec §13): the creased-corner "Dinner" tab,
+   the placemat background, the meal's keyed transparent hero image, and the
+   menu name(s); or the mystery card when no meal is known.
+   ============================================================================ */
+
+/* Wrapper filling the grid cell: anchors the pop-out tab (a sibling of the
+   comic_panel, which clips its contents), like .countdown. */
+.dinner {
+   position: relative;
+   width: 100%;
+   height: 100%;
+}
+
+/* The "Dinner" tab is the shared .module-tab slip (comic.css), but it keeps
+   this panel's original type (32px, upright, unchanged case) on a shorter
+   face, and it only just barely pokes past the panel's corner - the module
+   grid's gutters are 15px, so nothing reaches the neighboring panels. */
+.dinner-tab {
+   top: -6px;
+   left: -6px;
+   font-size: 32px;
+   font-style: normal;
+   font-weight: 400;
+   text-transform: none;
+}
+
+.dinner-tab .corner-tab-face {
+   height: 44px;
+   padding: 0 14px;
+}
+
+/* Placemat background - full-bleed inside the panel, under the body, clipped
+   (with everything else) by the comic border's rounded frame, which stays the
+   panel's outline. */
+.dinner-placemat {
+   position: absolute;
+   inset: 0;
+   width: 100%;
+   height: 100%;
+   object-fit: cover;
+}
+
+/* Body - absolute inset escapes board.css's placeholder flex-centering on
+   .comic-content (same trick as .countdown-body); later-sibling DOM order
+   paints it above the placemat. The top padding clears the tab (44px face
+   poked 6px up: its bottom lands 38px into the panel). */
+.dinner-body {
+   position: absolute;
+   inset: 0;
+   padding: 44px 20px 10px;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+   gap: 4px;
+   text-align: center;
+}
+
+/* Hero - the keyed transparent meal PNG, aspect-fit into the middle band
+   (contain: never cropped, never upscaled past its logical box). That band
+   is the logical display size - keep in sync with HERO_W/HERO_H in
+   app/dinner/hero.py. */
+.dinner-hero {
+   flex: 1;
+   min-height: 0;
+   width: 100%;
+   object-fit: contain;
+}
+
+/* The meal name matches the Today/Tomorrow event-row title type
+   (.event-row-title in event_rows.css: 31px, upright, light) so the board's
+   "calendar entry" voice stays uniform - plus the halo stroke, which rows on
+   their white panels don't need. */
+.dinner-name {
+   flex: none;
+   box-sizing: border-box;
+   max-width: 100%;
+   /* The white stroke would clip at the box edge (the countdown title's
+     failure mode); the padding keeps it inside. */
+   padding: 0 6px;
+   font-size: 31px;
+   font-weight: 200;
+   line-height: 1.15;
+   /* Long combined names ("main & side & side") wrap to at most two lines. */
+   display: -webkit-box;
+   -webkit-box-orient: vertical;
+   -webkit-line-clamp: 2;
+   overflow: hidden;
+   /* White halo (stroke painted under the fill) keeps the comic type readable
+     over the hero art and the placemat. */
+   -webkit-text-stroke: 5px #fff;
+   paint-order: stroke fill;
+}
+
+/* Mystery card (§13): the hand-made burst art fills the hero band and
+   carries its own caption, so there is no separate name line. */
+.dinner-mystery {
+   flex: 1;
+   min-height: 0;
+   max-width: 100%;
+   object-fit: contain;
+   margin: -16px 0 8px;
+}

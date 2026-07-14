@@ -1,15 +1,40 @@
 {#- ===========================================================================
-dinner.html — the Dinner module (spec §13). "Dinner", an AI image of the meal,
-and the menu name(s).
+dinner.html - the Dinner module (spec §13). A creased-corner "Dinner" tab, an
+AI image of the meal (a keyed transparent PNG, omitted on a generation miss,
+§7.3) on the placemat background, and the menu name(s).
 
-Placeholder for now: a white comic_panel with the module name centered. See
-today.html for the sizing note.
+dinner(panel):
+panel a DinnerPanel view model (see app/dinner/view.py). A panel with no name
+renders the mystery card - no meal planned, or the meal-plan fetch failed
+(§13) - whose hand-made art carries its own "Mystery dinner" caption.
+
+The tab is a SIBLING of the panel, not a child: comic_panel clips its
+contents (overflow:hidden), and the tab pokes up-left past the panel's corner
+(absolute against .dinner; see dinner.css). The placemat lives INSIDE the
+panel, so the border's rounded clip frames it. Layout constants live in
+static/css/dinner.css and must stay in sync with the hero geometry in
+app/dinner/hero.py.
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
+{% from "macros/tab.html" import corner_tab %}
 
-{% macro dinner() -%}
-{% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
-     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 4}) %}
-<div class="module-name">Dinner</div>
-{% endcall %}
+{% macro dinner(panel) -%}
+<div class="dinner">
+  <div class="module-tab dinner-tab">{% call corner_tab() %}Dinner{% endcall %}</div>
+  {% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
+       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
+               'seed': panel.seed}) %}
+  <img class="dinner-placemat" src="{{ url_for('static', filename='img/dinner/placemat.png') }}" alt="">
+  <div class="dinner-body">
+    {%- if panel.name is none %}
+    <img class="dinner-mystery" src="{{ url_for('static', filename='img/dinner/mystery.png') }}" alt="Mystery dinner!">
+    {%- else %}
+    {%- if panel.hero_url %}
+    <img class="dinner-hero" src="{{ panel.hero_url }}" alt="{{ panel.name }}">
+    {%- endif %}
+    <div class="dinner-name">{{ panel.name }}</div>
+    {%- endif %}
+  </div>
+  {% endcall %}
+</div>
 {%- endmacro %}

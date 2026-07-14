@@ -21,6 +21,7 @@ EMPTY_ICS = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\nEND:VCALENDAR\n"
 def live_server_url() -> Iterator[str]:
     app = create_app()
     app.config["FETCH_ICS"] = lambda url: EMPTY_ICS
+    app.config["FETCH_MEALPLAN_ICS"] = lambda url: EMPTY_ICS
     server = make_server("127.0.0.1", 0, app)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

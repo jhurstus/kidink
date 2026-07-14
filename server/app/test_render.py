@@ -1,6 +1,6 @@
 import io
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +12,7 @@ from pydantic import SecretStr
 from app import create_app
 from app.calendar import CalendarFetchError
 from app.config import get_settings
+from app.dinner.overrides import open_meals_db, set_override
 from app.images import ImageGenerationError
 from app.weather import DayForecast, WeatherFetchError
 
@@ -36,6 +37,22 @@ EVENT_ICS = (
     "DTSTART;TZID=America/Los_Angeles:20260605T120000\n"
     "DTEND;TZID=America/Los_Angeles:20260605T130000\n"
     "DESCRIPTION:interesting = 300\nEND:VEVENT\nEND:VCALENDAR\n"
+)
+
+# A meal plan in the Anylist shape (all-day date-only entries, §13): a main
+# plus a side on Wed 2026-06-03, and the same dinner again two days later
+# (same combined name -> same image record, §7.1).
+MEAL_ICS = (
+    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//AnyList//\n"
+    "BEGIN:VEVENT\nUID:meal-main\nSUMMARY:Tacos\n"
+    "DTSTART;VALUE=DATE:20260603\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:meal-side\nSUMMARY:Rice\n"
+    "DTSTART;VALUE=DATE:20260603\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:meal-main-again\nSUMMARY:Tacos\n"
+    "DTSTART;VALUE=DATE:20260605\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:meal-side-again\nSUMMARY:Rice\n"
+    "DTSTART;VALUE=DATE:20260605\nEND:VEVENT\n"
+    "END:VCALENDAR\n"
 )
 
 
@@ -103,22 +120,33 @@ def _generate_unexpected(
     raise AssertionError("image generation was invoked but no test seam was set")
 
 
-def _app_with_ics(
-    ics: str, storage: Path | None = None, generate: object = None
-) -> Flask:
-    """An app with the calendar fetch, image generation, and storage faked.
+# Storage default for storage-less tests: /render now reads meal overrides
+# from storage on every request, so pointing at the developer's real .storage
+# is no longer merely unused but actively wrong. A path under /dev/null can
+# never exist (no overrides) and any accidental create/write fails loudly.
+_POISON_STORAGE = Path("/dev/null/kidink-test-storage")
 
-    No test may touch the network or the developer's real image storage:
-    the generator defaults to a fail-loudly guard (event-less feeds never
-    generate), and tests whose feed has events must pass a ``tmp_path``
-    ``storage``.
+
+def _app_with_ics(
+    ics: str,
+    storage: Path | None = None,
+    generate: object = None,
+    mealplan_ics: str = EMPTY_ICS,
+) -> Flask:
+    """An app with the feed fetches, image generation, and storage faked.
+
+    No test may touch the network or the developer's real storage: the
+    generator defaults to a fail-loudly guard (event-less feeds never
+    generate), storage defaults to the poison path above, and tests whose
+    feeds have events must pass a ``tmp_path`` ``storage``. The meal plan
+    defaults to no meals (the mystery card, §13).
     """
     app = create_app()
     app.config["FETCH_ICS"] = lambda url: ics
+    app.config["FETCH_MEALPLAN_ICS"] = lambda url: mealplan_ics
     app.config["FETCH_FORECAST"] = lambda *args, **kwargs: _EveryDayForecast()
     app.config["GENERATE_IMAGE_BYTES"] = generate or _generate_unexpected
-    if storage is not None:
-        app.config["APP_STORAGE_PATH"] = storage
+    app.config["APP_STORAGE_PATH"] = storage if storage is not None else _POISON_STORAGE
     return app
 
 
@@ -739,6 +767,146 @@ def test_render_countdown_edit_failure_falls_back_to_base_hero(tmp_path: Path) -
     assert "Camping trip" in text
 
 
+def test_render_dinner_shows_joined_name_and_hero(tmp_path: Path) -> None:
+    # §13: the date's entries ARE the dinner - main + side join into one name
+    # and one combined image.
+    text = (
+        _app_with_ics(EMPTY_ICS, tmp_path, _generate_ok, mealplan_ics=MEAL_ICS)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert "tacos &amp; rice" in text
+    assert '<img class="dinner-hero"' in text
+    assert "Mystery dinner!" not in text
+
+
+def test_render_dinner_mystery_when_no_meal_is_planned() -> None:
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    assert "Mystery dinner!" in text
+    assert "dinner-hero" not in text
+
+
+def test_render_dinner_mystery_when_meal_fetch_fails() -> None:
+    # §13: a meal-plan fetch failure degrades to the same friendly card, never
+    # a 500 (contrast the family calendar), and the rest of the board renders.
+    app = _app_with_ics(EMPTY_ICS)
+
+    def boom(url: object) -> str:
+        raise CalendarFetchError("fetch failed")
+
+    app.config["FETCH_MEALPLAN_ICS"] = boom
+    response = app.test_client().get("/render?date=2026-06-03")
+
+    assert response.status_code == 200
+    assert "Mystery dinner!" in response.text
+    assert "WEDNESDAY" in response.text
+
+
+def test_render_dinner_mystery_on_unparseable_meal_feed() -> None:
+    # An unparseable meal feed degrades like a fetch failure (§13); the same
+    # bytes in the family feed are a 500 (test_render_returns_500_...).
+    response = (
+        _app_with_ics(EMPTY_ICS, mealplan_ics="this is not iCalendar data")
+        .test_client()
+        .get("/render?date=2026-06-03")
+    )
+
+    assert response.status_code == 200
+    assert "Mystery dinner!" in response.text
+
+
+def test_render_dinner_generation_failure_keeps_the_name(tmp_path: Path) -> None:
+    # §7.3: a hero miss omits the image; "Dinner" + the menu name remain.
+    text = (
+        _app_with_ics(EMPTY_ICS, tmp_path, _generate_boom, mealplan_ics=MEAL_ICS)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert "tacos &amp; rice" in text
+    assert "dinner-hero" not in text
+    assert "Mystery dinner!" not in text
+
+
+def test_render_dinner_hero_is_keyed_transparent(tmp_path: Path) -> None:
+    # §13: the dinner hero is a keyed transparent PNG - the served bytes must
+    # be the keyed/cropped RGBA, not the raw green-background generation
+    # (guards the "Dinner" module string against _UNKEYED_MODULES drift).
+    client = _app_with_ics(
+        EMPTY_ICS, tmp_path, _generate_ok, mealplan_ics=MEAL_ICS
+    ).test_client()
+    client.get("/render?date=2026-06-03")
+
+    response = client.get("/images/generated/1")
+    assert response.status_code == 200
+    assert response.data != _keyable_png()
+    assert Image.open(io.BytesIO(response.data)).mode == "RGBA"
+
+
+def test_render_dinner_reuses_the_image_across_days(tmp_path: Path) -> None:
+    # §13: the image is keyed by the dish name and reused across days - the
+    # same combined dinner two days apart generates exactly once.
+    calls: list[str] = []
+
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
+    ) -> bytes:
+        calls.append(prompt)
+        return _keyable_png()
+
+    client = _app_with_ics(
+        EMPTY_ICS, tmp_path, generate, mealplan_ics=MEAL_ICS
+    ).test_client()
+    client.get("/render?date=2026-06-03")
+    client.get("/render?date=2026-06-05")
+
+    assert len(calls) == 1
+
+
+def test_render_dinner_override_wins_end_to_end(tmp_path: Path) -> None:
+    # /admin/meals override semantics: the stored name replaces the feed's for
+    # that date (display and image key both), even though the feed still
+    # carries tacos & rice.
+    conn = open_meals_db(tmp_path)
+    set_override(conn, date(2026, 6, 3), "Pizza night")
+    conn.close()
+    calls: list[str] = []
+
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
+    ) -> bytes:
+        calls.append(prompt)
+        return _keyable_png()
+
+    text = (
+        _app_with_ics(EMPTY_ICS, tmp_path, generate, mealplan_ics=MEAL_ICS)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert "Pizza night" in text
+    assert "tacos &amp; rice" not in text
+    assert len(calls) == 1
+    assert "Pizza night" in calls[0]
+
+
 def test_render_returns_500_when_fetch_fails() -> None:
     app = create_app()
 
@@ -758,15 +926,20 @@ def test_render_returns_500_on_unparseable_feed() -> None:
 
 def test_render_does_not_leak_secrets(tmp_path: Path) -> None:
     ics_secret = get_settings().family_calendar_ics_url.get_secret_value()
+    meals_secret = get_settings().anylist_mealplan_ics_url.get_secret_value()
     api_key = get_settings().openai_api_key.get_secret_value()
     maps_key = get_settings().google_maps_api_key.get_secret_value()
-    client = _app_with_ics(EVENT_ICS, tmp_path, _generate_boom).test_client()
+    client = _app_with_ics(
+        EVENT_ICS, tmp_path, _generate_boom, mealplan_ics=MEAL_ICS
+    ).test_client()
     text = client.get("/render?date=2026-06-03").text
 
     assert ics_secret not in text
+    assert meals_secret not in text
     assert api_key not in text
     assert maps_key not in text
     # The on-disk failure log carries the item and prompt but never a secret.
     failure_log = (tmp_path / "gen_failures.log").read_text()
     assert api_key not in failure_log
     assert ics_secret not in failure_log
+    assert meals_secret not in failure_log

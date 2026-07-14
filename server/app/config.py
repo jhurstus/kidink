@@ -55,6 +55,14 @@ class Settings(BaseSettings):
     via ``config.toml`` or ``KIDINK_FAMILY_CALENDAR_ICS_URL``.
     """
 
+    anylist_mealplan_ics_url: SecretStr
+    """Anylist meal-plan ICS feed - dinner (§6.1, §13).
+
+    Required: a missing value fails fast at startup. Held as ``SecretStr`` so
+    the unauthenticated URL never lands in a repr, log, or traceback.  Supplied
+    via ``config.toml`` or ``KIDINK_ANYLIST_MEALPLAN_ICS_URL``.
+    """
+
     openai_api_key: SecretStr
     """OpenAI API key for AI image generation (§7.2).
 

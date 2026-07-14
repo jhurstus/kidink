@@ -1,0 +1,67 @@
+<!doctype html>
+{#- Admin: the upcoming two weeks of dinners (see app/dinner/admin.py). One
+row per date: the Anylist feed's combined name, the persisted override (an
+empty save clears it), and the effective meal's hero-image link - or a
+generate action while the record doesn't exist yet. -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — meals</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px 24px; background: #fff; }
+    h1 { font-size: 28px; margin: 0 0 12px; }
+    .error { color: #b00020; background: #fde7ea; border: 1px solid #b00020; padding: 8px 12px; margin: 0 0 12px; max-width: 60em; }
+    table { border-collapse: collapse; }
+    th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid #ddd; }
+    th { font-size: 14px; text-transform: uppercase; color: #666; }
+    tr.today { background: #fff8dc; }
+    .day { font-family: monospace; white-space: nowrap; }
+    .no-meal { color: #999; }
+    .overridden { color: #999; text-decoration: line-through; }
+    form { display: inline-flex; gap: 6px; margin: 0; }
+    input[name="name"] { width: 26em; }
+  </style>
+</head>
+<body>
+  <h1>Meals</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <table>
+    <tr>
+      <th>Date</th>
+      <th>Meal plan</th>
+      <th>Override (save empty to clear)</th>
+      <th>Image</th>
+    </tr>
+    {% for row in rows %}
+    <tr{% if row.day == today %} class="today"{% endif %}>
+      <td class="day">{{ row.day.strftime("%a") }} {{ row.day.isoformat() }}</td>
+      <td>
+        {%- if row.ics_name %}
+        <span{% if row.override %} class="overridden"{% endif %}>{{ row.ics_name }}</span>
+        {%- else %}
+        <span class="no-meal">no meal planned</span>
+        {%- endif %}
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('dinner_admin.admin_meal_override', day=row.day.isoformat()) }}">
+          <input name="name" value="{{ row.override or '' }}" placeholder="{{ row.ics_name or '' }}">
+          <button>Save</button>
+        </form>
+      </td>
+      <td>
+        {%- if row.image_id is not none %}
+        <a href="{{ url_for('images_admin.admin_images', img=row.image_id) }}">image #{{ row.image_id }}</a>
+        {%- elif row.effective %}
+        <form method="post" action="{{ url_for('dinner_admin.admin_meal_generate', day=row.day.isoformat()) }}">
+          <button>Generate image</button>
+        </form>
+        {%- else %}
+        <span class="no-meal">-</span>
+        {%- endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
