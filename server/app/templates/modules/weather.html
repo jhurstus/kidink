@@ -19,10 +19,10 @@ row horizontally compact (§11) via scoped overlaps in weather.css.
 =========================================================================== -#}
 
 {#- The temperature bar (§ Weather): a vertical five-band scale, hottest at the
-top — red / orange / yellow / light-blue / blue, all flat fills (the orange
-and light-blue were Ben-Day dot patterns; flat won by eye — the device
+top — red / light-red / light-yellow / light-blue / blue, all flat fills (the second
+and fourth bands were Ben-Day dot patterns; flat won by eye — the device
 quantizer dithers them anyway). A flame caps the hot end, a snowflake the
-cold end, and a blue arrow floats over the bar pointing at the day's
+cold end, and a black arrow floats over the bar pointing at the day's
 "feels like" high. -#}
 {#- The viewBox ends where the widest two-digit label ends ("88°" at x≈119),
 with no trailing dead space: the SVG sits flush against the slot's right edge
@@ -45,10 +45,10 @@ pushing the group left. -#}
   {#- The five bands, hottest → coldest, equal fifths of the 154px bar. -#}
   <g clip-path="url(#wx-{{ uid }}-clip)">
     <rect x="24" y="28" width="40" height="30.8" fill="#ff0000" />
-    <rect x="24" y="58.8" width="40" height="30.8" fill="#ef9b44" />
-    <rect x="24" y="89.6" width="40" height="30.8" fill="#ffff00" />
+    <rect x="24" y="58.8" width="40" height="30.8" fill="#ff8080" />
+    <rect x="24" y="89.6" width="40" height="30.8" fill="#ffff99" />
     <rect x="24" y="120.4" width="40" height="30.8" fill="#8ec4f2" />
-    <rect x="24" y="151.2" width="40" height="30.8" fill="#2b55c8" />
+    <rect x="24" y="151.2" width="40" height="30.8" fill="#0000ff" />
     <g stroke="#000" stroke-width="1.5">
       <line x1="24" y1="58.8" x2="64" y2="58.8" />
       <line x1="24" y1="89.6" x2="64" y2="89.6" />
@@ -56,7 +56,9 @@ pushing the group left. -#}
       <line x1="24" y1="151.2" x2="64" y2="151.2" />
     </g>
   </g>
-  <rect x="24" y="28" width="40" height="154" rx="6" fill="none" stroke="#000" stroke-width="3" />
+  {#- 1.68 SVG units render as 2px in the 250px-tall slot (250/210 scale),
+  matching the host panels' 2px drawn border. -#}
+  <rect x="24" y="28" width="40" height="154" rx="6" fill="none" stroke="#000" stroke-width="1.68" />
   {#- Cold endcap: a snowflake under the cold end. Stroked lines can't carry
   an SVG outline, so a fatter black copy is drawn underneath the blue one —
   reading as the same black ink edge as the flame above. -#}
@@ -65,14 +67,14 @@ pushing the group left. -#}
     <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
     <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
   </g>
-  <g stroke="#2b55c8" stroke-width="3" stroke-linecap="round">
+  <g stroke="#0000ff" stroke-width="3" stroke-linecap="round">
     <line x1="37" y1="198" x2="51" y2="198" />
     <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
     <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
   </g>
   {#- The arrow: floats over the bar's right edge, tip on the feels-like high. -#}
-  <polygon points="52,{{ '%.1f' | format(arrow_y) }} 76,{{ '%.1f' | format(arrow_y - 11) }} 76,{{ '%.1f' | format(arrow_y + 11) }}"
-    fill="#000" stroke="#000" stroke-width="2.5" stroke-linejoin="round" />
+  <polygon points="58,{{ '%.1f' | format(arrow_y) }} 76,{{ '%.1f' | format(arrow_y - 8.25) }} 76,{{ '%.1f' | format(arrow_y + 8.25) }}"
+    fill="#000" />
   <text class="weather-bar-high" x="80" y="{{ '%.1f' | format(arrow_y + 8) }}">{{ bar.high_f }}°</text>
 </svg>
 {%- endmacro %}
