@@ -74,6 +74,9 @@ pick_free_port() {
 }
 
 mkdir -p "$OUT_DIR"
+# Canonicalize: a relative --out-dir would otherwise silently re-resolve
+# against server/ after the cd below (flask.log lands in the wrong place).
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 cd "$SERVER_DIR"
 
 FLASK_PID=""

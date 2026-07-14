@@ -125,6 +125,18 @@ def get_or_create_record(
                 prompt,
             ),
         )
+    record = find_record(conn, spec)
+    assert record is not None  # the insert above guarantees the row exists
+    return record
+
+
+def find_record(conn: sqlite3.Connection, spec: ImageSpec) -> ImageRecord | None:
+    """Return the record for ``spec`` without creating it, or ``None``.
+
+    The SELECT half of :func:`get_or_create_record` (same ``COALESCE`` variant
+    matching); used to locate a variant's base row (the edit-from-base policy
+    in :mod:`app.images.store`).
+    """
     row = conn.execute(
         """
         SELECT * FROM images
@@ -133,7 +145,7 @@ def get_or_create_record(
         """,
         (spec.module, spec.item_description, spec.width, spec.height, spec.variant),
     ).fetchone()
-    return _row_to_record(row)
+    return _row_to_record(row) if row is not None else None
 
 
 def get_record(conn: sqlite3.Connection, image_id: int) -> ImageRecord | None:

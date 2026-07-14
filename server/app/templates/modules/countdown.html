@@ -1,15 +1,66 @@
 {#- ===========================================================================
-countdown.html — the Countdown module (spec §12). A counter to the next exciting
-event: description, hero image, and a "N sleeps to go!" moon row.
+countdown.html — the Countdown module (spec §12). A counter to the next
+exciting event: the event title, a generated hero image (omitted on a miss,
+§7.3), and the sleeps copy.
 
-Placeholder for now: a white comic_panel with the module name centered. See
-today.html for the sizing note.
+countdown(panel):
+panel a CountdownPanel view model (see app/countdown/view.py), whose tier
+drives the escalation treatment:
+  calm            the shared comic_panel with the normal thin border
+  excited/hype/peak  the hand-made starburst frame overlaid on the panel
+                  (static/img/countdown/countdown_burst.png: white outside,
+                  jagged border, transparent center) — content shows through
+                  the center, and the whole stack is CSS-masked to the
+                  frame's silhouette (countdown_burst_mask.png, a derived
+                  asset — see app/countdown/burst_mask.py) so neighbors
+                  show through outside the outline
+  hype/peak       plus the scale-up spill and bigger type
+  peak            plus the SFX shouts (sfx is empty at every other tier)
+A panel with no title is the blank card (§12): the plain bordered panel with
+no content, preserving the module's footprint.
+
+Layout constants live in static/css/countdown.css and must stay in sync with
+the moon/hero geometry in app/countdown/.
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
 
-{% macro countdown() -%}
-{% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
-     border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2, 'seed': 3}) %}
-<div class="module-name">Countdown</div>
-{% endcall %}
+{#- The hero is a full-bleed background layer (object-fit: cover) under the
+panel's frame, with the title/copy overlaid on white-haloed comic type. -#}
+{% macro _countdown_body(panel) -%}
+{%- if panel.hero_url %}
+<img class="countdown-hero" src="{{ panel.hero_url }}" alt="{{ panel.title }}">
+{%- endif %}
+<div class="countdown-body">
+  <div class="countdown-title">{{ panel.title }}</div>
+  <div class="countdown-copy">{{ panel.copy }}</div>
+</div>
+{%- endmacro %}
+
+{% macro countdown(panel) -%}
+<div class="countdown countdown-{{ panel.tier }}">
+  {%- if panel.title is none %}
+  {{ comic_panel(width=498, height=300, bg='#fff', halftones=[],
+       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
+               'seed': panel.seed}) }}
+  {%- elif panel.tier == 'calm' %}
+  {% call comic_panel(width=498, height=300, bg='#fff', halftones=[],
+       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
+               'seed': panel.seed}) %}
+  {{ _countdown_body(panel) }}
+  {% endcall %}
+  {%- else %}
+  <div class="countdown-burst">
+    {{ _countdown_body(panel) }}
+    <img class="countdown-burst-frame" src="{{ url_for('static', filename='img/countdown/countdown_burst.png') }}"
+      alt="">
+  </div>
+  {%- for word in panel.sfx %}
+  <div class="countdown-sfx countdown-sfx-{{ loop.index }}">
+    <img class="sfx-lines" src="{{ url_for('static', filename='img/countdown/sfx_lines.svg') }}" alt="">
+    {{- word -}}
+    <img class="sfx-lines sfx-lines-flip" src="{{ url_for('static', filename='img/countdown/sfx_lines.svg') }}" alt="">
+  </div>
+  {%- endfor %}
+  {%- endif %}
+</div>
 {%- endmacro %}

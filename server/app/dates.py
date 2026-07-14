@@ -38,15 +38,20 @@ def week_of(target: date) -> list[date]:
     return [monday + timedelta(days=i) for i in range(7)]
 
 
+# How far past the target the Countdown module (§12) looks for its next
+# eligible event. A render-window concern, so it lives here (not in
+# app/countdown/) — one expansion serves every module.
+COUNTDOWN_HORIZON_DAYS = 365
+
+
 def render_days(target: date) -> list[date]:
     """The contiguous, ascending local days one render needs events for.
 
-    The Mon–Sun week of ``target`` (the day strip, §9) plus the day after
-    ``target`` (the Tomorrow panel, §11) — which extends past the week only
-    when ``target`` is a Sunday, appending the next Monday.
+    From the Monday of ``target``'s week (the day strip, §9 — which also
+    covers the Tomorrow panel, §11) through ``COUNTDOWN_HORIZON_DAYS`` after
+    ``target`` (the Countdown target search, §12). The other modules filter by
+    ``local_day``, so the long tail costs only expansion time.
     """
-    days = week_of(target)
-    tomorrow = target + timedelta(days=1)
-    if tomorrow > days[-1]:
-        days.append(tomorrow)
-    return days
+    monday = week_of(target)[0]
+    horizon = target + timedelta(days=COUNTDOWN_HORIZON_DAYS)
+    return [monday + timedelta(days=i) for i in range((horizon - monday).days + 1)]

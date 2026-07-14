@@ -32,16 +32,24 @@ def keyable_png() -> bytes:
 
 
 class CountingGenerator:
-    """Fake generation seam recording each call's prompt."""
+    """Fake generation seam recording each call's prompt and base image."""
 
     def __init__(self, result: bytes | Exception) -> None:
         self.result = result
         self.prompts: list[str] = []
+        self.base_pngs: list[bytes | None] = []
 
     def __call__(
-        self, api_key: SecretStr, *, prompt: str, size: str, model: str
+        self,
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
     ) -> bytes:
         self.prompts.append(prompt)
+        self.base_pngs.append(base_png)
         if isinstance(self.result, Exception):
             raise self.result
         return self.result
@@ -76,7 +84,14 @@ def test_generates_once_then_serves_from_disk(tmp_path: Path) -> None:
 def test_generation_uses_requested_size_and_model(tmp_path: Path) -> None:
     calls: list[tuple[str, str]] = []
 
-    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+    ) -> bytes:
         calls.append((size, model))
         return keyable_png()
 
@@ -147,7 +162,14 @@ def test_ensure_images_assigns_ids_serially_in_request_order(tmp_path: Path) -> 
 
 
 def test_ensure_images_failure_hits_only_its_own_item(tmp_path: Path) -> None:
-    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+    ) -> bytes:
         if prompt == "boom":
             raise ImageGenerationError("image generation failed: Boom")
         return keyable_png()
@@ -180,7 +202,14 @@ def test_concurrent_ensure_of_same_record_generates_once(tmp_path: Path) -> None
     release = threading.Event()
     prompts: list[str] = []
 
-    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+    ) -> bytes:
         prompts.append(prompt)
         entered.set()
         assert release.wait(timeout=10)
@@ -211,7 +240,14 @@ def test_ensure_images_generates_concurrently(tmp_path: Path) -> None:
     # the timeout (surfacing as BrokenBarrierError) instead of passing.
     barrier = threading.Barrier(2)
 
-    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+    ) -> bytes:
         barrier.wait(timeout=10)
         return keyable_png()
 
@@ -220,6 +256,71 @@ def test_ensure_images_generates_concurrently(tmp_path: Path) -> None:
     )
 
     assert ids == [1, 2]
+
+
+UNKEYED_SPEC = ImageSpec(
+    module="Countdown", item_description="camping trip", width=460, height=150
+)
+EDIT_SPEC = ImageSpec(
+    module="Countdown",
+    item_description="camping trip",
+    width=460,
+    height=150,
+    variant="excited",
+)
+
+
+def _ensure_spec(
+    tmp_path: Path, spec: ImageSpec, generate: GenerateImageBytes
+) -> int | None:
+    return ensure_image(
+        spec,
+        "p",
+        storage_root=tmp_path,
+        generate=generate,
+        api_key=API_KEY,
+        model="gpt-image-2",
+    )
+
+
+def test_unkeyed_module_stores_raw_bytes_verbatim(tmp_path: Path) -> None:
+    # The Countdown hero policy: no chroma keying, no crop — an all-green PNG
+    # that would raise KeyingError elsewhere is stored byte-identical.
+    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
+    out = io.BytesIO()
+    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    raw = out.getvalue()
+
+    image_id = _ensure_spec(tmp_path, UNKEYED_SPEC, CountingGenerator(raw))
+
+    assert image_id is not None
+    assert image_path(tmp_path, image_id).read_bytes() == raw
+
+
+def test_edit_variant_passes_stored_base_bytes(tmp_path: Path) -> None:
+    # The excited hero is an *edit* of its base record's PNG: the base must be
+    # handed to the seam verbatim, and the plain generation must not carry one.
+    generator = CountingGenerator(b"base png bytes")
+    base_id = _ensure_spec(tmp_path, UNKEYED_SPEC, generator)
+    assert base_id is not None
+
+    variant_generator = CountingGenerator(b"excited png bytes")
+    variant_id = _ensure_spec(tmp_path, EDIT_SPEC, variant_generator)
+
+    assert variant_id is not None and variant_id != base_id
+    assert generator.base_pngs == [None]
+    assert variant_generator.base_pngs == [b"base png bytes"]
+    assert image_path(tmp_path, variant_id).read_bytes() == b"excited png bytes"
+
+
+def test_edit_variant_without_base_fails_softly(tmp_path: Path) -> None:
+    # No base row/file yet: the variant's generation is a normal soft failure
+    # (None + a failure-log line), never an exception out of ensure_image.
+    generator = CountingGenerator(b"never generated")
+
+    assert _ensure_spec(tmp_path, EDIT_SPEC, generator) is None
+    assert generator.base_pngs == []  # failed before ever calling the seam
+    assert "ImageGenerationError" in (tmp_path / "gen_failures.log").read_text()
 
 
 def test_regeneration_uses_stored_prompt(tmp_path: Path) -> None:

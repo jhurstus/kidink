@@ -5,6 +5,7 @@ from flask import Flask, abort, render_template, request
 from app.calendar import CalendarFetchError, expand_events, fetch_ics
 from app.comic import comic_border_path
 from app.config import get_settings
+from app.countdown import build_countdown, make_countdown_hero_resolver
 from app.dates import render_days, resolve_date
 from app.day_strip import build_day_strip
 from app.images import (
@@ -121,6 +122,9 @@ def create_app() -> Flask:
         strip = build_day_strip(target, events, settings.kids, resolver)
         today_panel = build_today(target, events, settings.kids, resolver)
         tomorrow_panel = build_tomorrow(target, events, settings.kids, resolver)
+        countdown_panel = build_countdown(
+            target, events, hero_resolver=make_countdown_hero_resolver(rendered_images)
+        )
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None
         )
@@ -129,6 +133,7 @@ def create_app() -> Flask:
             strip=strip,
             today_panel=today_panel,
             tomorrow_panel=tomorrow_panel,
+            countdown_panel=countdown_panel,
             weather=weather,
             tomorrow_weather=tomorrow_weather,
             debug_images=debug_images,

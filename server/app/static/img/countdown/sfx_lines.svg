@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48">
+  <!-- SFX "whisker" speed lines (countdown.css): three very oblique ovals —
+       pen strokes with soft rounded ends — fanning toward a focal point off
+       the right edge (the word's center). The right-hand group is this same
+       asset mirrored with scaleX(-1). -->
+  <ellipse cx="30" cy="9" rx="23" ry="2.6" transform="rotate(17 30 9)" fill="#000"/>
+  <ellipse cx="25" cy="24" rx="27" ry="2.8" fill="#000"/>
+  <ellipse cx="30" cy="39" rx="23" ry="2.6" transform="rotate(-17 30 39)" fill="#000"/>
+</svg>

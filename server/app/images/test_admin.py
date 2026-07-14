@@ -33,7 +33,12 @@ def _app(tmp_path: Path, generate: object = None) -> Flask:
     app.config["APP_STORAGE_PATH"] = tmp_path
 
     def default_generate(
-        api_key: SecretStr, *, prompt: str, size: str, model: str
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
     ) -> bytes:
         return _keyable_png()
 
@@ -77,7 +82,14 @@ def test_regenerate_persists_prompt_and_writes_candidate(tmp_path: Path) -> None
     live_before = image_path(tmp_path, image_id).read_bytes()
     prompts: list[str] = []
 
-    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+    ) -> bytes:
         prompts.append(prompt)
         return _keyable_png()
 
@@ -104,7 +116,14 @@ def test_regenerate_persists_prompt_and_writes_candidate(tmp_path: Path) -> None
 def test_regenerate_failure_reports_error_without_candidate(tmp_path: Path) -> None:
     image_id = _seed_record(tmp_path)
 
-    def generate(api_key: SecretStr, *, prompt: str, size: str, model: str) -> bytes:
+    def generate(
+        api_key: SecretStr,
+        *,
+        prompt: str,
+        size: str,
+        model: str,
+        base_png: bytes | None = None,
+    ) -> bytes:
         raise ImageGenerationError("image generation failed: Boom")
 
     client = _app(tmp_path, generate).test_client()

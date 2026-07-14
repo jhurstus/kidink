@@ -1,0 +1,216 @@
+/* ============================================================================
+   countdown.css — the Countdown module (spec §12): title, hero image, sleeps
+   copy, and the moon row, with the tier-driven escalation treatments. The
+   calm tier (and the blank card) keep the shared comic_panel border; the
+   excited/hype/peak tiers swap it for the hand-made starburst frame image
+   overlaid on the panel, and hype/peak add the scale-up spill, bigger type,
+   and the SFX shouts.
+   ============================================================================ */
+
+/* Wrapper. At calm (and on the blank card) it simply fills its grid cell,
+   matching the other modules' resting footprint. Also anchors the SFX
+   shouts. */
+.countdown {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  font-style: italic;
+  text-align: center;
+}
+
+/* From excited up the countdown is the board's most prominent panel (§12):
+   it outgrows the cell by 28px horizontally / 33px vertically per side
+   (554×366) — real layout size (not a transform), centered by the negative
+   margin, bleeding over the gutters onto its neighbors' edges. The grid
+   track itself is unaffected (overflow doesn't size 1fr tracks). z-index 4
+   outranks the later grid cells and the module tabs (3). */
+.countdown-excited,
+.countdown-hype,
+.countdown-peak {
+  width: calc(100% + 56px);
+  height: calc(100% + 66px);
+  margin: -33px -28px;
+  z-index: 4;
+}
+
+/* Hype/peak spill: an extra scale-up on top of the base 554×366 box —
+   hype ≈ 592×391, peak ≈ 621×410 — painting well over the neighboring
+   panels. */
+.countdown-hype,
+.countdown-peak {
+  transform: scale(1.068);
+}
+
+.countdown-peak {
+  transform: scale(1.121);
+}
+
+/* ---------------------------------------------------------------------------
+   Starburst frame (excited and up): the hand-made overlay image — opaque
+   white outside a jagged starburst outline, fully transparent center —
+   stretched over the whole panel (its 1412×900 aspect is close enough to the
+   498×300 cell). Content sits under it and shows through the center; the
+   moon row alone paints above it (z 3), strung across the frame's bottom
+   band.
+   --------------------------------------------------------------------------- */
+.countdown-burst {
+  position: absolute;
+  inset: 0;
+  /* Clip the whole stack (hero, body, frame) to the burst's silhouette so
+     the frame's white exterior and the full-bleed hero's corners never
+     occlude the neighboring panels this enlarged module bleeds over. The
+     mask is derived from the frame art — regenerate it after replacing
+     countdown_burst.png:  uv run python -m app.countdown.burst_mask */
+  mask-image: url("../img/countdown/countdown_burst_mask.png");
+  mask-size: 100% 100%;
+}
+
+.countdown-burst-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+/* ---------------------------------------------------------------------------
+   Hero — a full-bleed background layer filling the whole panel (aspect
+   preserved; the record's logical box matches the cell, so cover crops only
+   a sliver). It sits under the frame in both variants: the calm tier's
+   comic_panel border and rounded clip overlay it, and the burst tiers' frame
+   image overlays its edges (frame z 2 vs the hero's DOM-order paint).
+   Logical box — keep in sync with HERO_W/HERO_H in app/countdown/hero.py.
+   --------------------------------------------------------------------------- */
+.countdown-hero {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------------------------------------------------------------------------
+   Body — shared by the comic_panel (calm) and the burst frame. Absolute
+   inset escapes board.css's placeholder flex-centering on .comic-content;
+   later-sibling DOM order paints it above the hero layer. Title at the top,
+   copy at the bottom, both on white-haloed type so they read over the art.
+   --------------------------------------------------------------------------- */
+.countdown-body {
+  position: absolute;
+  inset: 0;
+  /* Calm-state padding (the burst tiers override it below): tight at the
+     top and bottom so the title rides high and the sleeps line low. */
+  padding: 8px 28px 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The copy hugs the bottom padding; the title stays at the top and the hero
+   shows through the slack between them. */
+.countdown-copy {
+  margin-top: auto;
+}
+
+/* Inside the starburst the frame's bands cut in from every edge, so the body
+   squeezes toward the opening (scaled to the enlarged 554×366 panel: roughly
+   x 61-511, y 67-293, narrowing toward the bottom corners). Like the calm
+   state, the title rides high and the copy low — a touch into the ragged
+   band edges, which stay behind the white-haloed type's opening-centered
+   spans. */
+.countdown-burst .countdown-body {
+  padding: 59px 70px 71px;
+}
+
+/* White halo (stroke painted under the fill) keeps the comic type readable
+   where it overlaps the hero art. */
+.countdown-title,
+.countdown-copy {
+  -webkit-text-stroke: 5px #fff;
+  paint-order: stroke fill;
+}
+
+.countdown-title {
+  flex: none;
+  box-sizing: border-box;
+  max-width: 100%;
+  /* The flex item shrink-wraps the text, and overflow:hidden would clip the
+     white stroke + the italic overhang at the glyph edges (worst on the
+     right); the padding keeps them inside the clip box. */
+  padding: 0 12px;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.countdown-copy {
+  flex: none;
+  font-size: 30px;
+  line-height: 1.1;
+}
+
+.countdown-hype .countdown-title,
+.countdown-peak .countdown-title {
+  font-size: 44px;
+}
+
+.countdown-hype .countdown-copy,
+.countdown-peak .countdown-copy {
+  font-size: 40px;
+  font-weight: 700;
+  color: #e02b20;
+}
+
+/* ---------------------------------------------------------------------------
+   SFX shouts (peak only) — siblings of the masked burst stack so they can
+   hang past the panel edge, above everything (the tabs sit at z-index 3).
+   Each word wears the same white-halo stroke as the title/copy, flanked by
+   "whisker" speed lines: three oblique pen-stroke ovals per side
+   (img/countdown/sfx_lines.svg), fanning toward the word's center — the
+   right-hand group is the same asset mirrored.
+   --------------------------------------------------------------------------- */
+.countdown-sfx {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Breathing room so the white stroke + italic overhang never clip at the
+     paint bounds (same failure mode the title had). */
+  padding: 8px 6px;
+  font-size: 40px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #e02b20;
+  -webkit-text-stroke: 5px #fff;
+  paint-order: stroke fill;
+}
+
+/* The whisker groups widen the box ~55px per side; the offsets pull the
+   shouts back so the words sit at the panel corners as before. */
+.countdown-sfx-1 {
+  top: -22px;
+  right: -50px;
+  transform: rotate(-10deg);
+}
+
+.countdown-sfx-2 {
+  bottom: -18px;
+  left: -48px;
+  transform: rotate(7deg);
+}
+
+.sfx-lines {
+  flex: none;
+  width: 48px;
+  height: 36px;
+}
+
+.sfx-lines-flip {
+  transform: scaleX(-1);
+}

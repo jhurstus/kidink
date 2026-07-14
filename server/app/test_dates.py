@@ -1,8 +1,8 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
-from app.dates import render_days, resolve_date, week_of
+from app.dates import COUNTDOWN_HORIZON_DAYS, render_days, resolve_date, week_of
 
 
 def test_resolve_date_uses_explicit_arg() -> None:
@@ -55,13 +55,23 @@ def test_week_of_when_target_is_monday() -> None:
     assert week[6] == date(2026, 6, 7)
 
 
-def test_render_days_is_the_week_midweek() -> None:
-    # Wednesday: tomorrow (Thursday) is already inside the week — no extension.
-    assert render_days(date(2026, 6, 3)) == week_of(date(2026, 6, 3))
+def test_render_days_spans_week_monday_through_the_countdown_horizon() -> None:
+    # Wednesday 2026-06-03: from its week's Monday (the day strip) through the
+    # countdown horizon after the target itself.
+    target = date(2026, 6, 3)
+    days = render_days(target)
+
+    assert days[0] == date(2026, 6, 1)  # Monday of the target's week
+    assert days[-1] == target + timedelta(days=COUNTDOWN_HORIZON_DAYS)
+    assert target in days
 
 
-def test_render_days_extends_past_sunday() -> None:
-    # Sunday: the Tomorrow panel needs next Monday, one day past the week.
+def test_render_days_is_contiguous_and_ascending() -> None:
+    # expand_events builds its window from days[0]..days[-1] and filters to
+    # membership, so the span must have no gaps.
     days = render_days(date(2026, 6, 7))
 
-    assert days == [*week_of(date(2026, 6, 7)), date(2026, 6, 8)]
+    assert all(
+        later - earlier == timedelta(days=1)
+        for earlier, later in zip(days, days[1:], strict=False)
+    )

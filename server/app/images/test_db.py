@@ -2,6 +2,7 @@ from pathlib import Path
 
 from app.images.db import (
     ImageSpec,
+    find_record,
     get_or_create_record,
     get_record,
     list_records,
@@ -46,6 +47,30 @@ def test_variant_and_size_produce_distinct_rows(tmp_path: Path) -> None:
     )
     wider = get_or_create_record(conn, ImageSpec("Calendar", "Soccer", 200, 60), "p")
     assert len({base.id, bugbug.id, wider.id}) == 3
+    conn.close()
+
+
+def test_find_record_looks_up_without_creating(tmp_path: Path) -> None:
+    conn = open_db(tmp_path)
+    assert find_record(conn, SPEC) is None
+    assert list_records(conn) == []  # the miss created nothing
+
+    created = get_or_create_record(conn, SPEC, "p")
+    assert find_record(conn, SPEC) == created
+    conn.close()
+
+
+def test_find_record_discriminates_variant_from_null(tmp_path: Path) -> None:
+    # The base (variant=None) row and its named variant are distinct logical
+    # keys; a lookup for either must never return the other.
+    variant_spec = ImageSpec("Calendar", "Soccer", 100, 60, variant="excited")
+    conn = open_db(tmp_path)
+    base = get_or_create_record(conn, SPEC, "p")
+    assert find_record(conn, variant_spec) is None
+
+    variant = get_or_create_record(conn, variant_spec, "p")
+    assert find_record(conn, SPEC) == base
+    assert find_record(conn, variant_spec) == variant
     conn.close()
 
 
