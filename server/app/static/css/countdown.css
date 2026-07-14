@@ -162,7 +162,7 @@
 .countdown-peak .countdown-copy {
   font-size: 40px;
   font-weight: 700;
-  color: #e02b20;
+  color: #000;
 }
 
 /* ---------------------------------------------------------------------------
@@ -186,7 +186,7 @@
   font-weight: 700;
   text-transform: uppercase;
   white-space: nowrap;
-  color: #e02b20;
+  color: #000;
   -webkit-text-stroke: 5px #fff;
   paint-order: stroke fill;
 }
