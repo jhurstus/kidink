@@ -15,11 +15,21 @@ from app.countdown.hero import (
 from app.images import ImageGenerationError, RenderedImage
 
 
-def test_hero_prompt_contains_description_size_and_white_background() -> None:
+def test_hero_prompt_contains_title_and_white_background() -> None:
     prompt = countdown_hero_prompt("camping trip")
     assert "“camping trip”" in prompt
-    assert f"{HERO_W}px wide by {HERO_H}px tall" in prompt
     assert "pure white background" in prompt
+
+
+def test_hero_prompt_adds_icon_description_as_its_own_paragraph() -> None:
+    # §6.4: the description elaborates the title instead of replacing it.
+    prompt = countdown_hero_prompt("Camping!!", "a family pitching a red tent")
+    assert "“Camping!!”" in prompt
+    assert "\n\na family pitching a red tent\n\n" in prompt
+
+
+def test_hero_prompt_without_description_has_no_empty_paragraph() -> None:
+    assert "\n\n\n" not in countdown_hero_prompt("camping trip")
 
 
 def test_hero_prompt_drops_the_palette_and_chroma_key_guidance() -> None:
@@ -80,9 +90,10 @@ def _resolve(
     collected: list[RenderedImage],
     *,
     excited: bool,
+    item: tuple[str, str | None] = ("camping trip", None),
 ) -> str | None:
     with _app(tmp_path, generate).test_request_context():
-        return make_countdown_hero_resolver(collected)("camping trip", excited)
+        return make_countdown_hero_resolver(collected)(item, excited)
 
 
 def test_calm_resolves_the_base_hero_only(tmp_path: Path) -> None:
@@ -99,6 +110,29 @@ def test_calm_resolves_the_base_hero_only(tmp_path: Path) -> None:
     assert spec.module == "Countdown"
     assert spec.item_description == "camping trip"
     assert (spec.width, spec.height) == (HERO_W, HERO_H)
+
+
+def test_described_hero_keys_by_description_and_prompts_with_both(
+    tmp_path: Path,
+) -> None:
+    # §7.1: the logical key stays icon_description-or-title; the prompt keeps
+    # the title and carries the description as its parenthesized elaboration.
+    generate = _Generator()
+    collected: list[RenderedImage] = []
+
+    url = _resolve(
+        tmp_path,
+        generate,
+        collected,
+        excited=False,
+        item=("Camping!!", "a family camping trip"),
+    )
+
+    assert url == "/images/generated/1"
+    assert collected[0].spec.item_description == "a family camping trip"
+    assert generate.prompts == [
+        countdown_hero_prompt("Camping!!", "a family camping trip")
+    ]
 
 
 def test_excited_edits_the_stored_base_in_a_second_call(tmp_path: Path) -> None:

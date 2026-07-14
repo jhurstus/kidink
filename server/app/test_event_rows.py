@@ -5,6 +5,7 @@ from app.config import Kid
 from app.event_rows import (
     KID_COLORS,
     assigned_kids,
+    icon_item,
     icon_key,
     kid_badge,
     kid_badges,
@@ -72,5 +73,13 @@ def test_icon_key_prefers_icon_description() -> None:
     assert icon_key(_event(icon_description="kids soccer match")) == "kids soccer match"
 
 
+def test_icon_item_carries_title_and_description() -> None:
+    assert icon_item(_event()) == ("Soccer", None)
+    assert icon_item(_event(icon_description="kids soccer match")) == (
+        "Soccer",
+        "kids soccer match",
+    )
+
+
 def test_no_icons_resolves_nothing() -> None:
-    assert no_icons(["Soccer"]) == {}
+    assert no_icons([("Soccer", None)]) == {}

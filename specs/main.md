@@ -470,7 +470,7 @@ These are the fields of the `EventOverrides` Pydantic model (§6.3):
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `time_of_day` | enum | derived | `morning` / `day` / `evening` override (see below). |
-| `icon_description` | string | title | Fed to the AI image prompt instead of the title. |
+| `icon_description` | string | title | Elaborates the AI image prompt in a paragraph of its own; the event title stays in place. Remains the image's logical key (§7.1). |
 | `interesting` | int (>0) | `100` | Higher = more interesting; drives ranking. |
 | `kids` | list[string] | `[]` | Kid assignment (§8, §9.2); aligns with the app config's `kids` list (§18). |
 | `countdown_eligible` | bool | `false` | Eligible to appear in the Countdown module. |

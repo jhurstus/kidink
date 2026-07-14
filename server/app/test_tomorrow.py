@@ -48,17 +48,19 @@ def _event(
 
 
 class _RecordingResolver:
-    """Batch icon-resolver stub recording the item descriptions it is asked for."""
+    """Batch icon-resolver stub recording the icon items it is asked for."""
 
     def __init__(self, url: str | None = "http://icons/1") -> None:
         self.url = url
-        self.items: list[str] = []
+        self.items: list[tuple[str, str | None]] = []
         self.calls = 0
 
-    def __call__(self, item_descriptions: Sequence[str]) -> dict[str, str | None]:
+    def __call__(
+        self, items: Sequence[tuple[str, str | None]]
+    ) -> dict[str, str | None]:
         self.calls += 1
-        self.items.extend(item_descriptions)
-        return {item: self.url for item in item_descriptions}
+        self.items.extend(items)
+        return {description or title: self.url for title, description in items}
 
 
 def test_shows_only_the_next_days_non_chore_events() -> None:
@@ -134,10 +136,10 @@ def test_icons_resolved_in_one_batch_for_surviving_rows_only() -> None:
     # 5 events, budget 3: the dropped two never reach the resolver (no wasted
     # generations), and the panel resolves in a single batch.
     assert resolver.calls == 1
-    assert sorted(resolver.items) == ["E0", "E1", "E2"]
+    assert sorted(resolver.items) == [("E0", None), ("E1", None), ("E2", None)]
 
 
-def test_icon_keyed_by_icon_description_over_title() -> None:
+def test_resolver_receives_title_and_icon_description() -> None:
     resolver = _RecordingResolver()
     build_tomorrow(
         TARGET,
@@ -145,7 +147,7 @@ def test_icon_keyed_by_icon_description_over_title() -> None:
         icon_resolver=resolver,
     )
 
-    assert resolver.items == ["kids soccer match"]
+    assert resolver.items == [("S's game", "kids soccer match")]
 
 
 def test_failed_resolution_leaves_icon_url_none() -> None:

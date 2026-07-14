@@ -16,16 +16,29 @@ from datetime import datetime, time
 from app.calendar import CalendarEvent
 from app.config import Kid
 
+type IconItem = tuple[str, str | None]
+"""One event's image inputs: ``(title, icon_description)`` (§6.4/§7.1).
+
+The optional ``icon_description`` elaborates the title in the generation
+prompt rather than replacing it; the logical image key stays
+``icon_description or title`` (:func:`icon_key`).
+"""
+
 # Structural stand-in for app.images.IconResolver (kept as a plain Callable so
-# view-model modules need no images import): a batch of item descriptions -> a
-# description -> icon-URL-or-None mapping, resolved in one call so missing
+# view-model modules need no images import): a batch of icon items -> an
+# icon_key -> icon-URL-or-None mapping, resolved in one call so missing
 # images can generate concurrently behind it.
-type IconResolver = Callable[[Sequence[str]], Mapping[str, str | None]]
+type IconResolver = Callable[[Sequence[IconItem]], Mapping[str, str | None]]
 
 
-def no_icons(item_descriptions: Sequence[str]) -> Mapping[str, str | None]:
+def no_icons(items: Sequence[IconItem]) -> Mapping[str, str | None]:
     """Default resolver: no icons — keeps view-model builders pure by default."""
     return {}
+
+
+def icon_item(event: CalendarEvent) -> IconItem:
+    """The event's image inputs: its title plus optional ``icon_description``."""
+    return (event.title, event.overrides.icon_description)
 
 
 def icon_key(event: CalendarEvent) -> str:
@@ -42,7 +55,7 @@ def resolve_icons(
     missing images can generate concurrently (§7.2) and no generation is
     wasted on events that won't render.
     """
-    return icon_resolver([icon_key(event) for event in events])
+    return icon_resolver([icon_item(event) for event in events])
 
 
 # Per-kid badge color by config position (kid 0, kid 1). Red and blue are the

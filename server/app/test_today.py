@@ -53,17 +53,19 @@ def _event(
 
 
 class _RecordingResolver:
-    """Batch icon-resolver stub recording the item descriptions it is asked for."""
+    """Batch icon-resolver stub recording the icon items it is asked for."""
 
     def __init__(self, url: str | None = "http://icons/1") -> None:
         self.url = url
-        self.items: list[str] = []
+        self.items: list[tuple[str, str | None]] = []
         self.calls = 0
 
-    def __call__(self, item_descriptions: Sequence[str]) -> dict[str, str | None]:
+    def __call__(
+        self, items: Sequence[tuple[str, str | None]]
+    ) -> dict[str, str | None]:
         self.calls += 1
-        self.items.extend(item_descriptions)
-        return {item: self.url for item in item_descriptions}
+        self.items.extend(items)
+        return {description or title: self.url for title, description in items}
 
 
 def _titles(panel, key: str) -> list[str]:
@@ -257,10 +259,10 @@ def test_icons_resolved_only_for_surviving_rows() -> None:
     # the resolver (no wasted generations), and the whole panel resolves in a
     # single batch so missing images can generate concurrently.
     assert resolver.calls == 1
-    assert sorted(resolver.items) == sorted(f"D{i}" for i in range(7))
+    assert sorted(resolver.items) == sorted((f"D{i}", None) for i in range(7))
 
 
-def test_icon_keyed_by_icon_description_over_title() -> None:
+def test_resolver_receives_title_and_icon_description() -> None:
     resolver = _RecordingResolver()
     build_today(
         TARGET,
@@ -268,7 +270,7 @@ def test_icon_keyed_by_icon_description_over_title() -> None:
         icon_resolver=resolver,
     )
 
-    assert resolver.items == ["kids soccer match"]
+    assert resolver.items == [("S's game", "kids soccer match")]
 
 
 def test_failed_resolution_leaves_icon_url_none() -> None:

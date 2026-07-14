@@ -18,6 +18,7 @@ from flask import current_app, url_for
 
 from app.config import get_settings
 from app.countdown.view import HeroResolver
+from app.event_rows import IconItem
 from app.images import ImageSpec, RenderedImage, ensure_image
 from app.images.generate import DEFAULT_IMAGE_MODEL
 
@@ -38,20 +39,26 @@ EXCITED_VARIANT = "excited"
 HERO_W = 554
 HERO_H = 366
 
-# The user-authored hero prompt: the calendar-icon template reworked for a
-# large, detailed illustration. Deliberately no palette table and no chroma-key
+# The user-authored hero prompt: the calendar-icon template reworked for the
+# larger hero scene. Deliberately no palette table and no chroma-key
 # background — the hero is displayed as-is on its white background.
 _HERO_PROMPT_TEMPLATE = """\
-Create an illustration that will represent the concept of “{item_description}” on a \
-children’s calendar.  The illustration should be in the style of comic book, with \
+Create an illustration that will represent the concept of “{title}” on \
+a children’s calendar.  The illustration should be in the style of comic book, with \
 black outlines and colored fills, emulating a hand-drawn comic.  It should be fun \
-and engaging for a 7 year old kid.  It will be shown at a fairly large size \
-({hero_w}px wide by {hero_h}px tall), so unlike a small icon it can carry real \
-detail: a full little scene with one clear subject.  Keep the subject in the \
-middle and the top and bottom edges simple and mostly background, because a \
+and engaging for a 7 year old kid.  The image will be displayed at medium size \
+on a color e-ink device, so prefer simple color fills and shapes without too \
+much fine detail.
+
+{elaboration}
+
+The image should be a full little scene with one clear subject.  Keep the subject \
+in the middle and the top and bottom edges simple and mostly background, because a \
 title and a caption will be overlaid there.
 
 There should be no text in the image.
+
+Use the color #F4C293 for the skin color of any people in the image.
 
 Finally, use a plain, solid, pure white background.\
 """
@@ -65,11 +72,20 @@ background, and do not add any text.\
 """
 
 
-def countdown_hero_prompt(item_description: str) -> str:
-    """The generation prompt for a countdown hero image (spec §7.5, §12)."""
-    return _HERO_PROMPT_TEMPLATE.format(
-        item_description=item_description, hero_w=HERO_W, hero_h=HERO_H
+def countdown_hero_prompt(title: str, icon_description: str | None = None) -> str:
+    """The generation prompt for a countdown hero image (spec §7.5, §12).
+
+    Like the calendar-icon prompt, a set ``icon_description`` (§6.4) fills the
+    template's elaboration paragraph rather than replacing the title. Keep the
+    elaboration handling in sync with
+    ``app.images.calendar_icons.calendar_icon_prompt``.
+    """
+    prompt = _HERO_PROMPT_TEMPLATE.format(
+        title=title, elaboration=icon_description or ""
     )
+    # An absent description leaves the elaboration paragraph empty; collapse
+    # the doubled paragraph break it leaves behind.
+    return prompt.replace("\n\n\n\n", "\n\n")
 
 
 def excited_hero_prompt() -> str:
@@ -111,14 +127,17 @@ def make_countdown_hero_resolver(
             collected.append(rendered)
         return url_for("images.generated_image", image_id=image_id)
 
-    def resolve(item_description: str, excited: bool) -> str | None:
+    def resolve(item: IconItem, excited: bool) -> str | None:
+        title, icon_description = item
         base_spec = ImageSpec(
             module=COUNTDOWN_MODULE,
-            item_description=item_description,
+            # The logical key stays icon_description-or-title (§7.1); only the
+            # prompt carries the two parts separately.
+            item_description=icon_description or title,
             width=HERO_W,
             height=HERO_H,
         )
-        base_url = ensure(base_spec, countdown_hero_prompt(item_description))
+        base_url = ensure(base_spec, countdown_hero_prompt(title, icon_description))
         if base_url is None or not excited:
             return base_url
         excited_url = ensure(

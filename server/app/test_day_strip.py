@@ -37,15 +37,17 @@ def _event(
 
 
 class _RecordingResolver:
-    """Batch icon-resolver stub recording the item descriptions it is asked for."""
+    """Batch icon-resolver stub recording the icon items it is asked for."""
 
     def __init__(self, url: str | None = "http://icons/1") -> None:
         self.url = url
-        self.items: list[str] = []
+        self.items: list[tuple[str, str | None]] = []
 
-    def __call__(self, item_descriptions: Sequence[str]) -> dict[str, str | None]:
-        self.items.extend(item_descriptions)
-        return {item: self.url for item in item_descriptions}
+    def __call__(
+        self, items: Sequence[tuple[str, str | None]]
+    ) -> dict[str, str | None]:
+        self.items.extend(items)
+        return {description or title: self.url for title, description in items}
 
 
 def _titles(cell: DayCell) -> list[str]:
@@ -300,7 +302,7 @@ def test_build_day_strip_resolves_icon_for_each_days_pick() -> None:
     strip = build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
     # Only the winning event per non-empty day reaches the resolver.
-    assert sorted(resolver.items) == ["Library", "Soccer"]
+    assert sorted(resolver.items) == [("Library", None), ("Soccer", None)]
     assert strip.week[1].icons[0].icon_url == "http://icons/1"
     assert strip.week[0].icons == []  # empty Monday
 
@@ -313,18 +315,19 @@ def test_build_day_strip_resolves_both_picks_of_a_two_icon_day() -> None:
     ]
     build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
-    assert sorted(resolver.items) == ["Ballet", "Swim"]
+    assert sorted(resolver.items) == [("Ballet", None), ("Swim", None)]
 
 
-def test_build_day_strip_prefers_icon_description_over_title() -> None:
-    # §6.4/§7.1: the image is keyed by icon_description when the event sets one.
+def test_build_day_strip_passes_icon_description_alongside_title() -> None:
+    # §6.4/§7.1: the resolver sees the title plus the icon_description, so the
+    # prompt can keep the title and the image stays keyed by the description.
     resolver = _RecordingResolver()
     events = [
         _event("S's game", date(2026, 6, 2), icon_description="kids soccer match")
     ]
     build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
-    assert resolver.items == ["kids soccer match"]
+    assert resolver.items == [("S's game", "kids soccer match")]
 
 
 def test_build_day_strip_never_resolves_chores() -> None:

@@ -14,7 +14,7 @@ from datetime import date
 from enum import StrEnum
 
 from app.calendar import CalendarEvent
-from app.event_rows import icon_key, start_key
+from app.event_rows import IconItem, icon_item, start_key
 
 # The excited tier begins this many sleeps out. Hardcoded like the other
 # cutoffs (peak 0, hype 1) per the tier-config decision; a future
@@ -36,11 +36,11 @@ class Tier(StrEnum):
 
 # Structural stand-in for the countdown hero resolver (like
 # app.event_rows.IconResolver, kept a plain Callable so this view model needs
-# no images import): (item_description, excited) -> hero URL or None.
-type HeroResolver = Callable[[str, bool], str | None]
+# no images import): (icon item, excited) -> hero URL or None.
+type HeroResolver = Callable[[IconItem, bool], str | None]
 
 
-def no_hero(item_description: str, excited: bool) -> None:
+def no_hero(item: IconItem, excited: bool) -> None:
     """Default resolver: no hero — keeps the builder pure by default."""
     return None
 
@@ -150,7 +150,7 @@ def build_countdown(
     return CountdownPanel(
         seed=seed,
         title=event.title,
-        hero_url=hero_resolver(icon_key(event), tier in (Tier.HYPE, Tier.PEAK)),
+        hero_url=hero_resolver(icon_item(event), tier in (Tier.HYPE, Tier.PEAK)),
         sleeps=sleeps,
         tier=tier,
         copy=copy,

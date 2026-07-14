@@ -21,6 +21,7 @@ from app.event_rows import (
     IconResolver,
     KidBadge,
     assigned_kids,
+    icon_item,
     icon_key,
     kid_badges,
     no_icons,
@@ -227,7 +228,7 @@ def _build_week_cells(
     cx = round(_burst_center_x(widths, active_idx)) if active_idx is not None else None
     picks_by_day = [_day_picks(by_day.get(day, []), kids) for day in week]
     icons = icon_resolver(
-        [icon_key(event) for picks in picks_by_day for event in picks]
+        [icon_item(event) for picks in picks_by_day for event in picks]
     )
     cells: list[DayCell] = []
     for i, (day, palette) in enumerate(zip(week, DAY_PALETTE, strict=True)):

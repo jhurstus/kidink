@@ -46,14 +46,14 @@ def _in(days: int) -> date:
 
 
 class _RecordingResolver:
-    """Hero-resolver stub recording each (item_description, excited) call."""
+    """Hero-resolver stub recording each (icon item, excited) call."""
 
     def __init__(self, url: str | None = "http://heroes/1") -> None:
         self.url = url
-        self.calls: list[tuple[str, bool]] = []
+        self.calls: list[tuple[tuple[str, str | None], bool]] = []
 
-    def __call__(self, item_description: str, excited: bool) -> str | None:
-        self.calls.append((item_description, excited))
+    def __call__(self, item: tuple[str, str | None], excited: bool) -> str | None:
+        self.calls.append((item, excited))
         return self.url
 
 
@@ -175,7 +175,7 @@ def test_sfx_order_is_date_seeded() -> None:
 # --- Hero resolution ----------------------------------------------------------
 
 
-def test_hero_keyed_by_icon_description_over_title() -> None:
+def test_hero_resolver_receives_title_and_icon_description() -> None:
     resolver = _RecordingResolver()
     build_countdown(
         TARGET,
@@ -183,7 +183,7 @@ def test_hero_keyed_by_icon_description_over_title() -> None:
         resolver,
     )
 
-    assert resolver.calls == [("a family camping trip", False)]
+    assert resolver.calls == [(("Camping!!", "a family camping trip"), False)]
 
 
 def test_hero_requests_excited_variant_at_hype_and_peak() -> None:
@@ -192,7 +192,11 @@ def test_hero_requests_excited_variant_at_hype_and_peak() -> None:
     build_countdown(TARGET, [_event("Trip", _in(1))], resolver)
     build_countdown(TARGET, [_event("Trip", _in(0))], resolver)
 
-    assert resolver.calls == [("Trip", False), ("Trip", True), ("Trip", True)]
+    assert resolver.calls == [
+        (("Trip", None), False),
+        (("Trip", None), True),
+        (("Trip", None), True),
+    ]
 
 
 def test_failed_resolution_leaves_hero_url_none() -> None:
