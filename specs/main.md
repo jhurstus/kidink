@@ -841,17 +841,16 @@ deterministically from the date seed.
 
 ### Temperature bar (Today and Tomorrow — identical UI)
 
-A CSS-rendered vertical bar of five bands with an arrow pointing to the day's
+A vertical SVG bar of five flat-color bands with a solid black arrow pointing to the day's
 **"feels like" high** — the bar answers "how will it feel outside?", so wind chill
-and humidity count. Segments use the palette (light-blue and orange are halftone
-blends):
+and humidity count. Its thin outline matches the panel borders. The bands are:
 
 | Band | Feels-like high (°F) | Color |
 |---|---|---|
 | Coldest | ≤ 50 | blue |
 | Cold | 51–59 | light-blue (halftone) |
-| Mild | 60–67 | yellow |
-| Warm | 68–75 | orange (halftone) |
+| Mild | 60–67 | light yellow |
+| Warm | 68–75 | light red |
 | Hottest | ≥ 76 | red |
 
 These five bands are deliberately **not** the three clothing cutoffs — two separate
