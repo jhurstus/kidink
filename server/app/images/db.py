@@ -6,9 +6,10 @@ item_description, width, height, variant)``. The rendered bytes live on disk as
 metadata. Connections are short-lived: open one per operation and close it, so
 there is no shared connection to worry about across Flask request threads.
 
-The ``prompt_attachments`` / ``image_prompt_attachments`` tables are created now
-so no migration is needed later, but nothing reads them yet — prompt-attachment
-support (style-reference images, §7.5) is deferred.
+The ``prompt_attachments`` table tracks style-reference images (spec §7.1): one
+row per file under ``prompt_images/`` (the ``path`` column is relative to that
+directory), many-to-many with ``images`` through ``image_prompt_attachments``.
+Attached images are passed to the generation API as reference inputs (§7.2).
 """
 
 import sqlite3
@@ -68,6 +69,18 @@ class ImageRecord:
     prompt: str
 
 
+@dataclass(frozen=True)
+class PromptAttachment:
+    """One row of the ``prompt_attachments`` table (spec §7.1).
+
+    ``path`` is relative to the ``prompt_images/`` directory under the storage
+    root, with POSIX separators (see :mod:`app.images.attachments`).
+    """
+
+    id: int
+    path: str
+
+
 def open_db(storage_root: Path) -> sqlite3.Connection:
     """Open (creating as needed) ``sqlite.db`` under ``storage_root``.
 
@@ -101,14 +114,16 @@ def _row_to_record(row: sqlite3.Row) -> ImageRecord:
 
 def get_or_create_record(
     conn: sqlite3.Connection, spec: ImageSpec, prompt: str
-) -> ImageRecord:
-    """Return the record for ``spec``, creating it with ``prompt`` if absent.
+) -> tuple[ImageRecord, bool]:
+    """Return ``spec``'s record plus whether this call created it.
 
     ``prompt`` seeds the row only on first creation (§7.5); an existing row's
-    (possibly admin-edited, §7.4) prompt always wins on subsequent calls.
+    (possibly admin-edited, §7.4) prompt always wins on subsequent calls. The
+    ``created`` flag lets callers run first-creation-only work, like seeding
+    the record's default prompt attachments (§7.5).
     """
     with conn:
-        conn.execute(
+        cursor = conn.execute(
             """
             INSERT INTO images
                 (module, item_description, width, height, variant, prompt)
@@ -127,7 +142,7 @@ def get_or_create_record(
         )
     record = find_record(conn, spec)
     assert record is not None  # the insert above guarantees the row exists
-    return record
+    return record, cursor.rowcount == 1
 
 
 def find_record(conn: sqlite3.Connection, spec: ImageSpec) -> ImageRecord | None:
@@ -166,3 +181,92 @@ def update_prompt(conn: sqlite3.Connection, image_id: int, prompt: str) -> None:
     """Persist an edited ``prompt`` on the record (admin endpoint, §7.4)."""
     with conn:
         conn.execute("UPDATE images SET prompt = ? WHERE id = ?", (prompt, image_id))
+
+
+def _row_to_attachment(row: sqlite3.Row) -> PromptAttachment:
+    return PromptAttachment(id=row["id"], path=row["path"])
+
+
+def get_or_create_attachment(conn: sqlite3.Connection, path: str) -> PromptAttachment:
+    """Return the attachment row for ``path``, creating it if absent.
+
+    ``path`` must already be normalized (see
+    :func:`app.images.attachments.normalize_attachment_path`), so one file
+    never lands under two spellings.
+    """
+    with conn:
+        conn.execute(
+            "INSERT INTO prompt_attachments (path) VALUES (?)"
+            " ON CONFLICT (path) DO NOTHING",
+            (path,),
+        )
+    row = conn.execute(
+        "SELECT * FROM prompt_attachments WHERE path = ?", (path,)
+    ).fetchone()
+    assert row is not None  # the insert above guarantees the row exists
+    return _row_to_attachment(row)
+
+
+def get_attachment(
+    conn: sqlite3.Connection, attachment_id: int
+) -> PromptAttachment | None:
+    """Return the attachment with ``attachment_id``, or ``None``."""
+    row = conn.execute(
+        "SELECT * FROM prompt_attachments WHERE id = ?", (attachment_id,)
+    ).fetchone()
+    return _row_to_attachment(row) if row is not None else None
+
+
+def list_image_attachments(
+    conn: sqlite3.Connection, image_id: int
+) -> list[PromptAttachment]:
+    """The attachments of one image record, in attachment-creation order.
+
+    The id ordering is what keeps generation deterministic and the ordinal
+    "reference image N" prompt rewrites stable: seeded module defaults come
+    first (they are created first, §7.5), later admin attaches append.
+    """
+    rows = conn.execute(
+        """
+        SELECT pa.* FROM prompt_attachments pa
+        JOIN image_prompt_attachments ipa ON ipa.attachment_id = pa.id
+        WHERE ipa.image_id = ?
+        ORDER BY pa.id
+        """,
+        (image_id,),
+    ).fetchall()
+    return [_row_to_attachment(row) for row in rows]
+
+
+def list_all_attachments(conn: sqlite3.Connection) -> list[PromptAttachment]:
+    """Every known attachment, ordered by path (the admin attach picker, §7.4)."""
+    rows = conn.execute("SELECT * FROM prompt_attachments ORDER BY path").fetchall()
+    return [_row_to_attachment(row) for row in rows]
+
+
+def attach_to_image(
+    conn: sqlite3.Connection, image_id: int, attachment_id: int
+) -> None:
+    """Link an attachment to an image record (idempotent)."""
+    with conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO image_prompt_attachments (image_id, attachment_id)"
+            " VALUES (?, ?)",
+            (image_id, attachment_id),
+        )
+
+
+def detach_from_image(
+    conn: sqlite3.Connection, image_id: int, attachment_id: int
+) -> None:
+    """Unlink an attachment from an image record.
+
+    Removes the junction row only: the ``prompt_attachments`` row and its file
+    survive, since either may be shared with other records.
+    """
+    with conn:
+        conn.execute(
+            "DELETE FROM image_prompt_attachments"
+            " WHERE image_id = ? AND attachment_id = ?",
+            (image_id, attachment_id),
+        )

@@ -524,7 +524,8 @@ item_description, width, height, variant)`:
 **relative path** to an image under `prompt_images/` (§18). It is **many-to-many** with
 the main table through a junction table, so one reference image can be attached to many
 image records (e.g. a module's shared style examples) and one record can carry several
-attachments.
+attachments. Day-to-day usage (the `{{...}}` prompt tokens and the defaults directory
+convention) is covered in §7.7.
 
 **Files.** The rendered image bytes are stored as a flat **`<id>.png`** (the row id) under
 `gen_images/` (§18); nothing is encoded in the filename. If a row exists for the key, its
@@ -542,7 +543,9 @@ a non-issue (≈1–2 calls/day), so quality is the priority:
 - **Prompt:** the record's **`prompt`** column (§7.1, §7.5).
 - **Style references:** the record's **prompt attachments** (§7.1) — typically the owning
   module's shared style examples — are passed as reference inputs so new images match the
-  comic style (keep to ~2–3).
+  comic style (keep to ~2–3). The effective set is the union of the record's attached
+  images and any `{{...}}` token references in its prompt, resolved at generation time
+  (§7.7); the outgoing prompt cites them as "reference image N".
 - **Transparency (background-keying).** `gpt-image-2` has **no transparent-background
   mode** (a `background:"transparent"` request errors), so the prompt asks for the subject
   on a **flat, solid key-color background** distinct from the subject's palette, and the
@@ -609,7 +612,8 @@ template like *"Generate a 40px-wide by 40px-tall icon representing &lt;event ti
 in a kids' comic-book style: bold colors, hard edges, no fine detail."*
 
 The same per-module step also seeds the record's **prompt attachments** (§7.1) with that
-module's default style examples, drawn from `prompt_images/` (§18).
+module's default style examples, drawn from the convention directory
+`prompt_images/defaults/<module lowercase>/` (§7.7, §18).
 
 The prompt and attachments are then **editable** via the admin endpoint (§7.4); an edit
 simply updates the row, so it persists across future renders and regenerations.
@@ -618,7 +622,7 @@ simply updates the row, so it persists across future renders and regenerations.
 
 The page references all images by **absolute loopback URLs** served by a Flask image
 route, never by filesystem path — so Chromium, the rendered HTML, and the admin UI all
-fetch over HTTP. There are two kinds:
+fetch over HTTP. There are three kinds:
 
 - **AI-generated images** — generated icons and hero images — live as `<id>.png` under
   `gen_images/` (§18) and are served by id (e.g. `GET /images/generated/<id>`).
@@ -626,6 +630,55 @@ fetch over HTTP. There are two kinds:
   and the bugbug creature poses (§16) — are **not** in the image database. They are static
   files served by **name** (e.g. `GET /images/static/<name>`), authored once and shipped
   with the app, so they carry no row, `id`, or `prompt`.
+- **Prompt-attachment images** (§7.1) are served by their relative path under
+  `prompt_images/` (e.g. `GET /images/prompt/styles/comic-dog.png`); the admin
+  attachment previews (§7.4) use this route. The route rejects any path that would
+  escape `prompt_images/`.
+
+### 7.7 Prompt attachments in practice
+
+Usage notes for the §7.1 attachment machinery:
+
+- **`{{<path>}}` prompt tokens.** Any prompt text may pull in a reference image by
+  naming its relative path under `prompt_images/` in double braces, e.g. *"Draw the
+  dog in the style of `{{styles/comic-dog.png}}`"*. At generation time the named
+  image is attached as a reference input and the token is rewritten in the
+  **outgoing** prompt: "the attached reference image" when it is the only image
+  sent, otherwise "reference image N", where N is the image's position among
+  **all** images sent. An edit-from-base image (§7.2) occupies the first slot,
+  so it both forces the numbered form and shifts the numbering (base plus one
+  attachment cites that attachment as "reference image 2"). The **stored**
+  prompt keeps its tokens, so they survive admin edits and regenerations. Because
+  an event's `icon_description` (§6.4) feeds the prompt template, tokens work
+  straight from the calendar: an event description of
+  `icon_description = "soccer ball, drawn like {{styles/comic-dog.png}}"` attaches
+  the reference with no database work.
+- **Module defaults by convention.** Every image dropped into
+  `prompt_images/defaults/<module lowercase>/` (e.g. `defaults/calendar/`) is that
+  module's shared style example set: when a record is **first created**, all files
+  there are attached automatically, in sorted-filename order. Seeding happens only
+  at creation, so later changes to the directory affect only future records, and
+  detaching a default from a record in the admin sticks (regeneration does not
+  re-add it).
+- **Resolution order.** At generation time the record's attached images come first
+  (in attachment-creation order, defaults before later admin attaches), then token
+  references in first-appearance order, deduplicated by path: a path that is both
+  attached and token-referenced appears once, at its attached position. An
+  attachment whose file is missing (or whose path is invalid) is logged and
+  skipped, its tokens are dropped from the outgoing text, and the ordinals
+  renumber over the survivors; generation itself never fails over a style
+  reference (a slightly off-style image beats a §7.3 fallback).
+- **Managing attachments** happens on the §7.4 image detail page: it previews the
+  record's attachments (flagging a missing file), and can detach one, attach any
+  already-known reference image, or upload a new one to a chosen path under
+  `prompt_images/`. Reference images may be **PNG, JPEG, or WebP** (what the
+  image API accepts as reference inputs); uploads are validated against that
+  set, and the file extension must match the actual content. Detaching removes
+  only the link (the file and its uses on other records survive), and uploads
+  never overwrite an existing file with different content, since a reference
+  may be shared across records; re-uploading identical bytes simply attaches
+  the file (idempotent retries, and a way to adopt a hand-dropped file into
+  the picker).
 
 ---
 

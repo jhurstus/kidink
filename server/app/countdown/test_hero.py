@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from pathlib import Path
 
 from flask import Flask
@@ -57,6 +58,7 @@ class _Generator:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         self.prompts.append(prompt)
         self.base_pngs.append(base_png)

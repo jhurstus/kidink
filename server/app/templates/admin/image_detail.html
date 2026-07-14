@@ -1,8 +1,9 @@
 <!doctype html>
 {#- Admin: one image record in isolation (spec §7.4, ?img=<id>): current image,
-editable prompt with regenerate, side-by-side candidate review, and a
-handcrafted-upload override. Attachment management is deferred with the rest of
-prompt-attachment support. -#}
+editable prompt with regenerate, side-by-side candidate review, prompt
+attachment management (list/remove/attach/upload), and a handcrafted-upload
+override. Regenerate shows a busy overlay via this page's only JavaScript;
+the no-JS rule (§3.3) binds panel templates, not the admin. -#}
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -18,6 +19,20 @@ prompt-attachment support. -#}
       repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px; }
     textarea { width: 100%; font: inherit; }
     form { margin: 1rem 0; }
+    .hint { font-size: 0.9rem; color: #555; margin: 0.25rem 0; }
+    #busy { position: fixed; inset: 0; z-index: 10;
+      background: rgb(255 255 255 / 0.75);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem; }
+    #busy[hidden] { display: none; }  /* flex above beats the hidden attr */
+    .spinner { width: 3rem; height: 3rem; border-radius: 50%;
+      border: 0.4rem solid #ddd; border-top-color: #555;
+      animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .attachments { list-style: none; padding: 0; }
+    .attachments li { display: flex; align-items: center; gap: 1rem; margin: 0.5rem 0; }
+    .attachments img { max-width: 120px; max-height: 120px; }
+    .attachments form { margin: 0; }
   </style>
 </head>
 <body>
@@ -58,11 +73,55 @@ prompt-attachment support. -#}
   </form>
   {% endif %}
 
-  <form method="post"
+  <form method="post" id="regenerate-form"
         action="{{ url_for('images_admin.admin_regenerate', image_id=record.id) }}">
     <label for="prompt">Prompt (saved on regenerate)</label>
     <textarea id="prompt" name="prompt" rows="16">{{ record.prompt }}</textarea>
-    <button>Regenerate</button>
+    <p class="hint">Tokens like <code>{{ '{{styles/comic-dog.png}}' }}</code> attach
+      that prompt image and are sent as &quot;reference image N&quot;.</p>
+    <button id="regenerate-button">Regenerate</button>
+  </form>
+
+  <h2>Attachments</h2>
+  {#- Style-reference images sent alongside the prompt at generation (§7.2). -#}
+  {% if attachments %}
+  <ul class="attachments">
+    {% for attachment, file_exists in attachments %}
+    <li>
+      {% if file_exists %}
+      <img src="{{ url_for('images.prompt_image', rel_path=attachment.path) }}"
+           alt="{{ attachment.path }}">
+      {% else %}<span class="error">(file missing)</span>{% endif %}
+      <code>{{ attachment.path }}</code>
+      <form method="post"
+            action="{{ url_for('images_admin.admin_attachment_detach', image_id=record.id) }}">
+        <button name="attachment_id" value="{{ attachment.id }}">Remove</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p>No attachments.</p>{% endif %}
+
+  {% if available %}
+  <form method="post"
+        action="{{ url_for('images_admin.admin_attachment_attach', image_id=record.id) }}">
+    <label for="attachment_id">Attach existing</label>
+    <select id="attachment_id" name="attachment_id">
+      {% for attachment in available %}
+      <option value="{{ attachment.id }}">{{ attachment.path }}</option>
+      {% endfor %}
+    </select>
+    <button>Attach</button>
+  </form>
+  {% endif %}
+
+  <form method="post" enctype="multipart/form-data"
+        action="{{ url_for('images_admin.admin_attachment_upload', image_id=record.id) }}">
+    <label for="attachment-image">Upload new attachment</label>
+    <input id="attachment-image" type="file" name="image"
+           accept="image/png,image/jpeg,image/webp">
+    <input type="text" name="path" placeholder="styles/example.png">
+    <button>Upload &amp; attach</button>
   </form>
 
   <form method="post" enctype="multipart/form-data"
@@ -71,5 +130,27 @@ prompt-attachment support. -#}
     <input id="image" type="file" name="image" accept="image/png">
     <button>Upload</button>
   </form>
+
+  <div id="busy" hidden>
+    <div class="spinner"></div>
+    <p>Regenerating&hellip; this can take a minute.</p>
+  </div>
+
+  <script>
+    // Regeneration is a synchronous POST that can run for tens of seconds:
+    // show the busy overlay and block double submits (each spends API budget).
+    const busy = document.getElementById("busy");
+    const regenerateButton = document.getElementById("regenerate-button");
+    document.getElementById("regenerate-form").addEventListener("submit", () => {
+      busy.hidden = false;
+      regenerateButton.disabled = true;
+    });
+    // pageshow also fires on back/forward restores from the bfcache, which
+    // would otherwise resurrect the page with the overlay stuck open.
+    window.addEventListener("pageshow", () => {
+      busy.hidden = true;
+      regenerateButton.disabled = false;
+    });
+  </script>
 </body>
 </html>

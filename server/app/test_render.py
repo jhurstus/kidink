@@ -1,4 +1,5 @@
 import io
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -73,6 +74,7 @@ def _generate_ok(
     size: str,
     model: str,
     base_png: bytes | None = None,
+    reference_images: Sequence[bytes] = (),
 ) -> bytes:
     return _keyable_png()
 
@@ -84,6 +86,7 @@ def _generate_boom(
     size: str,
     model: str,
     base_png: bytes | None = None,
+    reference_images: Sequence[bytes] = (),
 ) -> bytes:
     raise ImageGenerationError("image generation failed: Boom")
 
@@ -95,6 +98,7 @@ def _generate_unexpected(
     size: str,
     model: str,
     base_png: bytes | None = None,
+    reference_images: Sequence[bytes] = (),
 ) -> bytes:
     raise AssertionError("image generation was invoked but no test seam was set")
 
@@ -215,6 +219,7 @@ def test_render_generates_once_across_renders(tmp_path: Path) -> None:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append(prompt)
         return _keyable_png()
@@ -646,6 +651,7 @@ def test_render_countdown_hype_tier_edits_the_hero(tmp_path: Path) -> None:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append(base_png)
         return _keyable_png()
@@ -719,6 +725,7 @@ def test_render_countdown_edit_failure_falls_back_to_base_hero(tmp_path: Path) -
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         if base_png is not None:
             raise ImageGenerationError("image generation failed: Boom")

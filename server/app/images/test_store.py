@@ -1,5 +1,6 @@
 import io
 import threading
+from collections.abc import Sequence
 from pathlib import Path
 
 import numpy as np
@@ -7,7 +8,16 @@ import pytest
 from PIL import Image
 from pydantic import SecretStr
 
-from app.images.db import ImageSpec, get_or_create_record, open_db, update_prompt
+from app.images.db import (
+    ImageSpec,
+    attach_to_image,
+    detach_from_image,
+    get_or_create_attachment,
+    get_or_create_record,
+    list_image_attachments,
+    open_db,
+    update_prompt,
+)
 from app.images.generate import GenerateImageBytes, ImageGenerationError
 from app.images.store import (
     candidate_path,
@@ -32,12 +42,13 @@ def keyable_png() -> bytes:
 
 
 class CountingGenerator:
-    """Fake generation seam recording each call's prompt and base image."""
+    """Fake generation seam recording each call's prompt and input images."""
 
     def __init__(self, result: bytes | Exception) -> None:
         self.result = result
         self.prompts: list[str] = []
         self.base_pngs: list[bytes | None] = []
+        self.reference_images: list[tuple[bytes, ...]] = []
 
     def __call__(
         self,
@@ -47,9 +58,11 @@ class CountingGenerator:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         self.prompts.append(prompt)
         self.base_pngs.append(base_png)
+        self.reference_images.append(tuple(reference_images))
         if isinstance(self.result, Exception):
             raise self.result
         return self.result
@@ -91,6 +104,7 @@ def test_generation_uses_requested_size_and_model(tmp_path: Path) -> None:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append((size, model))
         return keyable_png()
@@ -112,7 +126,7 @@ def test_failure_returns_none_keeps_row_and_logs(tmp_path: Path) -> None:
 
     # Row kept (missing file = retry next render), no PNG written.
     conn = open_db(tmp_path)
-    record = get_or_create_record(conn, SPEC, "ignored")
+    record, _ = get_or_create_record(conn, SPEC, "ignored")
     conn.close()
     assert record.prompt == "the full prompt text"
     assert not image_path(tmp_path, record.id).exists()
@@ -169,6 +183,7 @@ def test_ensure_images_failure_hits_only_its_own_item(tmp_path: Path) -> None:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         if prompt == "boom":
             raise ImageGenerationError("image generation failed: Boom")
@@ -209,6 +224,7 @@ def test_concurrent_ensure_of_same_record_generates_once(tmp_path: Path) -> None
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         prompts.append(prompt)
         entered.set()
@@ -247,6 +263,7 @@ def test_ensure_images_generates_concurrently(tmp_path: Path) -> None:
         size: str,
         model: str,
         base_png: bytes | None = None,
+        reference_images: Sequence[bytes] = (),
     ) -> bytes:
         barrier.wait(timeout=10)
         return keyable_png()
@@ -327,7 +344,7 @@ def test_regeneration_uses_stored_prompt(tmp_path: Path) -> None:
     # Row exists (with an edited prompt) but its file is missing: generation must
     # use the stored prompt, not the caller's seed prompt (§7.4/§7.5).
     conn = open_db(tmp_path)
-    record = get_or_create_record(conn, SPEC, "original")
+    record, _ = get_or_create_record(conn, SPEC, "original")
     update_prompt(conn, record.id, "edited by admin")
     conn.close()
 
@@ -343,7 +360,7 @@ def test_regenerate_candidate_writes_candidate_only(tmp_path: Path) -> None:
     live_bytes = image_path(tmp_path, image_id).read_bytes()
 
     conn = open_db(tmp_path)
-    record = get_or_create_record(conn, SPEC, "ignored")
+    record, _ = get_or_create_record(conn, SPEC, "ignored")
     conn.close()
     regenerate_candidate(
         record,
@@ -358,7 +375,7 @@ def test_regenerate_candidate_writes_candidate_only(tmp_path: Path) -> None:
 
 def test_regenerate_candidate_failure_propagates(tmp_path: Path) -> None:
     conn = open_db(tmp_path)
-    record = get_or_create_record(conn, SPEC, "p")
+    record, _ = get_or_create_record(conn, SPEC, "p")
     conn.close()
     with pytest.raises(ImageGenerationError):
         regenerate_candidate(
@@ -368,3 +385,138 @@ def test_regenerate_candidate_failure_propagates(tmp_path: Path) -> None:
             api_key=API_KEY,
             model="gpt-image-2",
         )
+
+
+def _ref_png(tag: bytes) -> bytes:
+    """Bytes that sniff as PNG (resolution drops unsniffable content)."""
+    return b"\x89PNG\r\n\x1a\n" + tag
+
+
+def _write_prompt_image(tmp_path: Path, rel_path: str, data: bytes) -> None:
+    file = tmp_path / "prompt_images" / rel_path
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_bytes(data)
+
+
+def test_junction_attachments_reach_the_seam_in_order(tmp_path: Path) -> None:
+    _write_prompt_image(tmp_path, "styles/a.png", _ref_png(b"a"))
+    _write_prompt_image(tmp_path, "styles/b.png", _ref_png(b"b"))
+    conn = open_db(tmp_path)
+    record, _ = get_or_create_record(conn, SPEC, "match the house style")
+    attach_to_image(conn, record.id, get_or_create_attachment(conn, "styles/a.png").id)
+    attach_to_image(conn, record.id, get_or_create_attachment(conn, "styles/b.png").id)
+    conn.close()
+
+    generator = CountingGenerator(keyable_png())
+    assert _ensure(tmp_path, generator) == record.id
+    assert generator.reference_images == [(_ref_png(b"a"), _ref_png(b"b"))]
+    assert generator.prompts == ["match the house style"]  # no tokens: untouched
+
+
+def test_prompt_token_attaches_and_rewrites(tmp_path: Path) -> None:
+    # A {{path}} token in the *stored* prompt (however it got there — an
+    # icon_description or an admin edit) both attaches the image and reads as
+    # an ordinal reference in the outgoing prompt.
+    _write_prompt_image(tmp_path, "styles/dog.png", _ref_png(b"dog"))
+    generator = CountingGenerator(keyable_png())
+
+    result = _ensure(tmp_path, generator, prompt="A dog like {{styles/dog.png}}.")
+
+    assert result is not None
+    assert generator.prompts == ["A dog like the attached reference image."]
+    assert generator.reference_images == [(_ref_png(b"dog"),)]
+
+
+def test_missing_token_file_generates_without_it(tmp_path: Path) -> None:
+    generator = CountingGenerator(keyable_png())
+
+    result = _ensure(tmp_path, generator, prompt="Like {{styles/ghost.png}}, bold.")
+
+    assert result is not None  # never a failure (§7.3)
+    assert generator.prompts == ["Like , bold."]
+    assert generator.reference_images == [()]
+
+
+def test_new_record_is_seeded_with_module_defaults(tmp_path: Path) -> None:
+    _write_prompt_image(tmp_path, "defaults/calendar/style1.png", _ref_png(b"style1"))
+    _write_prompt_image(tmp_path, "defaults/calendar/style2.png", _ref_png(b"style2"))
+    generator = CountingGenerator(keyable_png())
+
+    image_id = _ensure(tmp_path, generator)
+
+    assert image_id is not None
+    assert generator.reference_images == [(_ref_png(b"style1"), _ref_png(b"style2"))]
+    conn = open_db(tmp_path)
+    paths = [a.path for a in list_image_attachments(conn, image_id)]
+    conn.close()
+    assert paths == ["defaults/calendar/style1.png", "defaults/calendar/style2.png"]
+
+
+def test_detached_default_is_not_reseeded(tmp_path: Path) -> None:
+    # Seeding is first-creation-only: once an admin detaches a default, later
+    # regenerations of the same record must not resurrect it.
+    _write_prompt_image(tmp_path, "defaults/calendar/style.png", _ref_png(b"style"))
+    generator = CountingGenerator(keyable_png())
+    image_id = _ensure(tmp_path, generator)
+    assert image_id is not None and generator.reference_images == [
+        (_ref_png(b"style"),)
+    ]
+
+    conn = open_db(tmp_path)
+    attachment = get_or_create_attachment(conn, "defaults/calendar/style.png")
+    detach_from_image(conn, image_id, attachment.id)
+    conn.close()
+    image_path(tmp_path, image_id).unlink()  # force a regeneration
+
+    assert _ensure(tmp_path, generator) == image_id
+    assert generator.reference_images == [(_ref_png(b"style"),), ()]
+
+
+def test_edit_variant_combines_base_and_references(tmp_path: Path) -> None:
+    # The excited hero edit carries base_png *and* any attachments, and even a
+    # single attachment uses the numbered wording (the base makes "the
+    # attached reference image" ambiguous).
+    _write_prompt_image(tmp_path, "defaults/countdown/style.png", _ref_png(b"style"))
+    base_generator = CountingGenerator(b"base png bytes")
+    assert _ensure_spec(tmp_path, UNKEYED_SPEC, base_generator) is not None
+
+    variant_generator = CountingGenerator(b"excited png bytes")
+    variant_id = ensure_image(
+        EDIT_SPEC,
+        "Make it pop like {{defaults/countdown/style.png}}.",
+        storage_root=tmp_path,
+        generate=variant_generator,
+        api_key=API_KEY,
+        model="gpt-image-2",
+    )
+
+    assert variant_id is not None
+    assert variant_generator.base_pngs == [b"base png bytes"]
+    # Seeded junction attachment and the token name the same path: one
+    # reference, cited by its position in the full input array — the base
+    # occupies slot 1, so the attachment is image 2.
+    assert variant_generator.reference_images == [(_ref_png(b"style"),)]
+    assert variant_generator.prompts == ["Make it pop like reference image 2."]
+
+
+def test_regenerate_candidate_passes_attachments(tmp_path: Path) -> None:
+    # regenerate_candidate shares _generate_to, so attachments flow through
+    # the admin regeneration path too.
+    _write_prompt_image(tmp_path, "styles/a.png", _ref_png(b"a"))
+    generator = CountingGenerator(keyable_png())
+    image_id = _ensure(tmp_path, generator)
+    assert image_id is not None
+
+    conn = open_db(tmp_path)
+    record, _ = get_or_create_record(conn, SPEC, "ignored")
+    attach_to_image(conn, record.id, get_or_create_attachment(conn, "styles/a.png").id)
+    conn.close()
+
+    regenerate_candidate(
+        record,
+        storage_root=tmp_path,
+        generate=generator,
+        api_key=API_KEY,
+        model="gpt-image-2",
+    )
+    assert generator.reference_images == [(), (_ref_png(b"a"),)]

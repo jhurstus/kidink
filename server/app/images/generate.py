@@ -10,11 +10,13 @@ echo request details.
 
 import base64
 import io
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from fractions import Fraction
 
 from openai import OpenAIError
 from pydantic import SecretStr
+
+from app.images.attachments import sniff_image_format
 
 DEFAULT_IMAGE_MODEL = "gpt-image-2"
 
@@ -32,9 +34,12 @@ _MAX_ASPECT = 3
 _GEN_SCALE = 16
 
 type GenerateImageBytes = Callable[..., bytes]
-"""The generation seam: ``(api_key, *, prompt, size, model, base_png=None) ->
-PNG bytes``. A non-``None`` ``base_png`` switches from text-to-image to an
-image *edit* of those PNG bytes (the §12 excited hero variant)."""
+"""The generation seam: ``(api_key, *, prompt, size, model, base_png=None,
+reference_images=()) -> PNG bytes``. A non-``None`` ``base_png`` switches from
+text-to-image to an image *edit* of those PNG bytes (the §12 excited hero
+variant); ``reference_images`` are the prompt attachments (§7.2) — PNG, JPEG,
+or WebP bytes — passed as additional input images the prompt can cite as
+"reference image N"."""
 
 
 class ImageGenerationError(Exception):
@@ -82,25 +87,48 @@ def generate_image_bytes(
     size: str,
     model: str,
     base_png: bytes | None = None,
+    reference_images: Sequence[bytes] = (),
 ) -> bytes:
     """Generate one image via the OpenAI API and return the raw PNG bytes.
 
     With ``base_png`` set, the API *edits* those PNG bytes per ``prompt``
-    (the §12 excited hero) instead of generating from scratch. The result may
-    still have a solid key-color background; whether to run it through
+    (the §12 excited hero) instead of generating from scratch.
+    ``reference_images`` (the record's prompt attachments, §7.2; PNG, JPEG,
+    or WebP bytes) ride along as additional input images — also via the edits
+    endpoint, whose multi-image form is the API's reference-guided generation
+    mode. Each reference's upload name and mimetype come from its actual
+    content (never a filename). The base, when present, is always the first
+    image; references follow in order, and their upload names number by
+    position across all inputs including the base, matching the
+    "reference image N" ordinals the prompt may cite (see
+    :func:`app.images.attachments.resolve_prompt_attachments`). The result
+    may still have a solid key-color
+    background; whether to run it through
     :func:`app.images.keying.key_and_crop` is the store's per-module policy.
     Raises :class:`ImageGenerationError` on any SDK/decode failure.
     """
     from openai import OpenAI  # deferred: the SDK is never needed under test
 
+    inputs = (
+        [("base.png", io.BytesIO(base_png), "image/png")]
+        if base_png is not None
+        else []
+    )
+    # start=len(inputs)+1: file names count the base too, staying aligned
+    # with the prompt's position-based "reference image N" ordinals.
+    for n, data in enumerate(reference_images, start=len(inputs) + 1):
+        # The store only sends sniffable formats; the PNG fallback keeps a
+        # direct caller's mislabeled bytes an API-side error, not a crash.
+        extension, mimetype = sniff_image_format(data) or ("png", "image/png")
+        inputs.append((f"reference-{n}.{extension}", io.BytesIO(data), mimetype))
     try:
         images = OpenAI(api_key=api_key.get_secret_value()).images
-        if base_png is None:
+        if not inputs:
             result = images.generate(model=model, prompt=prompt, size=size)
         else:
             result = images.edit(
                 model=model,
-                image=("base.png", io.BytesIO(base_png), "image/png"),
+                image=inputs,
                 prompt=prompt,
                 size=size,
             )
