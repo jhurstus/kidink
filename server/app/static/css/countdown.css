@@ -123,22 +123,23 @@
   padding: 59px 70px 71px;
 }
 
-/* White halo (stroke painted under the fill) keeps the comic type readable
-   where it overlaps the hero art. */
+/* Plain comic caption boxes: a white plate with a thin black border keeps the
+   title and copy readable over the hero art (replacing the old white-stroke
+   halo). Tight padding on each keeps the plates compact. */
 .countdown-title,
 .countdown-copy {
-  -webkit-text-stroke: 5px #fff;
-  paint-order: stroke fill;
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 4px;
 }
 
 .countdown-title {
   flex: none;
   box-sizing: border-box;
   max-width: 100%;
-  /* The flex item shrink-wraps the text, and overflow:hidden would clip the
-     white stroke + the italic overhang at the glyph edges (worst on the
-     right); the padding keeps them inside the clip box. */
-  padding: 0 12px;
+  /* Tight caption padding; the horizontal room keeps the italic overhang off
+     the border and inside the ellipsis clip box (worst on the right). */
+  padding: 2px 12px;
   font-size: 36px;
   font-weight: 700;
   line-height: 1.1;
@@ -149,6 +150,9 @@
 
 .countdown-copy {
   flex: none;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 2px 12px;
   font-size: 30px;
   line-height: 1.1;
 }
@@ -187,7 +191,7 @@
   text-transform: uppercase;
   white-space: nowrap;
   color: #000;
-  -webkit-text-stroke: 5px #fff;
+  -webkit-text-stroke: 15px #fff;
   paint-order: stroke fill;
 }
 

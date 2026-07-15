@@ -77,9 +77,8 @@
    flex: none;
    box-sizing: border-box;
    max-width: 100%;
-   /* The white stroke would clip at the box edge (the countdown title's
-     failure mode); the padding keeps it inside. */
-   padding: 0 6px;
+   /* Tight caption padding inside the plate. */
+   padding: 2px 8px;
    font-size: 31px;
    font-weight: 200;
    line-height: 1.15;
@@ -88,10 +87,12 @@
    -webkit-box-orient: vertical;
    -webkit-line-clamp: 2;
    overflow: hidden;
-   /* White halo (stroke painted under the fill) keeps the comic type readable
-     over the hero art and the placemat. */
-   -webkit-text-stroke: 5px #fff;
-   paint-order: stroke fill;
+   /* Plain comic caption box: a white plate with a thin black border keeps the
+     name readable over the hero art and the placemat (replacing the old white
+     stroke halo). */
+   background: #fff;
+   border: 2px solid #000;
+   border-radius: 4px;
 }
 
 /* Mystery card (§13): the hand-made burst art fills the hero band and
