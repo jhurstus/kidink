@@ -116,8 +116,9 @@ def calendar_icon_prompt(title: str, icon_description: str | None = None) -> str
 
     A set ``icon_description`` (§6.4) does not replace the title: it fills the
     template's elaboration paragraph — the concept stays the event while the
-    description steers the artwork. Keep the elaboration handling in sync with
-    ``app.countdown.hero.countdown_hero_prompt``.
+    description steers the artwork. ``app.countdown.hero.countdown_hero_prompt``
+    fills its elaboration the same way, but carries it as the trailing paragraph
+    instead of mid-template, so its empty-description cleanup differs.
     """
     prompt = _PROMPT_TEMPLATE.format(title=title, elaboration=icon_description or "")
     # An absent description leaves the elaboration paragraph empty; collapse

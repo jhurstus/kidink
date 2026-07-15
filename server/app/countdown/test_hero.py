@@ -15,17 +15,17 @@ from app.countdown.hero import (
 from app.images import ImageGenerationError, RenderedImage
 
 
-def test_hero_prompt_contains_title_and_white_background() -> None:
+def test_hero_prompt_contains_title() -> None:
     prompt = countdown_hero_prompt("camping trip")
     assert "“camping trip”" in prompt
-    assert "pure white background" in prompt
 
 
-def test_hero_prompt_adds_icon_description_as_its_own_paragraph() -> None:
-    # §6.4: the description elaborates the title instead of replacing it.
+def test_hero_prompt_adds_icon_description_as_its_trailing_paragraph() -> None:
+    # §6.4: the description elaborates the title instead of replacing it, and
+    # sits as the template's trailing paragraph.
     prompt = countdown_hero_prompt("Camping!!", "a family pitching a red tent")
     assert "“Camping!!”" in prompt
-    assert "\n\na family pitching a red tent\n\n" in prompt
+    assert prompt.endswith("\n\na family pitching a red tent\n")
 
 
 def test_hero_prompt_without_description_has_no_empty_paragraph() -> None:
@@ -47,7 +47,7 @@ def test_excited_prompt_is_a_comic_excitement_edit() -> None:
     prompt = excited_hero_prompt()
     assert "excitement and anticipation" in prompt
     assert "comic" in prompt
-    assert "white" in prompt
+    assert "composition" in prompt
     assert "text" in prompt
 
 
