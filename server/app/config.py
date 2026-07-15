@@ -6,6 +6,7 @@ environment variables, and validated up front — so a bad value fails fast with
 clear error rather than surfacing later as a render bug.
 """
 
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -99,6 +100,12 @@ class Settings(BaseSettings):
     kids: list[Kid] = Field(default_factory=list)
     """The children shown on the board (§8, §18), in display order — the order
     fixes each kid's badge color and label position on event rows."""
+
+    joke_start_date: date = date(2026, 1, 1)
+    """Base date for the daily joke index (§15): the joke shown on a date is
+    ``jokes[(date - joke_start_date).days % N]``, so the curated list loops. The
+    joke list itself lives in the DB (the ``jokes`` table), managed on
+    ``/admin/jokes``."""
 
     @field_validator("app_storage_path")
     @classmethod

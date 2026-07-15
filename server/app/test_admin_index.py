@@ -12,7 +12,7 @@ def test_admin_lists_admin_pages_alphabetized() -> None:
 
     assert response.status_code == 200
     links = re.findall(r'<a href="(/admin/[^"]*)">', response.text)
-    assert links == ["/admin/images", "/admin/meals", "/admin/weather"]
+    assert links == ["/admin/images", "/admin/jokes", "/admin/meals", "/admin/weather"]
 
 
 def test_admin_has_excludable_routes() -> None:

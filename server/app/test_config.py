@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from pydantic import SecretStr, ValidationError
 
@@ -136,3 +138,10 @@ def test_module_model_tiers_defaults_empty() -> None:
         ]
         == "gpt-image-2"
     )
+
+
+def test_joke_start_date_default_and_override() -> None:
+    # §15: the base date for the modulo joke index. Has a default so a fresh
+    # checkout validates; TOML supplies a real date.
+    assert Settings.model_fields["joke_start_date"].default == date(2026, 1, 1)
+    assert _settings(joke_start_date="2026-07-15").joke_start_date == date(2026, 7, 15)

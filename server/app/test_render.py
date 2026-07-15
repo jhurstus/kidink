@@ -14,6 +14,7 @@ from app.calendar import CalendarFetchError
 from app.config import get_settings
 from app.dinner.overrides import open_meals_db, set_override
 from app.images import ImageGenerationError
+from app.joke.jokes import add_jokes, open_jokes_db
 from app.weather import DayForecast, WeatherFetchError
 
 DAY_NAMES = [
@@ -922,6 +923,49 @@ def test_render_returns_500_on_unparseable_feed() -> None:
     app = _app_with_ics("this is not iCalendar data")
 
     assert app.test_client().get("/render?date=2026-06-03").status_code == 500
+
+
+def test_render_joke_falls_back_when_the_store_is_empty() -> None:
+    # No jokes seeded (poison storage has no DB): the panel shows the HTML
+    # placeholder rather than failing (§15, §7.3).
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    assert "No joke today!" in text
+
+
+def test_render_joke_shows_the_days_hero_image(tmp_path: Path) -> None:
+    # Seed three jokes; with the default start date 2026-01-01, day offset 153
+    # (to 2026-06-03) mod 3 == 0 selects the first joke, and its unkeyed hero is
+    # the only image generated on this event-less board (id 1).
+    conn = open_jokes_db(tmp_path)
+    add_jokes(conn, ["joke A", "joke B", "joke C"])
+    conn.close()
+
+    text = (
+        _app_with_ics(EMPTY_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert 'class="joke-hero"' in text
+    assert "/images/generated/1" in text
+    assert 'alt="joke A"' in text
+
+
+def test_render_joke_is_deterministic_for_a_date(tmp_path: Path) -> None:
+    conn = open_jokes_db(tmp_path)
+    add_jokes(conn, ["joke A", "joke B", "joke C"])
+    conn.close()
+    client = _app_with_ics(EMPTY_ICS, tmp_path, _generate_ok).test_client()
+
+    first = client.get("/render?date=2026-06-04").text
+    second = client.get("/render?date=2026-06-04").text
+
+    # Day offset 154 mod 3 == 1 -> the second joke, stable across renders.
+    assert 'alt="joke B"' in first
+    assert 'alt="joke B"' in second
+    assert 'alt="joke A"' not in first
 
 
 def test_render_does_not_leak_secrets(tmp_path: Path) -> None:

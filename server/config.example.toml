@@ -42,6 +42,12 @@ longitude = -122.4194
 # path is resolved against this directory (server/).
 app_storage_path = ".storage"
 
+# Daily joke / riddle (§15). `joke_start_date` is the base date for the index:
+# the joke shown on a date is jokes[(date - joke_start_date).days % N], so the
+# curated list loops. The jokes themselves live in the DB (the `jokes` table),
+# managed on the /admin/jokes page.
+joke_start_date = 2026-01-01
+
 # Per-module image-model overrides (§18). Modules not listed use the default
 # model (gpt-image-2).
 # [module_model_tiers]

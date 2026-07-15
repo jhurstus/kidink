@@ -1,0 +1,80 @@
+<!doctype html>
+{#- Admin: the curated joke list (see app/joke/admin.py). One row per joke: the
+editable text (an empty save deletes it), a delete button, and the hero-image
+link - or a generate action while the record doesn't exist yet. A textarea
+bulk-adds more jokes (one per line). -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — jokes</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px 24px; background: #fff; }
+    h1 { font-size: 28px; margin: 0 0 12px; }
+    h2 { font-size: 18px; margin: 24px 0 8px; }
+    .error { color: #b00020; background: #fde7ea; border: 1px solid #b00020; padding: 8px 12px; margin: 0 0 12px; max-width: 60em; }
+    .status { color: #0a5; background: #e7f7ef; border: 1px solid #0a5; padding: 8px 12px; margin: 0 0 12px; max-width: 60em; }
+    table { border-collapse: collapse; width: 100%; max-width: 70em; }
+    th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid #ddd; vertical-align: middle; }
+    th { font-size: 14px; text-transform: uppercase; color: #666; }
+    tr.today { background: #fff8dc; }
+    td.num { font-family: monospace; color: #666; white-space: nowrap; }
+    td form { display: inline-flex; gap: 6px; margin: 0; }
+    td form.edit { display: flex; }
+    input[name="text"] { flex: 1; width: 100%; }
+    textarea { width: 100%; max-width: 70em; box-sizing: border-box; margin-bottom: 6px; }
+    .no-image { color: #999; }
+    .muted { color: #666; }
+  </style>
+</head>
+<body>
+  <h1>Jokes</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if status %}<p class="status">{{ status }}</p>{% endif %}
+
+  {% if rows %}
+  <table>
+    <tr>
+      <th>#</th>
+      <th>Joke (save empty to delete)</th>
+      <th>Image</th>
+      <th></th>
+    </tr>
+    {% for row in rows %}
+    <tr{% if row.is_today %} class="today"{% endif %}>
+      <td class="num">{{ loop.index }}{% if row.is_today %} ★{% endif %}</td>
+      <td>
+        <form class="edit" method="post" action="{{ url_for('joke_admin.admin_joke_edit', joke_id=row.id) }}">
+          <input name="text" value="{{ row.text }}">
+          <button>Save</button>
+        </form>
+      </td>
+      <td>
+        {%- if row.image_id is not none %}
+        <a href="{{ url_for('images_admin.admin_images', img=row.image_id) }}">image #{{ row.image_id }}</a>
+        {%- else %}
+        <form method="post" action="{{ url_for('joke_admin.admin_joke_generate', joke_id=row.id) }}">
+          <button>Generate image</button>
+        </form>
+        {%- endif %}
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('joke_admin.admin_joke_delete', joke_id=row.id) }}">
+          <button>Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="muted">★ marks the joke shown for today ({{ rows | length }} joke(s) total).</p>
+  {% else %}
+  <p class="no-image">No jokes yet. Add some below.</p>
+  {% endif %}
+
+  <h2>Add jokes (one per line)</h2>
+  <form method="post" action="{{ url_for('joke_admin.admin_jokes_add') }}">
+    <textarea name="jokes" rows="6" placeholder="What do you call a bear with no teeth? A gummy bear!"></textarea>
+    <div><button>Add</button></div>
+  </form>
+</body>
+</html>

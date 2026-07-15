@@ -1,0 +1,49 @@
+/* ============================================================================
+   joke.css — the Joke module (spec §15): a wholly AI-generated comic panel with
+   the joke text drawn inside the image (the hero fills the panel under the
+   comic frame), or the HTML speech-bubble fallback when no image exists yet.
+   ============================================================================ */
+
+/* Wrapper filling the grid cell, like .dinner / .countdown. */
+.joke {
+   position: relative;
+   width: 100%;
+   height: 100%;
+}
+
+/* Hero — the unkeyed joke image (§7.2/§15), full-bleed inside the panel and
+   clipped by the comic border's rounded frame, which stays the panel's outline.
+   object-fit: cover fills the cell; the generation aspect matches HERO_W/HERO_H
+   (app/joke/hero.py), so the crop is negligible. */
+.joke-hero {
+   position: absolute;
+   inset: 0;
+   width: 100%;
+   height: 100%;
+   object-fit: cover;
+}
+
+/* Fallback (§7.3): the joke line as comic text in a single speech bubble,
+   centered by .comic-content's flex (board.css). */
+.joke-fallback {
+   box-sizing: border-box;
+   max-width: 100%;
+   max-height: 100%;
+   padding: 18px;
+}
+
+.joke-bubble {
+   box-sizing: border-box;
+   max-height: 100%;
+   overflow: hidden;
+   padding: 16px 22px;
+   background: #fff;
+   border: 4px solid #000;
+   border-radius: 26px;
+   /* Match the board's comic "calendar entry" voice (event_rows.css title). */
+   font-size: 30px;
+   font-weight: 400;
+   line-height: 1.15;
+   text-align: center;
+   color: #000;
+}

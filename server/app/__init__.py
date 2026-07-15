@@ -21,6 +21,12 @@ from app.images import (
     images_bp,
     make_calendar_icon_resolver,
 )
+from app.joke import (
+    build_joke,
+    joke_admin_bp,
+    make_joke_hero_resolver,
+    stored_jokes,
+)
 from app.today import build_today
 from app.tomorrow import build_tomorrow
 from app.weather import (
@@ -69,6 +75,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(weather_admin_bp)
     app.register_blueprint(dinner_admin_bp)
+    app.register_blueprint(joke_admin_bp)
 
     @app.get("/")
     def index() -> str:
@@ -164,6 +171,12 @@ def create_app() -> Flask:
             override=stored_override(app.config["APP_STORAGE_PATH"], target),
             hero_resolver=make_dinner_hero_resolver(rendered_images),
         )
+        joke_panel = build_joke(
+            target,
+            stored_jokes(app.config["APP_STORAGE_PATH"]),
+            settings.joke_start_date,
+            hero_resolver=make_joke_hero_resolver(rendered_images),
+        )
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None
         )
@@ -174,6 +187,7 @@ def create_app() -> Flask:
             tomorrow_panel=tomorrow_panel,
             countdown_panel=countdown_panel,
             dinner_panel=dinner_panel,
+            joke_panel=joke_panel,
             weather=weather,
             tomorrow_weather=tomorrow_weather,
             debug_images=debug_images,
