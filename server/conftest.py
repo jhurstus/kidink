@@ -27,6 +27,7 @@ deliberately left unset here, so ``test_config.py`` can keep asserting them.
 """
 
 import json
+import os
 from collections.abc import Iterator
 
 import pytest
@@ -55,6 +56,9 @@ _NO_TOML = "/nonexistent/kidink-tests-never-read-a-config.toml"
 @pytest.fixture(autouse=True)
 def _hermetic_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """Give every test a valid, deterministic, secret-free configuration."""
+    for key in tuple(os.environ):
+        if key.startswith("KIDINK_"):
+            monkeypatch.delenv(key, raising=False)
     for key, value in _FAKE_ENV.items():
         monkeypatch.setenv(key, value)
     # Ignore any real config.toml: point the TOML source at a nonexistent path so

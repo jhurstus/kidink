@@ -34,6 +34,12 @@ restore_config() {
   fi
 }
 
+if [[ -e "$config_stash" && -e "$config_toml" ]]; then
+  echo "Error: both $config_toml and $config_stash exist." >&2
+  echo "Inspect and remove $config_stash manually before re-running ./check.sh." >&2
+  exit 1
+fi
+
 # Recover an orphaned stash from a previously hard-killed run before touching it.
 if [[ -e "$config_stash" && ! -e "$config_toml" ]]; then
   mv "$config_stash" "$config_toml"
