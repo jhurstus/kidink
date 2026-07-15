@@ -908,6 +908,105 @@ def test_render_dinner_override_wins_end_to_end(tmp_path: Path) -> None:
     assert "Pizza night" in calls[0]
 
 
+# A chore on the render date Wed 2026-06-03 (the `chore:` prefix is stripped by
+# the parser), plus a regular event the same day that must NOT leak into the
+# chore panel.
+CHORE_ICS = (
+    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
+    "BEGIN:VEVENT\nUID:bed\nSUMMARY:chore: Make bed\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T080000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T083000\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:soccer\nSUMMARY:Soccer practice\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T160000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T170000\nEND:VEVENT\n"
+    "END:VCALENDAR\n"
+)
+
+
+def test_render_chore_shows_rows_with_tab_and_icon(tmp_path: Path) -> None:
+    # §14: today's chore renders as an event row under the labeled "Chores" tab
+    # (with its checkbox glyph); the same day's regular event stays out of it.
+    text = (
+        _app_with_ics(CHORE_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    # Scope to the chore panel (its wrapper up to the next grid cell) so the
+    # same day's regular event, which lives in the Today panel, isn't counted.
+    section = text.split('<div class="chore">')[1].split("grid-cell", 1)[0]
+    assert "chore-tab" in section
+    assert "chore-check" in section  # the checkbox glyph
+    assert "Make bed" in section
+    assert '<img class="event-icon"' in section
+    assert "Soccer practice" not in section  # regular event excluded (§6.5)
+    assert "no chores today" not in text
+
+
+def test_render_chore_icon_uses_its_own_module(tmp_path: Path) -> None:
+    # §14: the chore icon caches under module "Chores", distinct from Calendar.
+    text = (
+        _app_with_ics(CHORE_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03&debug_images=1")
+        .text
+    )
+
+    assert "Chores / Make bed" in text
+
+
+def _chore_event(uid: str, summary: str, hour: int) -> str:
+    return (
+        f"BEGIN:VEVENT\nUID:{uid}\nSUMMARY:chore: {summary}\n"
+        f"DTSTART;TZID=America/Los_Angeles:20260603T{hour:02d}0000\n"
+        f"DTEND;TZID=America/Los_Angeles:20260603T{hour:02d}3000\nEND:VEVENT\n"
+    )
+
+
+# Four chores on the render date: the two-column layout threshold (§14).
+FOUR_CHORE_ICS = (
+    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
+    + _chore_event("c1", "Make bed", 8)
+    + _chore_event("c2", "Wash dishes", 9)
+    + _chore_event("c3", "Feed cat", 10)
+    + _chore_event("c4", "Water plants", 11)
+    + "END:VCALENDAR\n"
+)
+
+
+def test_render_chore_two_column_when_four_or_more(tmp_path: Path) -> None:
+    # §14: four or more chores spill from a single block into two columns.
+    text = (
+        _app_with_ics(FOUR_CHORE_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    section = text.split('<div class="chore">')[1].split("grid-cell", 1)[0]
+    assert "chore-columns" in section
+    assert "chore-column" in section
+    assert "chore-rows" not in section  # not the single-block layout
+    for title in ("Make bed", "Wash dishes", "Feed cat", "Water plants"):
+        assert title in section
+
+
+def test_render_chore_empty_state_is_plain(tmp_path: Path) -> None:
+    # No chores on the date: a plain panel with centered text and no tab (§14
+    # placeholder). EVENT_ICS's lone event is regular, so the chore list is empty.
+    text = (
+        _app_with_ics(EVENT_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03")
+        .text
+    )
+
+    assert "no chores today" in text
+    assert "chore-tab" not in text
+    assert "chore-rows" not in text
+
+
 def test_render_returns_500_when_fetch_fails() -> None:
     app = create_app()
 

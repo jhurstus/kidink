@@ -5,9 +5,9 @@ Public API:
 - :class:`ImageSpec` / :class:`ImageRecord` — the logical key and its DB row.
 - :func:`ensure_images` / :func:`ensure_image` — get-or-generate images inline
   during a render (a batch's missing images generate concurrently).
-- :func:`make_calendar_icon_resolver` / :data:`IconResolver` /
-  :class:`RenderedImage` — the calendar-module unit consumed by the day strip
-  and the Today panel.
+- :func:`make_calendar_icon_resolver` / :func:`make_chore_icon_resolver` /
+  :data:`IconResolver` / :class:`RenderedImage` — the event-icon unit consumed
+  by the day strip, the Today/Tomorrow panels, and the Chores panel (§14).
 - :func:`generate_image_bytes` — the real OpenAI seam implementation
   (``app.config["GENERATE_IMAGE_BYTES"]``).
 - :data:`images_bp` — blueprint serving ``/images/generated/<id>`` (§7.6).
@@ -19,6 +19,7 @@ from app.images.calendar_icons import (
     IconResolver,
     RenderedImage,
     make_calendar_icon_resolver,
+    make_chore_icon_resolver,
 )
 from app.images.db import ImageRecord, ImageSpec
 from app.images.generate import ImageGenerationError, generate_image_bytes
@@ -37,4 +38,5 @@ __all__ = [
     "generate_image_bytes",
     "images_bp",
     "make_calendar_icon_resolver",
+    "make_chore_icon_resolver",
 ]

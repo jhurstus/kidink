@@ -950,7 +950,10 @@ identical to a today/tomorrow list:
   morning/day/evening buckets.
 - Recurrence works for free via the shared parser (e.g. a daily "make bed").
 - Non-applicable fields (`countdown_eligible`, `time_of_day`) are ignored.
-- **Empty state:** a "No chores today!" comic card.
+- **Label:** a creased-corner "Chores" tab in the top-left (like Dinner's), with a small
+  checkbox glyph.
+- **Empty state:** for now a plain panel with centered "no chores today" text and no tab
+  (a placeholder; a richer empty card is planned).
 
 ---
 

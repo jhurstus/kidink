@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 from flask import Flask, abort, render_template, request
 
 from app.calendar import CalendarEvent, CalendarFetchError, expand_events, fetch_ics
+from app.chore import build_chore
 from app.comic import comic_border_path
 from app.config import get_settings
 from app.countdown import build_countdown, make_countdown_hero_resolver
@@ -20,6 +21,7 @@ from app.images import (
     generate_image_bytes,
     images_bp,
     make_calendar_icon_resolver,
+    make_chore_icon_resolver,
 )
 from app.joke import (
     build_joke,
@@ -177,6 +179,12 @@ def create_app() -> Flask:
             settings.joke_start_date,
             hero_resolver=make_joke_hero_resolver(rendered_images),
         )
+        # Chores get their own resolver (module "Chores", §14) - a separate icon
+        # cache from the calendar events - while still collecting into the shared
+        # rendered_images so ?debug_images= stays deduplicated.
+        chore_panel = build_chore(
+            target, events, settings.kids, make_chore_icon_resolver(rendered_images)
+        )
         debug_images = (
             rendered_images if request.args.get("debug_images") == "1" else None
         )
@@ -188,6 +196,7 @@ def create_app() -> Flask:
             countdown_panel=countdown_panel,
             dinner_panel=dinner_panel,
             joke_panel=joke_panel,
+            chore_panel=chore_panel,
             weather=weather,
             tomorrow_weather=tomorrow_weather,
             debug_images=debug_images,

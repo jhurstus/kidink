@@ -1,11 +1,14 @@
-"""Calendar-module image unit: icon sizing, prompt construction, icon resolver.
+"""Event-icon image unit: icon sizing, prompt construction, icon resolver.
 
 The per-module logic of spec §7.5 for calendar-event icons (day strip and the
-Today panel, which share the same icon size per §9.2). The resolver is what
-view-model builders call: a batch of icon items (title + optional
-``icon_description``) in, a logical-key → servable-URL mapping (``None`` per
-failure) out — generation happens inline behind it (§3.6), concurrently across
-the batch's missing images.
+Today panel, which share the same icon size per §9.2) and the mechanically
+identical Chores icons (§14). Both are the same comic-icon artwork at the same
+60×60 size and share the prompt here; they differ only in the image-record
+``module`` (their own cache namespace and example set), so the resolver factory
+is parameterized by it. The resolver is what view-model builders call: a batch
+of icon items (title + optional ``icon_description``) in, a logical-key →
+servable-URL mapping (``None`` per failure) out — generation happens inline
+behind it (§3.6), concurrently across the batch's missing images.
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -20,9 +23,14 @@ from app.images.store import ensure_images
 
 CALENDAR_ICON_MODULE = "Calendar"
 
+# The Chores module's icons (§14) are the same artwork at the same size as
+# calendar icons; only the image-record module differs, so chore icons cache and
+# seed their example set (prompt_images/defaults/chores/) independently.
+CHORE_ICON_MODULE = "Chores"
+
 # Logical display box (px): drives the generation size (16×, §7.2) and the CSS
 # max-width/max-height that aspect-fit the icon. The stored PNG keeps its
-# native generation resolution.
+# native generation resolution. Shared by both event-icon modules.
 CALENDAR_ICON_W = 60
 CALENDAR_ICON_H = 60
 
@@ -117,13 +125,16 @@ def calendar_icon_prompt(title: str, icon_description: str | None = None) -> str
     return prompt.replace("\n\n\n\n", "\n\n")
 
 
-def make_calendar_icon_resolver(
+def _make_icon_resolver(
+    module: str,
     collected: list[RenderedImage],
 ) -> IconResolver:
-    """Build the calendar icon resolver for the current request.
+    """Build an event-icon resolver for ``module`` for the current request.
 
-    Must be called (and the resolver used) inside a request context. Each call
-    resolves a whole batch: missing images generate concurrently inside
+    Shared by the Calendar and Chores icon units (§7.5/§14): identical artwork
+    and 60×60 size, keyed under distinct ``module`` cache namespaces. Must be
+    called (and the resolver used) inside a request context. Each call resolves
+    a whole batch: missing images generate concurrently inside
     :func:`app.images.store.ensure_images`. Every successfully resolved image
     is appended to ``collected``, which ``/render`` hands to the
     ``?debug_images=1`` listing (§3.5).
@@ -131,7 +142,7 @@ def make_calendar_icon_resolver(
     settings = get_settings()
     storage_root = current_app.config["APP_STORAGE_PATH"]
     generate = current_app.config["GENERATE_IMAGE_BYTES"]
-    model = settings.module_model_tiers.get(CALENDAR_ICON_MODULE, DEFAULT_IMAGE_MODEL)
+    model = settings.module_model_tiers.get(module, DEFAULT_IMAGE_MODEL)
 
     def resolve(items: Sequence[IconItem]) -> dict[str, str | None]:
         # Dedupe preserving order, by logical key (§7.1): a repeated key (a
@@ -148,7 +159,7 @@ def make_calendar_icon_resolver(
         requests = [
             (
                 ImageSpec(
-                    module=CALENDAR_ICON_MODULE,
+                    module=module,
                     item_description=key,
                     width=CALENDAR_ICON_W,
                     height=CALENDAR_ICON_H,
@@ -178,3 +189,22 @@ def make_calendar_icon_resolver(
         return resolved
 
     return resolve
+
+
+def make_calendar_icon_resolver(collected: list[RenderedImage]) -> IconResolver:
+    """Build the calendar-icon resolver (module ``Calendar``) for this request.
+
+    Shared across the day strip and the Today/Tomorrow panels, so an event in
+    more than one reuses a single image record (§7.5).
+    """
+    return _make_icon_resolver(CALENDAR_ICON_MODULE, collected)
+
+
+def make_chore_icon_resolver(collected: list[RenderedImage]) -> IconResolver:
+    """Build the chore-icon resolver (module ``Chores``) for this request.
+
+    Same artwork/size as calendar icons but its own cache namespace and example
+    set (§14), so a ``chore: Make bed`` icon is distinct from a like-named
+    calendar event's.
+    """
+    return _make_icon_resolver(CHORE_ICON_MODULE, collected)

@@ -9,8 +9,10 @@ from pydantic import SecretStr
 from app import create_app
 from app.images import RenderedImage
 from app.images.calendar_icons import (
+    CHORE_ICON_MODULE,
     calendar_icon_prompt,
     make_calendar_icon_resolver,
+    make_chore_icon_resolver,
 )
 
 
@@ -110,3 +112,23 @@ def test_resolver_dedupes_items_by_logical_key(tmp_path: Path) -> None:
     # One logical image (§7.1): generated once, seeded by the first item's prompt.
     assert resolved == {"kids soccer match": "/images/generated/1"}
     assert generate.prompts == [calendar_icon_prompt("S's game", "kids soccer match")]
+
+
+def test_chore_resolver_keys_under_the_chores_module(tmp_path: Path) -> None:
+    # §14: chores share the calendar icon artwork/size and prompt, but cache
+    # under their own module so a chore icon is distinct from a like-named
+    # calendar event's.
+    generate = _Generator()
+    collected: list[RenderedImage] = []
+
+    app = create_app()
+    app.config["APP_STORAGE_PATH"] = tmp_path
+    app.config["GENERATE_IMAGE_BYTES"] = generate
+    with app.test_request_context():
+        resolved = dict(make_chore_icon_resolver(collected)([("Make bed", None)]))
+
+    assert resolved == {"Make bed": "/images/generated/1"}
+    spec = collected[0].spec
+    assert spec.module == CHORE_ICON_MODULE
+    assert (spec.width, spec.height) == (60, 60)
+    assert generate.prompts == [calendar_icon_prompt("Make bed")]

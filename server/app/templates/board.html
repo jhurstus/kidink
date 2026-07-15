@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/tomorrow.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/countdown.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/dinner.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/chore.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/joke.css') }}" />
   <link rel="stylesheet" href="{{ url_for('static', filename='css/weather.css') }}" />
 </head>
@@ -38,7 +39,7 @@
         <div class="module-grid">
           <div class="grid-cell">{{ countdown(countdown_panel) }}</div>
           <div class="grid-cell">{{ dinner(dinner_panel) }}</div>
-          <div class="grid-cell">{{ chore() }}</div>
+          <div class="grid-cell">{{ chore(chore_panel) }}</div>
           <div class="grid-cell">{{ joke(joke_panel) }}</div>
         </div>
       </div>

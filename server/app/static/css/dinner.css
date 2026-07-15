@@ -27,7 +27,9 @@
 
 .dinner-tab .corner-tab-face {
    height: 44px;
-   padding: 0 14px;
+   /* 20px sides: the right keeps the folded corner's crease off the last letter,
+      the left matches it so the label reads evenly. */
+   padding: 0 20px 0 18px;
 }
 
 /* Placemat background - full-bleed inside the panel, under the body, clipped
