@@ -30,7 +30,12 @@ config_stash=".config.toml.checkstash"
 
 restore_config() {
   if [[ -e "$config_stash" ]]; then
-    mv -f "$config_stash" "$config_toml"
+    if [[ -e "$config_toml" ]]; then
+      echo "Warning: $config_stash contains your pre-run configuration." >&2
+      echo "Reconcile it with the current $config_toml manually; both files were preserved." >&2
+    else
+      mv "$config_stash" "$config_toml"
+    fi
   fi
 }
 
