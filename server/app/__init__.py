@@ -74,6 +74,19 @@ def create_app() -> Flask:
     def index() -> str:
         return render_template("index.html")
 
+    @app.get("/admin")
+    def admin() -> str:
+        """Index of the admin pages (§3.2): links to every parameterless GET
+        route under /admin/, so new admin pages list themselves."""
+        pages = sorted(
+            rule.rule
+            for rule in app.url_map.iter_rules()
+            if rule.rule.startswith("/admin/")
+            and not rule.arguments
+            and "GET" in (rule.methods or ())
+        )
+        return render_template("admin/index.html", pages=pages)
+
     @app.get("/render")
     def render() -> str:
         now = app.config.get("NOW") or datetime.now(UTC)

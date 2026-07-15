@@ -84,6 +84,9 @@ which is acceptable at the polling cadence.
   write — image and asset URLs are Flask routes that Chromium fetches over loopback),
   captures the PNG, and serves it with the PNG-hash `ETag`.
 - **Image admin endpoint** (§7.4).
+- **`/admin`** — an index of the admin pages: a plain alphabetized bulleted list of
+  links to every parameterless `GET /admin/<page>` route (e.g. `/admin/images`,
+  `/admin/weather`), derived from the URL map so new admin pages list themselves.
 
 ### 3.3 Render pipeline stages
 

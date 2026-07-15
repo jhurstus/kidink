@@ -1,0 +1,20 @@
+<!doctype html>
+{#- Admin: index of the available admin pages (spec §3.2). -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — admin</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; }
+  </style>
+</head>
+<body>
+  <h1>Admin pages</h1>
+  <ul>
+    {% for page in pages %}
+    <li><a href="{{ page }}">{{ page }}</a></li>
+    {% endfor %}
+  </ul>
+</body>
+</html>
