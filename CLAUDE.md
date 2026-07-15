@@ -28,6 +28,7 @@ Run all commands from `server/`.
 - **Tests:** pytest. Test files live side-by-side with the code they test (e.g. `app/test_index.py` next to `app/__init__.py`), named `test_*.py`. Add or update tests alongside behavior changes.
   - **No real network.** The suite runs with `--disable-socket` (pytest-socket), so tests must never hit the network. Exercise HTTP through the Flask test client (in-process, no socket) and fake all external I/O (OpenAI, Weather, ICS feeds).
   - **Browser tests.** Tests that drive headless Chromium (Playwright, `/display`) are slow and need real sockets. Mark them `@pytest.mark.browser` *and* `@pytest.mark.enable_socket`; they are deselected by default. Run them with `uv run pytest -m browser`.
+  - **Hermetic config (no `config.toml`, no real secrets).** The suite must pass from a clean checkout with no `server/config.toml`. `server/conftest.py` autouse-injects fake `KIDINK_*` settings and points the TOML source at a nonexistent path, so a local `config.toml` is ignored; `check.sh` also relocates any local `config.toml` for the pytest run to guard the invariant. Reach config through `get_settings()`/`create_app()` (or `test_config.py`'s `_settings()` helper), never by reading the file.
 - **Python:** Project uses python version 3.14.
 
 ### Checks (no CI)

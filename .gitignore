@@ -149,6 +149,9 @@ activemq-data/
 
 # kidink local app config
 /server/config.toml
+# transient stash used by server/check.sh to prove the suite passes with no
+# config.toml present (restored on exit; only lingers after a hard kill)
+/server/.config.toml.checkstash
 
 # kidink app-managed storage (sqlite.db, gen_images/, prompt_images/; spec §18)
 /server/.storage/

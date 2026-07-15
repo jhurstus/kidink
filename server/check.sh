@@ -16,4 +16,42 @@ else
 fi
 
 uv run ty check
+
+# The test suite must pass with **no config.toml present** - a clean checkout and
+# the automated quality gate have no gitignored secret config (spec §18). The
+# hermetic conftest.py injects fake settings so get_settings() validates without
+# it. As a backstop that survives a regression in that conftest, physically hide
+# any local config.toml for the test run: a future test that silently starts
+# depending on a present config.toml then fails here instead of passing only on
+# machines that happen to have one. The stash lives in server/ (same filesystem,
+# gitignored) and is restored on any exit, including pytest failure.
+config_toml="config.toml"
+config_stash=".config.toml.checkstash"
+
+restore_config() {
+  if [[ -e "$config_stash" ]]; then
+    if [[ -e "$config_toml" ]]; then
+      echo "Warning: $config_stash contains your pre-run configuration." >&2
+      echo "Reconcile it with the current $config_toml manually; both files were preserved." >&2
+    else
+      mv "$config_stash" "$config_toml"
+    fi
+  fi
+}
+
+if [[ -e "$config_stash" && -e "$config_toml" ]]; then
+  echo "Error: both $config_toml and $config_stash exist." >&2
+  echo "Inspect and remove $config_stash manually before re-running ./check.sh." >&2
+  exit 1
+fi
+
+# Recover an orphaned stash from a previously hard-killed run before touching it.
+if [[ -e "$config_stash" && ! -e "$config_toml" ]]; then
+  mv "$config_stash" "$config_toml"
+fi
+trap restore_config EXIT
+if [[ -e "$config_toml" ]]; then
+  mv "$config_toml" "$config_stash"
+fi
+
 uv run pytest
