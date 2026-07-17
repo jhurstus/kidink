@@ -13,15 +13,14 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Day-of-week strip slot (spec §9). 60px margin to the top of the page, 30px to
+   Day-of-week strip slot (spec §9). 30px margin to the top of the page, 30px to
    the left, 32px to the right (the 1538px strip ends at x=1568) — visually even
    side margins once the frame's obscured edge pixels (spec §2) are subtracted.
-   The slot is NOT clipped, so the strip's rotated date box can jut past its
-   top-left corner.
+   The 205px strip occupies y 30–235.
    --------------------------------------------------------------------------- */
 .day-strip-slot {
    position: absolute;
-   top: 60px;
+   top: 30px;
    left: 30px;
 }
 
@@ -34,9 +33,9 @@ body {
    margins mirror the strip's (30px left, 32px right → 1538px wide), and the
    bottom margin (31px) is tuned to look visually even against them once the
    frame's obscured edge pixels (spec §2: 3px left, 4px right, 6px bottom) are
-   subtracted. The strip occupies y 60–250; the content is pulled up to y=245 so
-   it tucks 5px under the strip (the burst spills down into this band anyway,
-   §9.1), running to y=1169.
+   subtracted. The strip occupies y 30–235, leaving a 15px gutter between the
+   day panels (bottoms at y=230; the taller today panel pops 5px into the
+   gutter, §9.1) and the content at y=245, which runs to y=1169.
    --------------------------------------------------------------------------- */
 .content {
    position: absolute;

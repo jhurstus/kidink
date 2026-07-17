@@ -22,6 +22,7 @@ from app.images import (
     images_bp,
     make_calendar_icon_resolver,
     make_chore_icon_resolver,
+    make_strip_icon_resolver,
 )
 from app.joke import (
     build_joke,
@@ -156,12 +157,16 @@ def create_app() -> Flask:
         weather = panel_weather(target, 0)
         tomorrow_weather = panel_weather(target + timedelta(days=1), 1)
         # Missing AI images are generated inline here (§3.6); an individual
-        # image failure falls back to a chip (§7.3), never a 500. One resolver
-        # is shared across modules so the strip and the Today/Tomorrow rows
-        # reuse the same image records and ?debug_images= stays deduplicated.
+        # image failure falls back to a chip (§7.3), never a 500. The strip has
+        # its own image family (module "DayStrip", §9.1: full-bleed opaque art
+        # plus the excited today variant) while the Today/Tomorrow rows share
+        # one calendar-icon resolver; all collect into the shared
+        # rendered_images so ?debug_images= stays deduplicated.
         rendered_images: list[RenderedImage] = []
         resolver = make_calendar_icon_resolver(rendered_images)
-        strip = build_day_strip(target, events, settings.kids, resolver)
+        strip = build_day_strip(
+            target, events, settings.kids, make_strip_icon_resolver(rendered_images)
+        )
         today_panel = build_today(target, events, settings.kids, resolver)
         tomorrow_panel = build_tomorrow(target, events, settings.kids, resolver)
         countdown_panel = build_countdown(

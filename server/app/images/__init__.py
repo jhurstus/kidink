@@ -7,7 +7,9 @@ Public API:
   during a render (a batch's missing images generate concurrently).
 - :func:`make_calendar_icon_resolver` / :func:`make_chore_icon_resolver` /
   :data:`IconResolver` / :class:`RenderedImage` — the event-icon unit consumed
-  by the day strip, the Today/Tomorrow panels, and the Chores panel (§14).
+  by the Today/Tomorrow panels and the Chores panel (§14).
+- :func:`make_strip_icon_resolver` / :data:`StripIconResolver` — the day-strip
+  panel-art unit (§9.1): full-bleed opaque art plus the excited today variant.
 - :func:`generate_image_bytes` — the real OpenAI seam implementation
   (``app.config["GENERATE_IMAGE_BYTES"]``).
 - :data:`images_bp` — blueprint serving ``/images/generated/<id>`` (§7.6).
@@ -25,6 +27,7 @@ from app.images.db import ImageRecord, ImageSpec
 from app.images.generate import ImageGenerationError, generate_image_bytes
 from app.images.routes import images_bp
 from app.images.store import ensure_image, ensure_images
+from app.images.strip_icons import StripIconResolver, make_strip_icon_resolver
 
 __all__ = [
     "IconResolver",
@@ -32,6 +35,7 @@ __all__ = [
     "ImageRecord",
     "ImageSpec",
     "RenderedImage",
+    "StripIconResolver",
     "admin_bp",
     "ensure_image",
     "ensure_images",
@@ -39,4 +43,5 @@ __all__ = [
     "images_bp",
     "make_calendar_icon_resolver",
     "make_chore_icon_resolver",
+    "make_strip_icon_resolver",
 ]

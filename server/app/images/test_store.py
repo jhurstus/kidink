@@ -340,6 +340,49 @@ def test_edit_variant_without_base_fails_softly(tmp_path: Path) -> None:
     assert "ImageGenerationError" in (tmp_path / "gen_failures.log").read_text()
 
 
+DAY_STRIP_SPEC = ImageSpec(
+    module="DayStrip", item_description="Soccer", width=200, height=200
+)
+DAY_STRIP_EDIT_SPEC = ImageSpec(
+    module="DayStrip",
+    item_description="Soccer",
+    width=200,
+    height=200,
+    variant="excited",
+)
+
+
+def test_day_strip_module_is_unkeyed(tmp_path: Path) -> None:
+    # The DayStrip policy matches Countdown's: full-bleed opaque art (§9.1),
+    # stored verbatim — an all-green PNG that would raise KeyingError elsewhere
+    # survives byte-identical.
+    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
+    out = io.BytesIO()
+    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    raw = out.getvalue()
+
+    image_id = _ensure_spec(tmp_path, DAY_STRIP_SPEC, CountingGenerator(raw))
+
+    assert image_id is not None
+    assert image_path(tmp_path, image_id).read_bytes() == raw
+
+
+def test_day_strip_excited_variant_edits_its_base(tmp_path: Path) -> None:
+    # ("DayStrip", "excited") is an edit-from-base pair like Countdown's: the
+    # today panel's art keeps the base's subject and composition (§9.1).
+    generator = CountingGenerator(b"base png bytes")
+    base_id = _ensure_spec(tmp_path, DAY_STRIP_SPEC, generator)
+    assert base_id is not None
+
+    variant_generator = CountingGenerator(b"excited png bytes")
+    variant_id = _ensure_spec(tmp_path, DAY_STRIP_EDIT_SPEC, variant_generator)
+
+    assert variant_id is not None and variant_id != base_id
+    assert generator.base_pngs == [None]
+    assert variant_generator.base_pngs == [b"base png bytes"]
+    assert image_path(tmp_path, variant_id).read_bytes() == b"excited png bytes"
+
+
 def test_regeneration_uses_stored_prompt(tmp_path: Path) -> None:
     # Row exists (with an edited prompt) but its file is missing: generation must
     # use the stored prompt, not the caller's seed prompt (§7.4/§7.5).

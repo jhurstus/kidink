@@ -1,127 +1,84 @@
 {#- ===========================================================================
 day_strip.html — the day-of-week strip module (spec §9).
 
-A full-width strip: the Monday–Sunday cells of the target week, weekdays and
-weekend in separate group panels, with the full date superimposed (rotated) over
-the top-left corner. The current day is replaced by a wider starburst cell. Each
-day shows one or two AI icons per the §9.2 per-kid selection (falling back to
-title-text chips), each carrying the shared kid badge (§8) when it belongs to a
-proper subset of the kids.
+Seven free-standing comic panels, Monday–Sunday of the target week: each a
+white 4px-bordered box with the day name in a caption band across the top and
+the day's §9.2 per-kid event art below, full-bleed (cover-cropped by the
+panel). The today panel is wider and taller, shows the excited art variant,
+and carries the date in a caption band across its bottom. A two-pick day
+splits its body corner to corner into two right-triangle mini-panels. Each pick
+carries the shared kid badge (§8) when it belongs to a proper subset of the
+kids.
 
-The two group boxes sit directly on the strip (no enclosing panel); everything
-is plain divs — no comic_panel anywhere in the strip. Layout (flex rows, gaps,
-centering) lives in static/css/day_strip.css. The date box and the burst are
-siblings of the groups, laid over the strip.
+Each day has its own bold caption colour (Mon..Sun, set in
+static/css/day_strip.css), and the weekday/weekend split is carried by the
+wider gutter before Saturday; all layout lives in static/css/day_strip.css.
 
 day_strip(strip):
 strip a DayStrip view model (see app/day_strip.py), with:
 .week list[DayCell] (Mon..Sun); a cell's .icons are its §9.2
 DayIcon picks (.title/.icon_url/.kids)
-.date_label formatted corner date, e.g. "June 3, 2026"
+.date_label formatted today-panel date, e.g. "June 3, 2026"
 =========================================================================== -#}
 {% from "macros/kids.html" import kid_badges %}
 
-{#- A day's event content: the day's one or two §9.2 icon picks in a row — for
-each, the event's AI icon or (when the image is missing/failed) the comic
-fallback chip with the title text (§7.3), plus the shared kid badge (§8) when
-the pick belongs to a proper subset of the kids. Shared by normal cells and the
-today burst. -#}
-{% macro day_event(day) -%}
-{%- if day.icons -%}
-<div class="day-icons">
-  {%- for icon in day.icons -%}
-  <div class="kid-badge-anchor">
-    {%- if icon.icon_url -%}
-    <img class="day-icon" src="{{ icon.icon_url }}" alt="{{ icon.title }}" />
-    {%- else -%}
-    <div class="day-event day-event-chip">{{ icon.title }}</div>
-    {%- endif -%}
-    {{- kid_badges(icon.kids) -}}
-  </div>
-  {%- endfor -%}
-</div>
-{%- endif -%}
-{%- endmacro %}
-
-{#- One day box. The active (today) day renders just a width-reserving spacer: its
-burst image is emitted once at the strip level so it can spill freely over the
-groups and the row below, and its name is baked into the image. Every other day is
-a plain white rounded box with a thin black border. (The day's DAY_PALETTE color
-is not used by the cell right now — colored borders and tinted/gradient fills
-both disappointed on the physical panel; where the color lands next is open.) -#}
-{% macro day_cell(day) -%}
-{%- if day.burst -%}
-<div class="day-burst-slot" style="width: {{ day.width }}px"></div>
+{#- One §9.2 pick's art: the event's full-bleed AI art or (when the image is
+missing/failed) the comic fallback chip with the title text (§7.3), plus the
+shared kid badge (§8) when the pick belongs to a proper subset of the kids.
+The enclosing container (.day-body or a .day-tear triangle) is the positioning
+context for both the art and the badge. -#}
+{% macro day_art(icon) -%}
+{%- if icon.icon_url -%}
+<img class="day-art" src="{{ icon.icon_url }}" alt="{{ icon.title }}" />
 {%- else -%}
-<div class="day-cell" style="width: {{ day.width }}px">
-  <div class="day-name">{{ day.name }}</div>
-  {{- day_event(day) -}}
-</div>
+<div class="day-event day-event-chip">{{ icon.title }}</div>
 {%- endif -%}
+{{- kid_badges(icon.kids) -}}
 {%- endmacro %}
-
-{#- A group box wrapping a row of day cells: a plain tinted rounded box with the
-same border vocabulary as the day cells. Its OUTER width is sized to exactly hold
-the cells + inter-cell gaps + 12px of edge-to-cell inset per side (the inset is
-the 2px border + the 10px .day-row padding — keep in sync with day_strip.css and
-the layout constants in app/day_strip.py). Cell widths vary (the active day is
-widened, its weekday siblings shrunk), so the width is summed from the cells
-rather than count*190. -#}
-{% macro day_group(days, bg) -%}
-<div class="day-group" style="width: {{ (days | sum(attribute='width')) + (days|length - 1) * 12 + 24 }}px; background: {{ bg }}">
-  <div class="day-row">
-    {%- for day in days %}{{ day_cell(day) }}{% endfor -%}
-  </div>
-</div>
-{%- endmacro %}
-
-{% from "macros/tab.html" import corner_tab %}
 
 {% macro day_strip(strip) -%}
 <div class="day-strip">
-  <div class="strip-groups">
-    {{ day_group(strip.week[:5], '#d0dde3') }}{# cool weekdays #}
-    {{ day_group(strip.week[5:], '#f2e0cd') }}{# warm weekend #}
+  {%- for day in strip.week %}
+  <div
+    class="day-panel{% if day.is_today %} day-panel-today{% endif %}"
+    style="width: {{ day.width }}px">
+    <div class="day-caption">{{ day.name }}</div>
+    <div class="day-body{% if day.icons | length == 2 %} day-body-split{% endif %}">
+      {%- if day.icons | length == 2 -%}
+      {#- Torn panel (§9.2): the body splits into two right triangles along the
+      bottom-left -> top-right diagonal; each pick's art cover-fills its triangle
+      (clipped by the tear's clip-path), badges in the outer corners. The seam
+      bar draws two 4px "panel border" lines with a thin white gutter between
+      them, styled in day_strip.css. -#}
+      <div class="day-tear day-tear-a">{{ day_art(day.icons[0]) }}</div>
+      <div class="day-tear day-tear-b">{{ day_art(day.icons[1]) }}</div>
+      <div class="day-tear-seam"></div>
+      {%- elif day.icons -%}
+      {{ day_art(day.icons[0]) }}
+      {%- endif -%}
+    </div>
+    {%- if day.is_today %}
+    {#- Today's date caption, across the panel bottom over the art (§9.1). -#}
+    <div class="day-date">
+      {#- preserveAspectRatio=none: the icon is sized taller than wide in CSS
+      and should stretch to fill, not letterbox. -#}
+      <svg class="date-icon" viewBox="0 0 32 32" preserveAspectRatio="none" aria-hidden="true">
+        <rect x="2" y="5" width="28" height="25" rx="3" fill="#fff" stroke="#000" stroke-width="2.5" />
+        <rect x="4.5" y="7.5" width="23" height="6.5" rx="1.5" fill="#d02f2f" />
+        <rect x="8" y="2" width="3" height="8" rx="1.5" fill="#000" />
+        <rect x="21" y="2" width="3" height="8" rx="1.5" fill="#000" />
+        <g fill="#000">
+          <rect x="7.5" y="17.5" width="3" height="3" />
+          <rect x="14.5" y="17.5" width="3" height="3" />
+          <rect x="21.5" y="17.5" width="3" height="3" />
+          <rect x="7.5" y="23.5" width="3" height="3" />
+          <rect x="14.5" y="23.5" width="3" height="3" />
+        </g>
+      </svg>
+      {{ strip.date_label }}
+    </div>
+    {%- endif %}
   </div>
-  {#- The active day's burst, a sibling of the groups (like .date-box) laid
-  over the strip so it can spill past its cell. Exactly one day
-  is "today", so this loop emits a single burst, centered on its cell's x
-  (--burst-cx) with a per-day vertical offset from its .day-burst-<day> rule. The
-    burst is a container: the starburst image (its day name baked in) sits behind, and
-    the day's event icon (or fallback chip) overlays the open body below the name — the
-    today cell's equivalent of the day_event content on every other cell. -#}
-    {%- for day in strip.week if day.burst %}
-    <div class="day-burst day-burst-{{ day.name | lower }}" style="--burst-cx: {{ day.burst_cx }}px">
-      <img class="day-burst-img" src="{{ url_for('static', filename='img/day_strip/' ~ day.burst) }}"
-        alt="{{ day.name }}" />
-      <div class="day-burst-content">
-        {{- day_event(day) -}}
-      </div>
-    </div>
-    {%- endfor %}
-    {#- Corner date box: a creased-corner tab (macros/tab.html) sitting just
-    above the strip. On Mondays the burst spills over the strip's top-LEFT
-    corner and would bury the box, so it flips to the top-right corner instead
-    (week[0] is Monday). -#}
-    <div class="date-box{% if strip.week[0].burst %} date-box-right{% endif %}">
-      {%- call corner_tab() %}
-        {#- preserveAspectRatio=none: the icon is sized taller than wide in CSS
-        and should stretch to fill, not letterbox. -#}
-        <svg class="date-icon" viewBox="0 0 32 32" preserveAspectRatio="none" aria-hidden="true">
-          <rect x="2" y="5" width="28" height="25" rx="3" fill="#fff" stroke="#000" stroke-width="2.5" />
-          <rect x="4.5" y="7.5" width="23" height="6.5" rx="1.5" fill="#d02f2f" />
-          <rect x="8" y="2" width="3" height="8" rx="1.5" fill="#000" />
-          <rect x="21" y="2" width="3" height="8" rx="1.5" fill="#000" />
-          <g fill="#000">
-            <rect x="7.5" y="17.5" width="3" height="3" />
-            <rect x="14.5" y="17.5" width="3" height="3" />
-            <rect x="21.5" y="17.5" width="3" height="3" />
-            <rect x="7.5" y="23.5" width="3" height="3" />
-            <rect x="14.5" y="23.5" width="3" height="3" />
-          </g>
-        </svg>
-        {{ strip.date_label }}
-      {%- endcall %}
-    </div>
+  {%- endfor %}
 </div>
 {%- endmacro %}

@@ -1,137 +1,306 @@
 /* ============================================================================
    day_strip.css — internal layout + cosmetics for the day-of-week strip module
    (templates/modules/day_strip.html, spec §9).
+
+   Seven free-standing day panels fill the 1538px strip exactly (mirrors the
+   geometry constants in app/day_strip.py):
+     6*205 + 268 (today) + 5*5 (gaps) + 15 (weekday/weekend gutter) = 1538.
    ============================================================================ */
 
 .day-strip {
   position: relative;
   width: 1538px;
-  /* Explicit height: the strip's absolute children (bursts, date box) don't add
-     flow height, so this is what keeps the strip's footprint. */
-  height: 190px;
+  height: 205px;
+  display: flex;
+  /* Symmetric vertical centering: normal panels (195px) sit 5px in from the
+     strip's top and bottom; the taller today panel (205px) fills the strip and
+     pops 5px past its neighbors on both edges. */
+  align-items: center;
+  gap: 5px;
   font-style: italic;
 }
 
-/* Weekday group + weekend group, with a visible gap between them. */
-.strip-groups {
+/* One free-standing day panel (spec §9.1): white body, thick black border,
+   near-square corners. Width is set inline from DayCell.width (200px, today
+   260px). overflow clips the full-bleed art (and the tear layers) to the
+   panel. */
+.day-panel {
+  box-sizing: border-box;
+  flex: none;
+  height: 195px;
+  background: #fff;
+  border: 4px solid #000;
+  border-radius: 1px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* A torn panel clips to its border-box (via clip-path) rather than the padding
+   box (overflow), so the diagonal seam can paint over — and knock a white
+   gutter through — the panel frame at the two ends of the diagonal, making the
+   two triangles read as separate panels sitting next to each other (§9.2). */
+.day-panel:has(.day-body-split) {
+  overflow: visible;
+  clip-path: inset(0 round 1px);
+}
+
+/* The weekday/weekend gutter: Saturday (the 6th panel — the strip's children
+   are exactly the seven panels) pushes 10px off Friday, widening its gap to
+   5 + 10 = 15px. */
+.day-panel:nth-child(6) {
+  margin-left: 10px;
+}
+
+/* The today panel: ~30% wider (via DayCell.width) and taller than its siblings,
+   popping past them asymmetrically — 10px above their tops and 5px below into
+   the strip-to-content gutter (where the TODAY!/TOMORROW! module tabs also
+   reach, so it must stack above them). It is 220px in a 205px strip, which
+   align-items:center would center (7.5px proud each side); the -2.5px nudge
+   biases that pop to -10 top / +5 bottom. */
+.day-panel-today {
+  /* Shared by the date caption's height and the art/badge offsets below, so
+     the lone-pick art can be centered in the window ABOVE this caption. */
+  --date-caption-h: 41px;
+  position: relative;
+  z-index: 2;
+  height: 220px;
+  top: -2.5px;
+}
+
+/* Each weekday gets its own caption colour (Mon..Sun in DOM order), shared by
+   the day-name caption and — on today — the date caption via --day-caption-bg.
+   The set is a spectrum of light one/two-ink e-ink tints: kept high in
+   luminance so the black caption text stays legible (the darker inks red and
+   blue only ever appear as sparse dots on white, never a solid dark field),
+   while still reading as distinct colours (§5.5). */
+.day-panel:nth-child(1) { --day-caption-bg: #ffc24d; } /* Monday — light orange */
+.day-panel:nth-child(2) { --day-caption-bg: #ffd633; } /* Tuesday — yellow */
+.day-panel:nth-child(3) { --day-caption-bg: #a6d024; } /* Wednesday — lime */
+.day-panel:nth-child(4) { --day-caption-bg: #a6e6b3; } /* Thursday — green */
+.day-panel:nth-child(5) { --day-caption-bg: #ffbecd; } /* Friday — pink */
+.day-panel:nth-child(6) { --day-caption-bg: #aad8f7; } /* Saturday — light sky */
+.day-panel:nth-child(7) { --day-caption-bg: #a3d4f5; } /* Sunday — light blue */
+
+/* Day-name caption band across the panel top (spec §9.1); its colour is the
+   day's --day-caption-bg above. */
+.day-caption {
+  flex: none;
+  height: 40px;
+  box-sizing: border-box;
+  border-bottom: 3px solid #000;
+  background: var(--day-caption-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 32px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #000;
+}
+
+/* The panel body below the caption: the positioning context for the full-bleed
+   art, the tear triangles, the kid badges, and the date caption. The flex
+   centering seats the in-flow fallback chip; art layers are absolute. overflow
+   clips the zoomed lone-pick art (below) to the body. */
+.day-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The day's AI art (spec §9.2): an opaque full-bleed scene. */
+.day-art {
+  position: absolute;
+  display: block;
+}
+
+/* Lone pick: a centered cover-fit, zoomed in past the body so the subject —
+   which the strip_icons prompt keeps small inside a wide background margin —
+   reads at a good size. The art box is oversized and centered on the body; the
+   body's overflow crops the excess evenly on all sides. The tear case (below)
+   zooms via its own scale, so this targets only the direct-child lone art. */
+.day-body > .day-art {
+  top: 50%;
+  left: 50%;
+  width: 145%;
+  height: 145%;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+}
+
+/* The today panel is the biggest, so its lone-pick art shows at the plain
+   body-sized cover-fit (no extra zoom). The date caption overlays the bottom
+   of the body, so the visible window is the body minus that caption; raise the
+   art's center to the middle of THAT window so the subject reads visually
+   centered instead of sinking behind the caption. (The art still covers the
+   full body — its lower edge simply runs behind the opaque caption.) */
+.day-panel-today .day-body > .day-art {
+  top: calc((100% - var(--date-caption-h)) / 2);
   width: 100%;
   height: 100%;
 }
 
-/* A group box: a plain tinted rounded box (background set inline per group by
-   the day_group macro) with the day cells' border vocabulary. */
-.day-group {
-  box-sizing: border-box;
-  height: 130px;
-  border: 2px solid #000;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* The row of day cells inside a group box. 10px side padding, not 12: the
-   group's outer width budgets 12px of edge-to-cell inset per side (see the
-   day_group macro and app/day_strip.py's _ROW_PAD), and the box's own 2px
-   border consumes the first 2 — so cells land exactly where the burst-centering
-   math expects. */
-.day-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  height: 100%;
-  padding: 0 10px;
-}
-
-/* One day box: a plain white rounded box, thin black border (the .date-box
-   vocabulary, 1px thinner). The day name stacks at the TOP with the event
-   icon (or fallback chip) beneath. */
-.day-cell {
-  box-sizing: border-box;
-  /* 114 rather than 110: content stacks from the top, so the extra 4px land
-     below the icon image. */
-  height: 114px;
+/* ---------------------------------------------------------------------------
+   Torn panel — a two-pick day (spec §9.2). The body splits corner to corner
+   along the bottom-left -> top-right diagonal into two right triangles: A
+   (upper-left) tapers to a point at the top-right corner, B (lower-right) fills
+   the rest. The seam draws the border/gutter/border over the join and knocks a
+   white gutter through the panel frame at both diagonal ends so the two read as
+   separate panels. The body's own clip-path lets the seam reach the frame on
+   the left/right/bottom, but keeps the top flush with the body so the gutter —
+   and thus the top-right knockout — stays below the day-name caption, leaving
+   that caption and its frame untouched.
+   --------------------------------------------------------------------------- */
+.day-body-split {
   background: #fff;
-  border: 2px solid #000;
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  padding-top: 10px;
-  gap: 4px;
+  /* Reach the frame on three sides (to knock the gutter through it) while the
+     flush top keeps the seam out of the caption above; the panel's border-box
+     clip-path (above) bounds the rest. */
+  overflow: visible;
+  clip-path: inset(0 -12px -12px -12px);
 }
 
-/* The day's one or two §9.2 icon picks, side by side when the kids' top events
-   differ. Each pick sits in a shared .kid-badge-anchor (comic.css) so its kid
-   badge can overlap the icon's bottom-right corner. */
-.day-icons {
+.day-tear {
+  position: absolute;
+  inset: 0;
+}
+
+/* Straight right triangles sharing the bottom-left -> top-right diagonal as
+   their hypotenuse; A meets that diagonal at the top-right corner (a point). */
+.day-tear-a {
+  clip-path: polygon(0% 0%, 100% 0%, 0% 100%);
+}
+
+.day-tear-b {
+  clip-path: polygon(100% 0%, 100% 100%, 0% 100%);
+}
+
+/* The seam: a thin bar laid along the diagonal drawing two 4px black "panel
+   border" lines with a 3px white gutter between — the same frame look as the
+   panels themselves. Centre (50%, 50%) and rotation (atan(147/197) = 36.72deg)
+   put it on the corner-to-corner diagonal; torn cells are always this 197x147
+   size now (the today cell never splits, §9.1). The 270px length overruns the
+   ~246px diagonal so the seam crosses the frame at both ends (knocking the
+   gutter through it); the body and panel clip-paths bound the excess. */
+.day-tear-seam {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 270px;
+  height: 11px;
+  transform: translate(-50%, -50%) rotate(-36.72deg);
+  background: linear-gradient(#000 0 4px, #fff 4px 7px, #000 7px 11px);
+}
+
+/* A triangle's art: centered on its triangle's centroid — upper-left triangle
+   (0,0)(W,0)(0,H) at (W/3, H/3), lower-right at (2W/3, 2H/3) — and sized to
+   cover it. A square of side S centered on a centroid covers its triangle iff
+   S >= (4/3)*max(W, H); W > H for both panel sizes, so 135% of the body width
+   suffices (normal: 266 >= 263; today: 351 >= 347). aspect-ratio pins the
+   square footprint (the stored PNG is square already, §9.1). */
+.day-tear .day-art {
+  width: 135%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  transform: translate(-50%, -50%);
+}
+
+.day-tear-a .day-art {
+  left: 33.333%;
+  top: 33.333%;
+}
+
+.day-tear-b .day-art {
+  left: 66.667%;
+  top: 66.667%;
+}
+
+/* ---------------------------------------------------------------------------
+   Kid badges (spec §8) — the shared shield (comic.css), repositioned to sit
+   fully INSIDE the panel: bottom-right of a lone pick's art; the outer corners
+   (top-left / bottom-right) of a torn panel's triangles.
+   --------------------------------------------------------------------------- */
+.day-body > .kid-badges {
+  right: 6px;
+  bottom: 6px;
+}
+
+.day-tear-a .kid-badges {
+  top: 6px;
+  left: 6px;
+  right: auto;
+  bottom: auto;
+}
+
+.day-tear-b .kid-badges {
+  bottom: 6px;
+  right: 6px;
+}
+
+/* On the today panel, lift bottom-anchored badges clear of the date caption. */
+.day-panel-today .day-body > .kid-badges,
+.day-panel-today .day-tear-b .kid-badges {
+  bottom: calc(var(--date-caption-h) + 6px);
+}
+
+/* ---------------------------------------------------------------------------
+   Today's date caption (spec §9.1) — the calendar glyph + full date in a band
+   across the panel bottom, overlaid on the full-bleed art. Same background as
+   the day-name caption above (the day's --day-caption-bg).
+   --------------------------------------------------------------------------- */
+.day-date {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  /* 41px (was 36): the today panel grew 5px at the bottom, and that 5px goes
+     to this caption so the visible art above it gains only 10 of the panel's
+     15px growth. Shared as --date-caption-h so the art centers above it. */
+  height: var(--date-caption-h, 41px);
+  box-sizing: border-box;
+  border-top: 3px solid #000;
+  background: var(--day-caption-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-}
-
-/* The day's AI event icon (spec §9.2): a transparent PNG drawn directly on the
-   halftone cell, no white plate. Stored at native generation resolution and
-   sized here by HEIGHT alone: every icon renders 60px tall with width following
-   its aspect, so wide generations (pizza) read as big as square ones (school)
-   instead of aspect-fitting down inside a 60×60 max box. Cells are 182px wide,
-   so even a 2:1 icon (120px) fits with room to spare. */
-.day-icon {
-  display: block;
-  height: 60px;
-  width: auto;
-}
-
-/* A two-icon day gives up the width freedom: each icon aspect-fits a 60×60 box
-   so the pair reliably fits its cell. A lone icon keeps the height-only sizing
-   above. (Kid badges still poke past the box — they overlap by design.) */
-.day-icons:has(> :nth-child(2)) .day-icon {
-  height: auto;
-  max-width: 60px;
-  max-height: 60px;
-}
-
-/* Nudge a pair's LEFT icon outward (in cells and bursts alike): its badge
-   pokes into the inter-icon gap, so the pair otherwise reads tighter between
-   the icons than around them. A relative shift, so the flex centering (and the
-   right icon) stay put; lone icons are untouched. */
-.day-icons:has(> :nth-child(2))> :first-child {
-  position: relative;
-  left: -5px;
-}
-
-.day-name {
-  font-size: 27px;
-  font-weight: 400;
+  gap: 8px;
+  /* 24px still fits the longest date ("SEPTEMBER 30, 2026") in the 260px body. */
+  font-size: 24px;
+  font-weight: 700;
   color: #000;
-  text-align: center;
-  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
-/* Most-interesting event title for the day. Clamped to two lines so a long
-   title can't overflow the cell. */
+.date-icon {
+  display: block;
+  width: 22px;
+  height: 26px;
+  flex: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Fallback chip (spec §7.3): shown in place of the AI art when its image is
+   missing or generation failed. Clamped to two lines so a long title can't
+   overflow the panel.
+   --------------------------------------------------------------------------- */
 .day-event {
   font-size: 17px;
   font-weight: 400;
   color: #000;
   text-align: center;
   line-height: 1.1;
-  max-width: 150px;
+  max-width: 170px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-/* Comic fallback chip (spec §7.3): shown in place of the AI icon when its image
-   is missing or generation failed. Same vocabulary as .date-box. */
 .day-event-chip {
   background: #f4efe0;
   border: 2px solid #000;
@@ -139,218 +308,20 @@
   padding: 2px 8px;
 }
 
-/* Two picks side by side: halve each fallback chip's text width so the pair
-   still fits a 182px cell. */
-.day-icons:has(> :nth-child(2)) .day-event {
-  max-width: 72px;
-}
-
-/* ---------------------------------------------------------------------------
-   Active-day burst (spec §9.1). The day_cell macro emits a transparent
-   .day-burst-slot to reserve the (widened) slot's flex width so its neighbors
-   shift; the burst image itself is a strip-level sibling of the groups (like
-   .date-box) and laid over that slot here.
-   --------------------------------------------------------------------------- */
-.day-burst-slot {
-  /* Width is set inline (the cell's reserved width); only a height is needed so the
-     flex item matches the cells (.day-cell). It is otherwise invisible — the burst
-     covers it. */
-  height: 114px;
-}
-
-.day-burst {
+/* A torn panel's chip sits at its triangle's centroid (same placement as the
+   art), narrowed so it stays inside the triangle. */
+.day-tear .day-event-chip {
   position: absolute;
-  /* The today cell is the hero: it sits above the panels AND the date box, and
-     spills past its slot to overlap its neighbors and the row below (spec §9.1). */
-  z-index: 5;
-  pointer-events: none;
-
-  /* Centered horizontally on the active cell's center (--burst-cx, computed in
-     day_strip.py). The fixed width keeps a consistent footprint; the per-day
-     vertical offset below aligns each image's baked-in day name with the other
-     cells' names (the images differ in aspect and in where the name sits). */
-  left: var(--burst-cx);
-  transform: translateX(-50%);
-  width: 400px;
+  transform: translate(-50%, -50%);
+  max-width: 55%;
 }
 
-/* The starburst art sits behind the cell content; its natural height drives the
-   container height, so the per-day top offsets stay valid across aspect ratios. */
-.day-burst-img {
-  display: block;
-  width: 100%;
-  height: auto;
+.day-tear-a .day-event-chip {
+  left: 33.333%;
+  top: 33.333%;
 }
 
-/* Today's content area: the SAME .day-event markup as every other cell, just
-   positioned into the open starburst body below the baked-in day name. Only the
-   offset/alignment differs from a normal cell's content stack — not the
-   structure. top/bottom are height-relative, so the lower-body framing holds
-   across the varied image aspect ratios. */
-.day-burst-content {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 38%;
-  bottom: 16%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Per-day icon position within the burst: each starburst's open body sits in a
-   different spot (the images vary in aspect and framing), so the content area's
-   framing is hand-tunable per day on all four edges. All start at the
-   .day-burst-content defaults (top: 38%; bottom: 16%; left: 0; right: 0 —
-   left/right are relative to the 400px burst width). */
-.day-burst-monday .day-burst-content {
-  top: 32%;
-  left: 2%;
-}
-
-.day-burst-tuesday .day-burst-content {
-  top: 34%;
-  left: 5%;
-}
-
-.day-burst-wednesday .day-burst-content {
-  top: 38%;
-  left: 5%;
-}
-
-.day-burst-thursday .day-burst-content {
-  top: 38%;
-  left: 2%;
-}
-
-.day-burst-friday .day-burst-content {
-  top: 38%;
-  left: 4%;
-}
-
-.day-burst-saturday .day-burst-content {
-  top: 40%;
-  left: 6%;
-}
-
-.day-burst-sunday .day-burst-content {
-  top: 40%;
-  left: 7%;
-}
-
-/* Per-day framing for a TWO-icon day specifically (§9.2): the pair is wider
-   than a lone icon, so it may sit differently in each burst's open body. These
-   move the ICONS within the burst art — the content overlay's top/bottom/left/
-   right framing, same vocabulary as the single-icon rules above (the burst
-   image itself is positioned by the .day-burst-<day> pixel offsets below, not
-   here). Hand-tune by screenshot; a day showing one icon keeps the rules
-   above unchanged. */
-.day-burst-monday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  left: 1%;
-}
-
-.day-burst-tuesday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  top: 36%;
-  left: 7%;
-}
-
-.day-burst-wednesday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  top: 39%;
-  left: 8%;
-}
-
-.day-burst-thursday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  top: 39%;
-  left: 0%;
-}
-
-.day-burst-friday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  left: 6%;
-}
-
-.day-burst-saturday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  top: 42%;
-  left: 3%;
-}
-
-.day-burst-sunday .day-burst-content:has(.day-icons > :nth-child(2)) {
-  top: 40%;
-  left: 12%;
-
-}
-
-/* Per-day vertical offset: tuned by screenshot so each image's baked-in day name
-   lines up with the other cells' day names (the wider 4:3 images sit higher than
-   the near-square ones). */
-.day-burst-monday {
-  top: -83px;
-}
-
-.day-burst-tuesday {
-  top: -55px;
-}
-
-.day-burst-wednesday {
-  top: -91px;
-}
-
-.day-burst-thursday {
-  top: -60px;
-}
-
-.day-burst-friday {
-  top: -94px;
-}
-
-.day-burst-saturday {
-  top: -64px;
-}
-
-.day-burst-sunday {
-  top: -63px;
-}
-
-/* ---------------------------------------------------------------------------
-   Corner date box — a paper slip (calendar icon + date, folded bottom-right
-   corner) sitting above the strip's top-left corner, left edges aligned. A
-   strip-level sibling of the groups, so no group box can clip
-   it. Axis-aligned on purpose: any rotation turns the straight border into a
-   staircase under the e-ink quantizer's edge snapping.
-   --------------------------------------------------------------------------- */
-.date-box {
-  position: absolute;
-  /* The group-panel frames start 30px into .day-strip ((190px strip - 130px
-     panel) / 2), so the 54px-outer box (48px + 2*3px border) ends 11px above
-     them: 30 - 11 - 54 = -35. */
-  top: -35px;
-  left: 0;
-  z-index: 3;
-  /* Flex so the wrapper shrink-wraps the corner-tab exactly. */
-  display: flex;
-
-  font-size: 27px;
-  font-weight: 700;
-  color: #000;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-/* Monday flip: the Monday burst spills over the strip's top-left corner and
-   would bury the box there, so it docks to the strip's right edge instead
-   (set by the template when Monday is the active day). */
-.date-box-right {
-  left: auto;
-  right: 0;
-}
-
-/* The slip face and folded flap themselves are the shared creased-corner tab
-   (.corner-tab-* in comic.css, emitted by macros/tab.html). */
-
-.date-icon {
-  display: block;
-  width: 30px;
-  height: 35px;
-  position: relative;
-  top: -1px;
+.day-tear-b .day-event-chip {
+  left: 66.667%;
+  top: 66.667%;
 }

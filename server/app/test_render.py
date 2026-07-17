@@ -31,7 +31,7 @@ DAY_NAMES = [
 EMPTY_ICS = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\nEND:VCALENDAR\n"
 
 # One event on Fri 2026-06-05; rendered against Wed 2026-06-03 it lands on a
-# non-today cell (today's cell is a burst image with no title slot).
+# non-today panel, so the strip resolves its base art only (no excited edit).
 EVENT_ICS = (
     "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
     "BEGIN:VEVENT\nUID:soccer\nSUMMARY:Soccer practice\n"
@@ -170,14 +170,15 @@ def test_render_contains_formatted_corner_date() -> None:
     assert "June 3, 2026" in text
 
 
-def test_render_today_shows_burst_image() -> None:
-    # 2026-06-22 is a Monday: today's cell is replaced by its burst image (the day
-    # name is baked into the image), and the old is-today bold treatment is gone.
+def test_render_today_gets_the_widened_panel() -> None:
+    # 2026-06-22 is a Monday: exactly one panel is the widened today panel
+    # (§9.1), and the old burst treatment is gone.
     text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-22").text
 
-    assert "day-burst-monday" in text
-    assert "img/day_strip/monday_burst.png" in text
-    assert "is-today" not in text
+    assert text.count("day-panel-today") == 1
+    assert "width: 268px" in text
+    assert "day-burst" not in text
+    assert "img/day_strip" not in text
 
 
 def test_render_has_no_outer_strip_panel() -> None:
@@ -191,11 +192,17 @@ def test_render_has_no_outer_strip_panel() -> None:
 
 
 def test_render_has_strip_structure() -> None:
+    # Seven free-standing day panels with caption bands; the today panel
+    # carries the date caption (§9.1). The old group boxes and corner date box
+    # are gone.
     text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
 
-    assert "strip-groups" in text
-    assert "day-row" in text
-    assert "date-box" in text
+    assert text.count('"day-panel') == 7
+    assert text.count("day-caption") == 7
+    assert text.count("day-date") == 1
+    assert "strip-groups" not in text
+    assert "day-row" not in text
+    assert "date-box" not in text
 
 
 def test_render_default_date_uses_injected_now() -> None:
@@ -206,7 +213,7 @@ def test_render_default_date_uses_injected_now() -> None:
     text = app.test_client().get("/render").text
 
     assert "June 23, 2026" in text
-    assert "day-burst-tuesday" in text
+    assert "day-panel-today" in text
 
 
 def test_render_is_deterministic(tmp_path: Path) -> None:
@@ -228,9 +235,7 @@ def test_render_shows_event_icon(tmp_path: Path) -> None:
         .text
     )
 
-    # Match the img tag, not the bare class name — "day-icon" is a substring
-    # of the always-present-with-events "day-icons" row wrapper.
-    assert '<img class="day-icon"' in text
+    assert '<img class="day-art"' in text
     assert "/images/generated/1" in text
     assert "Soccer practice" in text  # alt text
     assert "day-event-chip" not in text
@@ -269,10 +274,11 @@ def test_render_serves_generated_icon_bytes(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.mimetype == "image/png"
     image = Image.open(io.BytesIO(response.data))
-    assert image.mode == "RGBA"
-    # Native-resolution crop of the fake generation's 720×400 subject — the
-    # record's logical 60×60 box no longer bounds the stored PNG.
-    assert (image.width, image.height) == (720, 400)
+    # The strip's DayStrip module is unkeyed (§9.1): the fake generation's
+    # 800×480 PNG is stored verbatim — no alpha, no crop, and the record's
+    # logical 200×200 box never bounds the stored PNG.
+    assert image.mode == "RGB"
+    assert (image.width, image.height) == (800, 480)
 
 
 def test_render_falls_back_to_chip_on_generation_failure(tmp_path: Path) -> None:
@@ -287,19 +293,20 @@ def test_render_falls_back_to_chip_on_generation_failure(tmp_path: Path) -> None
     assert response.status_code == 200
     assert "day-event-chip" in response.text
     assert "Soccer practice" in response.text
-    assert '<img class="day-icon"' not in response.text
+    assert '<img class="day-art"' not in response.text
 
 
-def test_render_shows_event_icon_on_today_burst_cell(tmp_path: Path) -> None:
-    # The event falls on the render date itself (today = the burst cell). Its
-    # icon must still render, overlaid on the burst body.
+def test_render_today_panel_shows_the_excited_art(tmp_path: Path) -> None:
+    # The event falls on the render date itself: the today panel shows its
+    # excited variant (record 2, edited from the base record 1 — §9.1), and the
+    # Today panel's row icon (module "Calendar") is a further record.
     ics = (
         "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
         "BEGIN:VEVENT\nUID:t\nSUMMARY:Field trip\n"
         "DTSTART;TZID=America/Los_Angeles:20260622T120000\n"
         "DTEND;TZID=America/Los_Angeles:20260622T130000\nEND:VEVENT\nEND:VCALENDAR\n"
     )
-    # 2026-06-22 is a Monday → the burst cell.
+    # 2026-06-22 is a Monday → the today panel.
     text = (
         _app_with_ics(ics, tmp_path, _generate_ok)
         .test_client()
@@ -307,8 +314,9 @@ def test_render_shows_event_icon_on_today_burst_cell(tmp_path: Path) -> None:
         .text
     )
 
-    assert "day-burst-content" in text
-    assert "day-icon" in text
+    assert "day-panel-today" in text
+    assert '<img class="day-art"' in text
+    assert "/images/generated/2" in text  # the excited variant, not the base
     assert "Field trip" in text
 
 

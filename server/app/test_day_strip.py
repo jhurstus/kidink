@@ -37,17 +37,25 @@ def _event(
 
 
 class _RecordingResolver:
-    """Batch icon-resolver stub recording the icon items it is asked for."""
+    """Batch strip-resolver stub recording the (item, excited) requests."""
 
-    def __init__(self, url: str | None = "http://icons/1") -> None:
+    def __init__(
+        self,
+        url: str | None = "http://icons/1",
+        excited_url: str | None = None,
+    ) -> None:
         self.url = url
-        self.items: list[tuple[str, str | None]] = []
+        self.excited_url = excited_url if excited_url is not None else url
+        self.requests: list[tuple[tuple[str, str | None], bool]] = []
 
     def __call__(
-        self, items: Sequence[tuple[str, str | None]]
-    ) -> dict[str, str | None]:
-        self.items.extend(items)
-        return {description or title: self.url for title, description in items}
+        self, requests: Sequence[tuple[tuple[str, str | None], bool]]
+    ) -> dict[tuple[str, bool], str | None]:
+        self.requests.extend(requests)
+        return {
+            (description or title, excited): (self.excited_url if excited else self.url)
+            for (title, description), excited in requests
+        }
 
 
 def _titles(cell: DayCell) -> list[str]:
@@ -78,57 +86,31 @@ def test_build_day_strip_week_is_mon_to_sun() -> None:
     ]
 
 
-def test_build_day_strip_assigns_palette_colors() -> None:
-    strip = build_day_strip(date(2026, 6, 3))
-
-    # Spot-check the panel-tuned DAY_PALETTE mapping (see day_strip.py): each
-    # day's border color lands on the right weekday.
-    assert strip.week[0].color == "#3dbb4e"  # Mon green
-    assert strip.week[3].color == "#8f6ade"  # Thu purple
-    assert strip.week[5].color == "#ee7a14"  # Sat orange
-    assert strip.week[6].color == "#f2c91d"  # Sun yellow
-
-
 def test_build_day_strip_date_label_strips_leading_zero() -> None:
     assert build_day_strip(date(2026, 6, 3)).date_label == "June 3, 2026"
     assert build_day_strip(date(2026, 12, 25)).date_label == "December 25, 2026"
 
 
-def test_build_day_strip_today_gets_burst_and_redistributes_widths() -> None:
-    # 2026-06-22 is a Monday — today's cell is replaced by its burst and widened.
+def test_build_day_strip_today_panel_is_wider() -> None:
+    # 2026-06-22 is a Monday — the today panel is 30% wider (§9.1); every other
+    # panel keeps the uniform width.
     strip = build_day_strip(date(2026, 6, 22))
 
     monday = strip.week[0]
     assert monday.is_today
-    assert monday.burst == "monday_burst.png"
-    assert monday.width == 306
-    assert monday.burst_cx == 165  # centered over the leftmost cell
-
-    # Every other cell (Tue–Sun) shrinks to one uniform smaller width, no burst.
-    assert [c.width for c in strip.week[1:]] == [182] * 6
-    assert [c for c in strip.week if c.burst] == [monday]
+    assert monday.width == 268
+    assert [c.width for c in strip.week[1:]] == [205] * 6
 
 
-def test_build_day_strip_weekend_burst_centers_in_weekend_group() -> None:
-    # 2026-06-27 is a Saturday — burst works for weekend days too, centered over
-    # the (right-hand) weekend group cell.
+def test_build_day_strip_weekend_today_panel_is_wider() -> None:
+    # 2026-06-27 is a Saturday — the widened today panel works on weekend days
+    # too.
     strip = build_day_strip(date(2026, 6, 27))
 
     saturday = strip.week[5]
-    assert saturday.burst == "saturday_burst.png"
-    assert saturday.width == 306
-    assert saturday.burst_cx == 1179
-    assert [c for c in strip.week if c.burst] == [saturday]
-
-
-def test_build_day_strip_every_weekday_has_a_burst() -> None:
-    # Each day of the week is its own burst, so today is always replaced.
-    week_start = date(2026, 6, 22)  # Monday
-    for offset in range(7):
-        strip = build_day_strip(date(week_start.year, week_start.month, 22 + offset))
-        bursts = [c for c in strip.week if c.burst]
-        assert len(bursts) == 1
-        assert bursts[0].is_today
+    assert saturday.is_today
+    assert saturday.width == 268
+    assert [c.width for c in strip.week if not c.is_today] == [205] * 6
 
 
 def test_build_day_strip_has_no_icons_without_events() -> None:
@@ -207,7 +189,7 @@ def test_event_labeled_for_every_kid_counts_as_shared() -> None:
 
 def test_differing_top_events_yield_two_labeled_icons_in_kid_order() -> None:
     # Each kid's own labeled event outranks the other's, so the kids' picks
-    # differ -> two icons side by side, kid config order (J then S), each
+    # differ -> two icons in the torn panel, kid config order (J then S), each
     # labeled with its kid's initial (§9.2).
     events = [
         _event("Swim", date(2026, 6, 2), interesting=300, kids=["S"]),
@@ -301,10 +283,90 @@ def test_build_day_strip_resolves_icon_for_each_days_pick() -> None:
     ]
     strip = build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
-    # Only the winning event per non-empty day reaches the resolver.
-    assert sorted(resolver.items) == [("Library", None), ("Soccer", None)]
+    # Only the winning event per non-empty day reaches the resolver; neither
+    # falls on today, so neither asks for the excited variant.
+    assert sorted(resolver.requests) == [
+        (("Library", None), False),
+        (("Soccer", None), False),
+    ]
     assert strip.week[1].icons[0].icon_url == "http://icons/1"
     assert strip.week[0].icons == []  # empty Monday
+
+
+def test_build_day_strip_requests_excited_art_for_today_only() -> None:
+    # §9.1: today's pick asks for the excited variant; other days ask for the
+    # base art.
+    resolver = _RecordingResolver()
+    events = [
+        _event("Soccer", date(2026, 6, 2)),
+        _event("Museum", date(2026, 6, 3)),  # today
+    ]
+    build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
+
+    assert sorted(resolver.requests) == [
+        (("Museum", None), True),
+        (("Soccer", None), False),
+    ]
+
+
+def test_today_collapses_to_a_single_excited_pick() -> None:
+    # §9.1: the today cell never splits into a torn two-image panel — even when
+    # the kids' top events differ, it shows the one most-interesting candidate
+    # (excited), carrying that event's own kid label.
+    resolver = _RecordingResolver()
+    events = [
+        _event("Swim", date(2026, 6, 3), interesting=300, kids=["S"]),
+        _event("Ballet", date(2026, 6, 3), interesting=200, kids=["J"]),
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
+
+    today = next(c for c in strip.week if c.is_today)
+    assert [i.title for i in today.icons] == ["Swim"]  # the more interesting
+    assert [b.initial for b in today.icons[0].kids] == ["S"]
+    # Only the single winner is resolved, and it is requested excited.
+    assert resolver.requests == [(("Swim", None), True)]
+
+
+def test_today_single_pick_breaks_ties_by_title() -> None:
+    # Tie on interesting -> the title tiebreak picks one deterministically, so
+    # today still shows exactly one image.
+    events = [
+        _event("Swim", date(2026, 6, 3), kids=["S"]),
+        _event("Ballet", date(2026, 6, 3), kids=["J"]),
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events, KIDS)
+
+    today = next(c for c in strip.week if c.is_today)
+    assert [i.title for i in today.icons] == ["Ballet"]  # ascending title
+
+
+def test_non_today_day_still_splits_into_two_icons() -> None:
+    # The single-image rule is today-only: other days keep the §9.2 two-icon
+    # (torn) behavior. Events on Tuesday, rendered against Wednesday.
+    events = [
+        _event("Swim", date(2026, 6, 2), interesting=300, kids=["S"]),
+        _event("Ballet", date(2026, 6, 2), interesting=200, kids=["J"]),
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events, KIDS)
+
+    assert [i.title for i in strip.week[1].icons] == ["Ballet", "Swim"]
+
+
+def test_recurring_event_resolves_base_and_excited_urls_separately() -> None:
+    # One logical event landing on today AND another day resolves under both
+    # (key, True) and (key, False) — today's cell shows the excited art, the
+    # other day's the base.
+    resolver = _RecordingResolver(
+        url="http://icons/base", excited_url="http://icons/excited"
+    )
+    events = [
+        _event("Soccer", date(2026, 6, 3)),  # today (Wednesday)
+        _event("Soccer", date(2026, 6, 5)),  # Friday
+    ]
+    strip = build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
+
+    assert strip.week[2].icons[0].icon_url == "http://icons/excited"
+    assert strip.week[4].icons[0].icon_url == "http://icons/base"
 
 
 def test_build_day_strip_resolves_both_picks_of_a_two_icon_day() -> None:
@@ -315,7 +377,10 @@ def test_build_day_strip_resolves_both_picks_of_a_two_icon_day() -> None:
     ]
     build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
-    assert sorted(resolver.items) == [("Ballet", None), ("Swim", None)]
+    assert sorted(resolver.requests) == [
+        (("Ballet", None), False),
+        (("Swim", None), False),
+    ]
 
 
 def test_build_day_strip_passes_icon_description_alongside_title() -> None:
@@ -327,7 +392,7 @@ def test_build_day_strip_passes_icon_description_alongside_title() -> None:
     ]
     build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
-    assert resolver.items == [("S's game", "kids soccer match")]
+    assert resolver.requests == [(("S's game", "kids soccer match"), False)]
 
 
 def test_build_day_strip_never_resolves_chores() -> None:
@@ -335,7 +400,7 @@ def test_build_day_strip_never_resolves_chores() -> None:
     events = [_event("Make bed", date(2026, 6, 2), interesting=999, is_chore=True)]
     build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
-    assert resolver.items == []
+    assert resolver.requests == []
 
 
 def test_build_day_strip_failed_resolution_keeps_title_for_fallback() -> None:

@@ -210,8 +210,8 @@ it done.
 The board is a fixed **1600 × 1200** comic page. The macro-layout is fixed (stable day
 to day, which helps young kids), while content within each panel flexes.
 
-- **Top:** the full-width day-of-week strip (§9), with the full date in the top-left
-  corner.
+- **Top:** the full-width day-of-week strip (§9), with the full date in the today
+  panel's bottom caption band.
 - **Left column:** the **Today** panel (§10), including its weather subpanel at the
   bottom.
 - **Right column:** **Tomorrow** (§11) at the top, then **Countdown** (§12),
@@ -311,19 +311,18 @@ Purple and brown are the panel's **weakest** swatches (their inks sit close
 together on the luma ladder, §5.5) — keep them for accents rather than large
 fills.
 
-**Day-cell assignments** (all halftone, cool weekdays / warm weekend; §9.1):
-
-| Day | Swatch |
-|---|---|
-| Monday | Light-blue (sky) |
-| Tuesday | Teal |
-| Wednesday | Mint |
-| Thursday | Periwinkle |
-| Friday | Steel blue |
-| Saturday | Orange |
-| Sunday | Pink |
-
-The same color is reused for that day's "today" highlight burst.
+**Day-strip caption bands** (§9.1) each get their own colour: a light-tint set
+running orange, yellow, lime, green, pink (Mon–Fri), then a **matching
+light-blue pair for the weekend** (Sat + Sun). All are kept high in luminance so
+the **black caption text stays crisp**: the yellow/green-based days (Mon–Wed)
+can be boldly saturated because those are light inks, but the days whose hue
+needs a darker ink — green, and especially red or blue — must stay light tints,
+since a bold amount of those speckles dark dots that fuzz the black text (§5.5).
+Purple and cyan/teal are unavailable here: as a light tint the panel drops one
+of their two inks (so a lavender renders as plain blue), and a saturated version
+is dark and muddy (§5.5) — which is why the seventh distinct hue isn't possible
+and the weekend simply shares the blue. The wider gutter before Saturday still
+carries the weekday/weekend split.
 
 ### 5.4 Comic-panel rendering primitives (the `comic_panel` macro)
 
@@ -382,7 +381,7 @@ The demo push pipeline ([eink-demo.md](eink-demo.md)) made color behavior on the
 real panel measurable. Its quantizer renders every non-ink color as a mix of at
 most **two** inks; that constraint, plus the panel's own ink properties, yields
 the rules below. They matter chiefly for **image assets** — hand-made PNGs (the
-day bursts, weather icons) and AI images — because authored CSS areas are already
+weather icons) and AI images — because authored CSS areas are already
 explicit ink-dot patterns and pass through quantization untouched (verified).
 
 - **The two-ink rule.** Every color reduces to ink coverage. A color expressible
@@ -504,8 +503,8 @@ table; they are static files, §7.6.) The main table has one row per image, with
 integer `id` primary key and a **unique index** over the logical key `(module,
 item_description, width, height, variant)`:
 
-- **`module`** — the owning UI module (`Calendar`, `Chores`, `Countdown`, `Dinner`,
-  `Joke`, …).
+- **`module`** — the owning UI module (`Calendar`, `Chores`, `Countdown`, `DayStrip`,
+  `Dinner`, `Joke`, …).
 - **`item_description`** — a *rough* key: a characteristic string taken from a source
   that has no stable upstream id of its own — a calendar event title (the event's
   `icon_description`, which defaults to its title, §6.4), a dinner menu-item name, a joke
@@ -689,9 +688,12 @@ Usage notes for the §7.1 attachment machinery:
 
 Events may pertain to one kid or both. Instead of small face icons (the kids look alike
 and tiny faces reproduce poorly), each item shows the **initials** of the kid or kids it
-concerns, in a colorful comic font, taken from the event's `kids` field (§6.4 — named to
-align with the app config's `kids` list, §18). A `kids` entry matches a configured kid by
-that kid's **label (initials) or name, case-insensitively**.
+concerns, taken from the event's `kids` field (§6.4 — named to align with the app
+config's `kids` list, §18). Each initial rides in a small superhero **shield** — a
+Superman-style pentagon filled with that kid's color, the initial in white, a black
+border around the shape — superimposed on the bottom-right corner of the item's icon.
+A `kids` entry matches a configured kid by that kid's **label (initials) or name,
+case-insensitively**.
 An event with an **empty `kids` field is shared** (counts for both kids).
 
 Initials mark the exception, not the rule: an item that applies to **all configured
@@ -707,31 +709,55 @@ open for later.)
 ## 9. Module — Day-of-week strip
 
 A full-width strip across the top showing **Monday through Sunday** of the week
-containing the target date, always in Mon–Sun order. Weekdays (Mon–Fri) are visually
-grouped and the weekend (Sat–Sun) is a separate group, with a visible gap between them.
-The full date prints in the top-left corner (e.g. "June 3, 2026").
+containing the target date, always in Mon–Sun order, as **seven free-standing comic
+panels**. Weekdays (Mon–Fri) and the weekend (Sat–Sun) are split by a visibly wider
+gutter, and the weekend panels' caption bands are warmer-colored (§5.3). The full date
+prints in a caption band across the bottom of the **today** panel (e.g. "JUNE 3,
+2026").
 
-### 9.1 Day cells
+### 9.1 Day panels
 
-- Each cell shows the full day name on a small **solid (non-halftone) label plate** — a
-  knockout band — so the comic type stays legible over the cell. (Exact treatment to be
-  tuned on the physical panel.)
-- Each day has a **distinct background**, consistent per day and never changing. All
-  seven cells are **halftone blends** for a uniform Ben-Day texture; the proposed
-  cool-weekday / warm-weekend assignments are in §5.3.
-- **Today** is highlighted with a comic **burst** in that day's color. The burst is
-  absolutely positioned with a higher z-index and is allowed to spill past its cell,
-  overlapping neighbors and the row below (it may occlude the static "Today" /
-  "Tomorrow" labels on some days — acceptable, since those labels are quickly learned
-  and skipped).
+- Each day is its **own free-standing panel**: white body, thick (4px) black border,
+  near-square corners, a slight gutter between neighbors — wider between Friday and
+  Saturday.
+- A **caption band** across the top of each panel carries the full day name on its
+  own per-day colour (a Mon..Sun spectrum kept light enough for crisp black text,
+  §5.3); the wider weekday/weekend gutter carries that split instead.
+- The day's art (§9.2) fills the panel body **edge to edge**, cover-cropped by the
+  panel: a full-bleed **opaque** scene (no §7.2 transparency treatment — the strip's
+  own image module `DayStrip` is unkeyed) generated at a logical 200×200 under a
+  full-bleed prompt: bold flat fills, thick black outlines, pure saturated primary
+  colors, minimal detail.
+- **Today** is the hero panel: **30% wider and taller** than its six siblings,
+  popping slightly past them on both edges (and over the content tucked under the
+  strip — acceptable, as with the old burst). It **always shows a single image**,
+  never the torn two-image split (§9.2) — a two-pick day collapses to its one
+  most-interesting candidate. That art is swapped for an **"excited" variant**
+  regenerated from the base image via an edit-from-base comic-excitement prompt,
+  exactly like the §12 countdown hero (own `variant = excited` record; a variant
+  miss falls back to the base art). The **date caption band** across the panel
+  bottom shows a calendar glyph plus the full date, on the same background as the
+  day-name caption above.
 - **Past days** in the current week render exactly like upcoming days.
-- An empty day (no events) shows the name and halftone background, no icon.
+- An empty day (no events) shows the caption band over a plain white body.
 
 ### 9.2 Day icons
 
-Each day shows one or two icons for the most interesting thing happening that day, using
-the same icon images and size as the today/tomorrow panels but drawn directly on the
-cell (no white plate). Chores are excluded.
+Each day shows one or two art pieces for the most interesting thing happening that
+day. The strip's images are **its own records** (module `DayStrip`, §7.1/§9.1) —
+separate from the Today/Tomorrow rows' small transparent icons, though keyed by the
+same logical keys. Chores are excluded.
+
+**Display.** One pick cover-fills the panel body. Two picks split the body corner to
+corner along the bottom-left → top-right diagonal into two **right triangles** — the
+first pick (kid config order) upper-left, tapering to a point at the top-right — each
+holding one pick's art (centered and clipped). The diagonal seam is drawn as two thin
+black **panel-border** lines with a thin white gutter between them, and the gutter
+**knocks through the panel frame** at both diagonal ends so the two read as separate
+triangle panels sitting side by side, not one panel with a divider. The seam is held
+clear of the day-name caption (which, with its frame, is never modified). Kid shields
+sit in the outer corners (top-left / bottom-right), inside the panel. The **today
+panel is the exception**: it never splits, always collapsing to a single pick (§9.1).
 
 **Candidacy.** An event is a candidate for a kid if it is **shared** (no kid label, so
 it counts for both) or **labeled for that kid**. Events labeled for neither kid are not
@@ -989,8 +1015,8 @@ image-editing step. Modules stay oblivious to the bugbug.
 
 It draws from a curated **registry of hiding spots**, each just data:
 
-- an **anchor** (a panel corner, a border seam, the gap between the weekday and weekend
-  groups, the moon row, a speech-bubble tail, …),
+- an **anchor** (a panel corner, a border seam, the wider gutter between the weekday
+  and weekend blocks of the day strip, the moon row, a speech-bubble tail, …),
 - a **hiding style** (in front; tucked behind so it peeks from an edge; or straddling a
   panel's `overflow:hidden` boundary so it's half-cut-off),
 - allowed **jitter, rotation, and flip**.
