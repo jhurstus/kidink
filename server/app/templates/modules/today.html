@@ -12,10 +12,11 @@ weather a WeatherPanel view model (see app/weather/view.py), or none when
 the forecast is unavailable — the slot then stays empty but keeps
 its footprint (the row budget already subtracts it)
 
-Each bucket is its own comic_panel with the same vocabulary as the outer panel
-(white, thin black border). Buckets flex-grow by their row count so the column's
-slack distributes proportionally. Layout constants live in static/css/today.css
-and must stay in sync with the row-budget geometry in app/today.py.
+The outer frame is a plain white div with a 4px black border (.module-frame in
+board.css); each bucket inside is its own comic_panel (white, thin hand-drawn
+border). Buckets flex-grow by their row count so the column's slack distributes
+proportionally. Layout constants live in static/css/today.css and must stay in
+sync with the row-budget geometry in app/today.py.
 =========================================================================== -#}
 {% from "macros/comic.html" import comic_panel %}
 {% from "macros/event_row.html" import event_row %}
@@ -60,13 +61,11 @@ as inline SVG with a thin black ink outline (in-palette yellows). -#}
 {%- endmacro %}
 
 {% macro today(panel, weather=none) -%}
-{#- The tab is a SIBLING of the panel, not a child: comic_panel clips its
+{#- The tab is a SIBLING of the panel, not a child: the frame clips its
 contents (overflow:hidden), and the tab pops up-left past the panel's corner
 (absolute against .today-pane; see today.css). -#}
 <div class="module-tab today-tab">{% call corner_tab() %}Today!{% endcall %}</div>
-{% call comic_panel(width=610, height=924, bg='#fff', halftones=[],
-border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-'seed': panel.seed}) %}
+<div class="module-frame">
 <div class="today">
   <div class="today-buckets">
     {%- for bucket in panel.buckets %}
@@ -92,5 +91,5 @@ border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
     {%- if weather %}{{ weather_subpanel(weather, uid='today') }}{% endif -%}
   </div>
 </div>
-{% endcall %}
+</div>
 {%- endmacro %}

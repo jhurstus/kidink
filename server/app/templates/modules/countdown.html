@@ -6,7 +6,7 @@ exciting event: the event title, a generated hero image (omitted on a miss,
 countdown(panel):
 panel a CountdownPanel view model (see app/countdown/view.py), whose tier
 drives the escalation treatment:
-  calm            the shared comic_panel with the normal thin border
+  calm            the plain .module-frame div (white, 4px black border)
   excited/hype/peak  the hand-made starburst frame overlaid on the panel
                   (static/img/countdown/countdown_burst.png: white outside,
                   jagged border, transparent center) — content shows through
@@ -22,8 +22,6 @@ no content, preserving the module's footprint.
 Layout constants live in static/css/countdown.css and must stay in sync with
 the moon/hero geometry in app/countdown/.
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
-
 {#- The hero is a full-bleed background layer (object-fit: cover) under the
 panel's frame, with the title/copy overlaid on white-haloed comic type. -#}
 {% macro _countdown_body(panel) -%}
@@ -39,15 +37,11 @@ panel's frame, with the title/copy overlaid on white-haloed comic type. -#}
 {% macro countdown(panel) -%}
 <div class="countdown countdown-{{ panel.tier }}">
   {%- if panel.title is none %}
-  {{ comic_panel(width=498, height=300, bg='#fff', halftones=[],
-       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-               'seed': panel.seed}) }}
+  <div class="module-frame"></div>
   {%- elif panel.tier == 'calm' %}
-  {% call comic_panel(width=498, height=300, bg='#fff', halftones=[],
-       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-               'seed': panel.seed}) %}
+  <div class="module-frame">
   {{ _countdown_body(panel) }}
-  {% endcall %}
+  </div>
   {%- else %}
   <div class="countdown-burst">
     {{ _countdown_body(panel) }}

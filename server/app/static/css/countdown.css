@@ -1,7 +1,7 @@
 /* ============================================================================
    countdown.css — the Countdown module (spec §12): title, hero image, sleeps
    copy, and the moon row, with the tier-driven escalation treatments. The
-   calm tier (and the blank card) keep the shared comic_panel border; the
+   calm tier (and the blank card) use the plain .module-frame border; the
    excited/hype/peak tiers swap it for the hand-made starburst frame image
    overlaid on the panel, and hype/peak add the scale-up spill, bigger type,
    and the SFX shouts.
@@ -77,7 +77,7 @@
    Hero — a full-bleed background layer filling the whole panel (aspect
    preserved; the record's logical box matches the cell, so cover crops only
    a sliver). It sits under the frame in both variants: the calm tier's
-   comic_panel border and rounded clip overlay it, and the burst tiers' frame
+   .module-frame border and overflow clip overlay it, and the burst tiers' frame
    image overlays its edges (frame z 2 vs the hero's DOM-order paint).
    Logical box — keep in sync with HERO_W/HERO_H in app/countdown/hero.py.
    --------------------------------------------------------------------------- */
@@ -90,8 +90,8 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Body — shared by the comic_panel (calm) and the burst frame. Absolute
-   inset escapes board.css's placeholder flex-centering on .comic-content;
+   Body — shared by the .module-frame (calm) and the burst frame. Absolute
+   inset escapes the .module-frame's flex-centering in the calm tier;
    later-sibling DOM order paints it above the hero layer. Title at the top,
    copy at the bottom, both on white-haloed type so they read over the art.
    --------------------------------------------------------------------------- */

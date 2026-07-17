@@ -12,13 +12,9 @@ only when the joke store is empty (a friendly placeholder shows then).
 Layout constants live in static/css/joke.css and must stay in sync with the
 hero geometry (HERO_W/HERO_H) in app/joke/hero.py.
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
-
 {% macro joke(panel) -%}
 <div class="joke">
-  {% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
-       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-               'seed': panel.seed}) %}
+  <div class="module-frame">
   {%- if panel.hero_url %}
   <img class="joke-hero" src="{{ panel.hero_url }}" alt="{{ panel.text }}">
   {%- else %}
@@ -26,6 +22,6 @@ hero geometry (HERO_W/HERO_H) in app/joke/hero.py.
     <div class="joke-bubble">{{ panel.text or "No joke today!" }}</div>
   </div>
   {%- endif %}
-  {% endcall %}
+  </div>
 </div>
 {%- endmacro %}

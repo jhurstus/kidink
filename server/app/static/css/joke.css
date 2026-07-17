@@ -12,7 +12,7 @@
 }
 
 /* Hero — the unkeyed joke image (§7.2/§15), full-bleed inside the panel and
-   clipped by the comic border's rounded frame, which stays the panel's outline.
+   clipped by the frame's overflow, which stays the panel's outline.
    object-fit: cover fills the cell; the generation aspect matches HERO_W/HERO_H
    (app/joke/hero.py), so the crop is negligible. */
 .joke-hero {
@@ -24,7 +24,7 @@
 }
 
 /* Fallback (§7.3): the joke line as comic text in a single speech bubble,
-   centered by .comic-content's flex (board.css). */
+   centered by the .module-frame's flex (board.css). */
 .joke-fallback {
    box-sizing: border-box;
    max-width: 100%;

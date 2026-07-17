@@ -8,22 +8,19 @@ panel a DinnerPanel view model (see app/dinner/view.py). A panel with no name
 renders the mystery card - no meal planned, or the meal-plan fetch failed
 (§13) - whose hand-made art carries its own "Mystery dinner" caption.
 
-The tab is a SIBLING of the panel, not a child: comic_panel clips its
+The tab is a SIBLING of the panel, not a child: the frame clips its
 contents (overflow:hidden), and the tab pokes up-left past the panel's corner
 (absolute against .dinner; see dinner.css). The placemat lives INSIDE the
-panel, so the border's rounded clip frames it. Layout constants live in
+panel, so the frame's border and overflow clip frame it. Layout constants live in
 static/css/dinner.css and must stay in sync with the hero geometry in
 app/dinner/hero.py.
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
 {% from "macros/tab.html" import corner_tab %}
 
 {% macro dinner(panel) -%}
 <div class="dinner">
   <div class="module-tab dinner-tab">{% call corner_tab() %}Dinner{% endcall %}</div>
-  {% call comic_panel(width=449, height=307, bg='#fff', halftones=[],
-       border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-               'seed': panel.seed}) %}
+  <div class="module-frame">
   <img class="dinner-placemat" src="{{ url_for('static', filename='img/dinner/placemat.png') }}" alt="">
   <div class="dinner-body">
     {%- if panel.name is none %}
@@ -35,6 +32,6 @@ app/dinner/hero.py.
     <div class="dinner-name">{{ panel.name }}</div>
     {%- endif %}
   </div>
-  {% endcall %}
+  </div>
 </div>
 {%- endmacro %}

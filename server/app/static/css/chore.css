@@ -7,7 +7,7 @@
    ============================================================================ */
 
 /* Wrapper filling the grid cell: anchors the pop-out tab (a sibling of the
-   comic_panel, which clips its contents), like .dinner. */
+   frame, which clips its contents), like .dinner. */
 .chore {
    position: relative;
    width: 100%;
@@ -43,8 +43,8 @@
    height: 30px;
 }
 
-/* The event list. Absolute inset escapes board.css's placeholder flex-centering
-   on .comic-content (same trick as .dinner-body). Top-aligned, with a 60px top
+/* The event list. Absolute inset escapes the .module-frame's flex-centering
+   (same trick as .dinner-body). Top-aligned, with a 60px top
    padding that seats the first row below the "Chores" tab (44px face poked 6px
    up: its bottom lands 38px into the panel) with a little extra breathing room.
    The 307px panel gives the list area 307 - 60 - 12 = 235px (_AVAILABLE_H in
@@ -83,7 +83,7 @@
 
 /* Empty state (§14 placeholder): plain centered text, no tab. Matches the
    Today/Tomorrow event-row title voice (event_rows.css: upright, light) but
-   larger, centered by board.css's .comic-content flex. */
+   larger, centered by board.css's .module-frame flex. */
 .chore-empty {
    font-size: 40px;
    font-style: italic;

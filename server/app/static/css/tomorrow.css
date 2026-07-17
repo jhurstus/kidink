@@ -6,7 +6,7 @@
    app/tomorrow.py — keep the two in sync.
    ============================================================================ */
 
-/* Fills the comic_panel. The 68px top padding clears the pop-out TOMORROW! tab
+/* Fills the .module-frame. The 68px top padding clears the pop-out TOMORROW! tab
    (the shared .module-tab, same as Today's — its face bottom lands 59px into
    the panel); the bottom padding is trimmed to 11px so the 295px panel still
    gives the list area 295 - 68 - 11 = 216px (_AVAILABLE_H in app/tomorrow.py,

@@ -102,6 +102,27 @@ body {
    justify-content: center;
 }
 
+/* Outer module frame (Today / Tomorrow / Countdown / Dinner / Chore / Joke): a
+   plain white panel with a 4px black border, filling its layout cell — the
+   replacement for the hand-drawn comic_panel that used to wrap each module.
+   border-box keeps the border inside the cell; overflow clips full-bleed heroes
+   to the frame; flex centering seats the in-flow empty/fallback states
+   (each module's own absolute-inset body escapes it). The inner Today buckets
+   keep their comic_panel — the .content .comic-panel rule above still sizes
+   them. */
+.content .module-frame {
+   position: relative;
+   box-sizing: border-box;
+   width: 100%;
+   height: 100%;
+   background: #fff;
+   border: 4px solid #000;
+   overflow: hidden;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+}
+
 .module-name {
    font-size: 44px;
    color: #000;

@@ -15,19 +15,16 @@ when the day's chores split cleanly between exactly two kids. Empty state (no
 chores today): a plain panel with centered text and no tab - a placeholder for a
 richer empty card later.
 
-Like Dinner/Tomorrow, the tab is a SIBLING of the panel: comic_panel clips its
+Like Dinner/Tomorrow, the tab is a SIBLING of the panel: the frame clips its
 contents (overflow:hidden), and the tab pokes up-left past the panel's corner
 (absolute against .chore; see chore.css). Layout constants live in
 static/css/chore.css and must stay in sync with the row-budget geometry in
 app/chore.py.
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
 {% from "macros/event_row.html" import event_row %}
 {% from "macros/tab.html" import corner_tab %}
 
 {% macro chore(panel) -%}
-{%- set border = {'color': '#000', 'radius': 6, 'mid_width': 2,
-                  'corner_width': 2, 'seed': panel.seed} -%}
 {%- if panel.columns or panel.rows %}
 <div class="chore">
   <div class="module-tab chore-tab">{% call corner_tab() %}
@@ -38,7 +35,7 @@ app/chore.py.
             stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" />
     </svg>Chores
   {% endcall %}</div>
-  {% call comic_panel(width=449, height=307, bg='#fff', halftones=[], border=border) %}
+  <div class="module-frame">
   {%- if panel.columns %}
   <div class="chore-columns">
     {%- for column in panel.columns %}
@@ -52,11 +49,11 @@ app/chore.py.
     {%- for row in panel.rows %}{{ event_row(row) }}{% endfor -%}
   </div>
   {%- endif %}
-  {% endcall %}
+  </div>
 </div>
 {%- else %}
-{% call comic_panel(width=449, height=307, bg='#fff', halftones=[], border=border) %}
+<div class="module-frame">
 <div class="chore-empty">no chores today</div>
-{% endcall %}
+</div>
 {%- endif %}
 {%- endmacro %}

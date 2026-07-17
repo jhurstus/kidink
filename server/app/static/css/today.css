@@ -6,7 +6,7 @@
    slot) feed the row-budget geometry in app/today.py — keep the two in sync.
    ============================================================================ */
 
-/* Fills the outer comic_panel. The 68px top padding clears the pop-out tab
+/* Fills the outer .module-frame. The 68px top padding clears the pop-out tab
    (its face bottom lands 59px into the panel: 70px tall, popped 11px up); the
    column is 924px, so the bucket area gets 924 - 68 - 16 - 14 - 250 = 576px
    (_AVAILABLE_H in app/today.py). Italic to match the day strip's type. */

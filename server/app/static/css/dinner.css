@@ -5,7 +5,7 @@
    ============================================================================ */
 
 /* Wrapper filling the grid cell: anchors the pop-out tab (a sibling of the
-   comic_panel, which clips its contents), like .countdown. */
+   frame, which clips its contents), like .countdown. */
 .dinner {
    position: relative;
    width: 100%;
@@ -33,7 +33,7 @@
 }
 
 /* Placemat background - full-bleed inside the panel, under the body, clipped
-   (with everything else) by the comic border's rounded frame, which stays the
+   (with everything else) by the frame's overflow, which stays the
    panel's outline. */
 .dinner-placemat {
    position: absolute;
@@ -43,10 +43,10 @@
    object-fit: cover;
 }
 
-/* Body - absolute inset escapes board.css's placeholder flex-centering on
-   .comic-content (same trick as .countdown-body); later-sibling DOM order
-   paints it above the placemat. The top padding clears the tab (44px face
-   poked 6px up: its bottom lands 38px into the panel). */
+/* Body - absolute inset escapes the .module-frame's flex-centering (same trick
+   as .countdown-body); later-sibling DOM order paints it above the placemat. The
+   top padding clears the tab (44px face poked 6px up: its bottom lands 38px into
+   the panel). */
 .dinner-body {
    position: absolute;
    inset: 0;

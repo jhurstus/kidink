@@ -17,19 +17,16 @@ footprint)
 Layout constants live in static/css/tomorrow.css and must stay in sync with
 the row-budget geometry in app/tomorrow.py.
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
 {% from "macros/event_row.html" import event_row %}
 {% from "macros/tab.html" import corner_tab %}
 {% from "modules/weather.html" import weather as weather_subpanel %}
 
 {% macro tomorrow(panel, weather=none) -%}
-{#- Like Today's, the tab is a SIBLING of the panel: comic_panel clips its
+{#- Like Today's, the tab is a SIBLING of the panel: the frame clips its
 contents (overflow:hidden), and the tab pops up-left past the panel's corner
 (absolute against .tomorrow-cell; see tomorrow.css). -#}
 <div class="module-tab tomorrow-tab">{% call corner_tab() %}Tomorrow!{% endcall %}</div>
-{% call comic_panel(width=913, height=295, bg='#fff', halftones=[],
-border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-'seed': panel.seed}) %}
+<div class="module-frame">
 <div class="tomorrow">
   <div class="tomorrow-rows">
     {%- for row in panel.rows %}{{ event_row(row) }}{% endfor -%}
@@ -41,5 +38,5 @@ border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
     {%- if weather %}{{ weather_subpanel(weather, uid='tomorrow') }}{% endif -%}
   </div>
 </div>
-{% endcall %}
+</div>
 {%- endmacro %}
