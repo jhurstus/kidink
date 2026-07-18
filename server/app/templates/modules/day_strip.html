@@ -42,7 +42,7 @@ context for both the art and the badge. -#}
   <div
     class="day-panel{% if day.is_today %} day-panel-today{% endif %}"
     style="width: {{ day.width }}px">
-    <div class="day-caption">{{ day.name }}</div>
+    <div class="day-caption">{{ day.name }}{% if day.is_today %}!{% endif %}</div>
     <div class="day-body{% if day.icons | length == 2 %} day-body-split{% endif %}">
       {%- if day.icons | length == 2 -%}
       {#- Torn panel (§9.2): the body splits into two right triangles along the

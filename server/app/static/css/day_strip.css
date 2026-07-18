@@ -98,6 +98,11 @@
   color: #000;
 }
 
+/* Today's day name runs a little larger, in the same 40px band. */
+.day-panel-today .day-caption {
+  font-size: 33px;
+}
+
 /* The panel body below the caption: the positioning context for the full-bleed
    art, the tear triangles, the kid badges, and the date caption. The flex
    centering seats the in-flow fallback chip; art layers are absolute. overflow
