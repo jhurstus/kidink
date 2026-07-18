@@ -752,10 +752,14 @@ same logical keys. Chores are excluded.
 corner along the bottom-left → top-right diagonal into two **right triangles** — the
 first pick (kid config order) upper-left, tapering to a point at the top-right — each
 holding one pick's art (centered and clipped). The diagonal seam is drawn as two thin
-black **panel-border** lines with a thin white gutter between them, and the gutter
-**knocks through the panel frame** at both diagonal ends so the two read as separate
-triangle panels sitting side by side, not one panel with a divider. The seam is held
-clear of the day-name caption (which, with its frame, is never modified). Kid shields
+black **panel-border** lines with a thin white gutter between them, sitting entirely on
+the lower-right triangle's side of the diagonal — so the upper triangle's art extends
+to both diagonal corners, flush with the panel edge (and the caption band's edge) at
+the top-right, while the lower triangle's top corner recedes down the right edge by the
+seam's width. The gutter **knocks through the panel frame** just off both diagonal ends
+so the two read as separate triangle panels sitting side by side, not one panel with a
+divider. The seam is held clear of the day-name caption (which, with its frame, is
+never modified). Kid shields
 sit in the outer corners (top-left / bottom-right), inside the panel. The **today
 panel is the exception**: it never splits, always collapsing to a single pick (§9.1).
 

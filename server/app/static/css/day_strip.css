@@ -153,12 +153,14 @@
    Torn panel — a two-pick day (spec §9.2). The body splits corner to corner
    along the bottom-left -> top-right diagonal into two right triangles: A
    (upper-left) tapers to a point at the top-right corner, B (lower-right) fills
-   the rest. The seam draws the border/gutter/border over the join and knocks a
-   white gutter through the panel frame at both diagonal ends so the two read as
-   separate panels. The body's own clip-path lets the seam reach the frame on
-   the left/right/bottom, but keeps the top flush with the body so the gutter —
-   and thus the top-right knockout — stays below the day-name caption, leaving
-   that caption and its frame untouched.
+   the rest. The seam draws the border/gutter/border over the join, tucked
+   entirely on B's side of the diagonal so A's art reaches both diagonal
+   corners, and knocks a white gutter through the panel frame just off those
+   corners (through the right border below the top-right corner, and the bottom
+   border right of the bottom-left one) so the two read as separate panels. The
+   body's own clip-path lets the seam reach the frame on the left/right/bottom,
+   but keeps the top flush with the body so the seam stays below the day-name
+   caption, leaving that caption and its frame untouched.
    --------------------------------------------------------------------------- */
 .day-body-split {
   background: #fff;
@@ -188,16 +190,22 @@
    border" lines with a 3px white gutter between — the same frame look as the
    panels themselves. Centre (50%, 50%) and rotation (atan(147/197) = 36.72deg)
    put it on the corner-to-corner diagonal; torn cells are always this 197x147
-   size now (the today cell never splits, §9.1). The 270px length overruns the
-   ~246px diagonal so the seam crosses the frame at both ends (knocking the
-   gutter through it); the body and panel clip-paths bound the excess. */
+   size now (the today cell never splits, §9.1). The trailing translateY —
+   half the bar height, applied in the rotated frame so it moves perpendicular
+   to the bar — tucks the whole band onto B's side of the diagonal: the bar's
+   top edge lies ON the corner-to-corner line, so A's art fills its full
+   triangle to both diagonal corners (flush with the caption/frame at the
+   top-right) and B's visible top corner sits ~14px down the right edge. The
+   270px length overruns the ~246px diagonal so the seam crosses the frame at
+   both ends (knocking the gutter through it, now just off the corners); the
+   body and panel clip-paths bound the excess. */
 .day-tear-seam {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 270px;
   height: 11px;
-  transform: translate(-50%, -50%) rotate(-36.72deg);
+  transform: translate(-50%, -50%) rotate(-36.72deg) translateY(5.5px);
   background: linear-gradient(#000 0 4px, #fff 4px 7px, #000 7px 11px);
 }
 
