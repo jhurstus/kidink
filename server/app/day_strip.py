@@ -10,6 +10,8 @@ belonging to a proper subset of the kids carries initials, so a shared event's
 icon is always unlabeled — even next to a kid-specific icon.
 """
 
+import math
+import random
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -47,6 +49,150 @@ _PANEL_W = 205
 _TODAY_PANEL_W = 268
 _PANEL_GAP = 5
 _WEEKEND_EXTRA_GAP = 10
+
+# The today panel's comic-burst frame (§9.1): its solid 4px border gives way to
+# a subtly spiky zigzag tracing the same outline — spike tips on the old
+# border-box edge, notches cutting about _BURST_AMPLITUDE inward (each notch's
+# depth jittered ±_BURST_JITTER for a hand-drawn feel), one jag about every
+# _BURST_WAVELENGTH px. The outlines are computed here (CSS cannot repeat a
+# jag) and handed to day_strip.css through the view model.
+_TODAY_PANEL_H = 220  # mirrors .day-panel-today's height in day_strip.css
+_BURST_WAVELENGTH = 15
+_BURST_AMPLITUDE = 9
+_BURST_JITTER = 0.15  # per-notch depth variation, as a fraction of the amplitude
+_BURST_BORDER_W = 4  # matches the .day-panel border width
+# A fixed seed keeps the jitter byte-reproducible (spec §3.4): the burst is
+# frame decor, identical for every render date.
+_BURST_SEED = 0x1DEA
+
+type _Point = tuple[float, float]
+
+
+def _burst_outline(
+    w: float,
+    h: float,
+    amplitude: float,
+    wavelength: float,
+    jitter: float = 0.0,
+    seed: int = 0,
+) -> list[_Point]:
+    """Vertices of a comic-burst zigzag tracing the ``w`` x ``h`` rect, clockwise
+    from the top-left: spike tips on the rect edge, notches about ``amplitude``
+    inward — each notch's depth varied ±``jitter`` (a fraction of the amplitude)
+    by a ``seed``-fixed RNG, so the hand-drawn irregularity is reproducible.
+
+    The envelope is the rect with its corners chamfered by about one wavelength
+    of the path, and the zigzag is phased so each chamfer carries exactly one
+    tip at its middle: a single spike pointing diagonally at each box corner,
+    the same size as every other jag. (A tip on the box corner itself would
+    stand between notches squeezed together by the corner's converging edges —
+    a needle once the amplitude nears the half-wavelength, whose frame stroke
+    then miters into a long whisker.) The segment junctions are all notches,
+    pushed inward along their junction's bisector normal; each edge fits the
+    whole even number of half-waves closest to its length between them."""
+    rng = random.Random(seed)
+
+    def depth() -> float:
+        return amplitude * (1 + rng.uniform(-jitter, jitter))
+
+    c = round(wavelength / 2 * math.sqrt(2))  # chamfer inset: ~one wave of cut
+    octagon: list[_Point] = [
+        (c, 0.0),
+        (w - c, 0.0),
+        (w, c),
+        (w, h - c),
+        (w - c, h),
+        (c, h),
+        (0.0, h - c),
+        (0.0, c),
+    ]
+    # Inward normals per segment ((-uy, ux) of a clockwise segment, y down);
+    # even segments are the rect edges, odd ones the corner chamfers.
+    normals: list[_Point] = []
+    for i, (sx, sy) in enumerate(octagon):
+        ex, ey = octagon[(i + 1) % 8]
+        length = math.hypot(ex - sx, ey - sy)
+        normals.append(((sy - ey) / length, (ex - sx) / length))
+    points: list[_Point] = []
+    for i, (sx, sy) in enumerate(octagon):
+        ex, ey = octagon[(i + 1) % 8]
+        length = math.hypot(ex - sx, ey - sy)
+        ux, uy = (ex - sx) / length, (ey - sy) / length
+        nx, ny = normals[i]
+        # The segment-start junction: a notch pushed along the bisector of the
+        # two adjoining segments' normals.
+        (qx, qy), d = normals[i - 1], depth()
+        norm = math.hypot(qx + nx, qy + ny)
+        points.append((sx + (qx + nx) / norm * d, sy + (qy + ny) / norm * d))
+        if i % 2:  # chamfer: one centered tip — the corner's single spike
+            points.append((sx + ux * length / 2, sy + uy * length / 2))
+            continue
+        halves = max(2, 2 * round(length / wavelength))  # even: notch to notch
+        for k in range(1, halves):
+            along = length * k / halves
+            if k % 2:  # tip, on the rect edge
+                points.append((sx + ux * along, sy + uy * along))
+            else:
+                d = depth()
+                points.append((sx + ux * along + nx * d, sy + uy * along + ny * d))
+    return points
+
+
+def _inset_outline(points: list[_Point], inset: float) -> list[_Point]:
+    """The closed polygon offset ``inset`` inward: every edge line shifts
+    ``inset`` along its inward normal, and each vertex is re-intersected from
+    its two shifted edges (a miter join) — so the offset flanks stay exactly
+    parallel to the originals and the band between reads as an even stroke."""
+    shifted: list[tuple[_Point, _Point]] = []
+    for i, (px, py) in enumerate(points):
+        qx, qy = points[(i + 1) % len(points)]
+        dx, dy = qx - px, qy - py
+        norm = math.hypot(dx, dy)
+        shifted.append(((px - dy / norm * inset, py + dx / norm * inset), (dx, dy)))
+    result: list[_Point] = []
+    for i in range(len(points)):
+        (ax, ay), (adx, ady) = shifted[i - 1]
+        (bx, by), (bdx, bdy) = shifted[i]
+        # Adjacent zigzag flanks are never parallel, so the cross can't be 0.
+        s = ((bx - ax) * bdy - (by - ay) * bdx) / (adx * bdy - ady * bdx)
+        result.append((ax + adx * s, ay + ady * s))
+    return result
+
+
+def _fmt(value: float) -> str:
+    """A CSS-friendly coordinate: 2-decimal precision, no trailing zeros."""
+    return f"{round(value, 2) + 0:g}"
+
+
+def _css_polygon(points: list[_Point]) -> str:
+    return "polygon(" + ", ".join(f"{_fmt(x)}px {_fmt(y)}px" for x, y in points) + ")"
+
+
+def _css_ring(outer: list[_Point], inner: list[_Point]) -> str:
+    """A CSS ``path()`` covering the band between two nested outlines: both
+    loops as subpaths, the even-odd rule keeping only the area between them."""
+
+    def loop(pts: list[_Point]) -> str:
+        return "M" + "L".join(f"{_fmt(x)} {_fmt(y)}" for x, y in pts) + "Z"
+
+    return f"path(evenodd, '{loop(outer)} {loop(inner)}')"
+
+
+# The today panel's burst outlines, computed once (the panel size is fixed):
+# the outer zigzag masks the panel's silhouette; the ring between it and its
+# border-width-inset copy is the frame painted by the CSS ::after.
+_TODAY_BURST_OUTER = _burst_outline(
+    _TODAY_PANEL_W,
+    _TODAY_PANEL_H,
+    _BURST_AMPLITUDE,
+    _BURST_WAVELENGTH,
+    jitter=_BURST_JITTER,
+    seed=_BURST_SEED,
+)
+_TODAY_BURST_CLIP = _css_polygon(_TODAY_BURST_OUTER)
+_TODAY_BURST_RING = _css_ring(
+    _TODAY_BURST_OUTER, _inset_outline(_TODAY_BURST_OUTER, _BURST_BORDER_W)
+)
 
 type StripIconRequest = tuple[IconItem, bool]
 """One §9.2 strip pick's image inputs: ``(item, excited)`` — the excited flag
@@ -105,6 +251,15 @@ class DayStrip:
 
     week: list[DayCell]
     date_label: str
+
+    burst_clip: str = _TODAY_BURST_CLIP
+    """The today panel's comic-burst silhouette (§9.1) as a CSS ``polygon()``:
+    the panel's ``clip-path``, set through ``--burst-clip``."""
+
+    burst_ring: str = _TODAY_BURST_RING
+    """The burst frame — the band between the silhouette and its border-width
+    inward offset — as an even-odd CSS ``path()``: painted black over the
+    panel's content by its ``::after``, set through ``--burst-ring``."""
 
 
 def build_day_strip(

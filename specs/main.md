@@ -730,7 +730,15 @@ prints in a caption band across the bottom of the **today** panel (e.g. "JUNE 3,
   colors, minimal detail.
 - **Today** is the hero panel: **30% wider and taller** than its six siblings,
   popping slightly past them on both edges (and over the content tucked under the
-  strip — acceptable, as with the old burst). It **always shows a single image**,
+  strip — acceptable, as with the old burst). Its frame is a subtle **comic burst**:
+  the solid border gives way to a spiky zigzag (~15px wavelength, jags ~9px deep,
+  each notch's depth lightly jittered under a fixed seed — irregular but still
+  byte-reproducible, §3.4) tracing the same outline — spike tips on the old border
+  line, notches cutting inward, masking the interior content. The corners are
+  chamfered by about one wavelength, each chamfer carrying a single regular-size
+  spike pointing diagonally at the corner (no outsized corner spikes), and both caption bands
+  keep ~12px of extra text clearance under the frame's notches. It **always shows
+  a single image**,
   never the torn two-image split (§9.2) — a two-pick day collapses to its one
   most-interesting candidate. That art is swapped for an **"excited" variant**
   regenerated from the base image via an edit-from-base comic-excitement prompt,

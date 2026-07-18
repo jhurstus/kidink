@@ -5,7 +5,10 @@ Seven free-standing comic panels, Monday–Sunday of the target week: each a
 white 4px-bordered box with the day name in a caption band across the top and
 the day's §9.2 per-kid event art below, full-bleed (cover-cropped by the
 panel). The today panel is wider and taller, shows the excited art variant,
-and carries the date in a caption band across its bottom. A two-pick day
+carries the date in a caption band across its bottom, and swaps the straight
+frame for a comic-burst zigzag: its clip-path silhouette and frame ring are
+generated in app/day_strip.py and passed here as custom properties (the CSS
+in day_strip.css applies them). A two-pick day
 splits its body corner to corner into two right-triangle mini-panels. Each pick
 carries the shared kid badge (§8) when it belongs to a proper subset of the
 kids.
@@ -41,7 +44,7 @@ context for both the art and the badge. -#}
   {%- for day in strip.week %}
   <div
     class="day-panel{% if day.is_today %} day-panel-today{% endif %}"
-    style="width: {{ day.width }}px">
+    style="width: {{ day.width }}px{% if day.is_today %}; --burst-clip: {{ strip.burst_clip }}; --burst-ring: {{ strip.burst_ring }}{% endif %}">
     <div class="day-caption">{{ day.name }}{% if day.is_today %}!{% endif %}</div>
     <div class="day-body{% if day.icons | length == 2 %} day-body-split{% endif %}">
       {%- if day.icons | length == 2 -%}

@@ -1,3 +1,5 @@
+import math
+import re
 from collections.abc import Sequence
 from datetime import date, datetime
 
@@ -161,6 +163,59 @@ def test_build_day_strip_ignores_chore_only_and_out_of_week_days() -> None:
     strip = build_day_strip(date(2026, 6, 3), events, KIDS)
 
     assert all(cell.icons == [] for cell in strip.week)
+
+
+# --- today's comic-burst frame (§9.1) ----------------------------------------
+
+
+def _points(pair_re: str, text: str) -> list[tuple[float, float]]:
+    return [(float(x), float(y)) for x, y in re.findall(pair_re, text)]
+
+
+def test_burst_clip_zigzags_around_the_today_panel_box() -> None:
+    clip = build_day_strip(date(2026, 6, 3)).burst_clip
+
+    assert clip.startswith("polygon(") and clip.endswith(")")
+    points = _points(r"(-?[\d.]+)px (-?[\d.]+)px", clip)
+    # The envelope is the box with ~11px corner chamfers: 16 waves along each
+    # 246px top/bottom run, 13 down each 198px side run (~15px each, two
+    # vertices per wave), plus one 2-vertex wave on each corner chamfer.
+    assert len(points) == 2 * (16 + 13 + 16 + 13) + 4 * 2
+    # Spike tips trace the 268x220 border box; nothing pokes outside it.
+    assert all(0 <= x <= 268 and 0 <= y <= 220 for x, y in points)
+    # Corners are chamfered, each chamfer carrying a single regular-size spike
+    # at its middle — ~8px from the box corner, never on the corner itself.
+    for cx, cy in [(0, 0), (268, 0), (268, 220), (0, 220)]:
+        nearest = min(math.hypot(x - cx, y - cy) for x, y in points)
+        assert 6 <= nearest <= 10
+    # Along the top edge (clear of the chamfers and the side edges), tips sit
+    # on the edge and notch depths jitter irregularly around the 9px
+    # amplitude, within its ±15% band.
+    top = [y for x, y in points if y <= 12 and 20 < x < 248]
+    tips = [y for y in top if y == 0]
+    notches = [y for y in top if y > 0]
+    assert tips and notches
+    assert all(7.65 <= y <= 10.35 for y in notches)
+    assert len(set(notches)) > 2
+    # The jitter is seed-fixed, not date-seeded: every render date shares the
+    # identical burst (spec §3.4 byte-determinism).
+    assert build_day_strip(date(2026, 7, 18)).burst_clip == clip
+
+
+def test_burst_ring_nests_the_frame_inside_the_silhouette() -> None:
+    strip = build_day_strip(date(2026, 6, 3))
+
+    loops = re.findall(r"M([^MZ]+)Z", strip.burst_ring)
+    assert strip.burst_ring.startswith("path(evenodd, '")
+    assert len(loops) == 2
+    outer = _points(r"(-?[\d.]+) (-?[\d.]+)", loops[0])
+    inner = _points(r"(-?[\d.]+) (-?[\d.]+)", loops[1])
+    # The outer loop is the clip silhouette itself...
+    assert outer == _points(r"(-?[\d.]+)px (-?[\d.]+)px", strip.burst_clip)
+    # ...and the inner loop sits at least the 4px border width inside the box
+    # everywhere, one vertex per outer vertex.
+    assert len(inner) == len(outer)
+    assert all(4 <= x <= 264 and 4 <= y <= 216 for x, y in inner)
 
 
 # --- §9.2 per-kid selection -------------------------------------------------

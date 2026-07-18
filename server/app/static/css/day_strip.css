@@ -60,12 +60,38 @@
    biases that pop to -10 top / +5 bottom. */
 .day-panel-today {
   /* Shared by the date caption's height and the art/badge offsets below, so
-     the lone-pick art can be centered in the window ABOVE this caption. */
-  --date-caption-h: 41px;
+     the lone-pick art can be centered in the window ABOVE this caption.
+     53 = the 41px band + the 12px text-clearance pad both caption bands carry
+     against the burst frame's notches (see the caption rules below). */
+  --date-caption-h: 53px;
   position: relative;
   z-index: 2;
   height: 220px;
   top: -2.5px;
+  /* The comic-burst frame (§9.1): the solid border gives way to a spiky
+     zigzag. --burst-clip (the outer zigzag, generated in app/day_strip.py and
+     set inline by the template) masks the panel's silhouette — body, art and
+     captions alike — while the ::after below paints the 4px frame band. The
+     padding stands in for the removed border so the content keeps its exact
+     old layout box; the squared corners (radius 0) stop the inherited rounded
+     overflow clip from nicking the corner spikes. */
+  border: none;
+  border-radius: 0;
+  padding: 4px;
+  clip-path: var(--burst-clip);
+}
+
+/* The burst frame itself: black across the whole panel, clipped to the
+   even-odd ring between the silhouette and its 4px-inset copy (--burst-ring,
+   generated alongside --burst-clip). Drawn as the panel's last positioned box
+   so it overlays the caption bands, art, and badges just like an opaque
+   border would. */
+.day-panel-today::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  clip-path: var(--burst-ring);
 }
 
 /* Each weekday gets its own caption colour (Mon..Sun in DOM order), shared by
@@ -98,9 +124,15 @@
   color: #000;
 }
 
-/* Today's day name runs a little larger, in the same 40px band. */
+/* Today's day name runs a little larger. The burst frame's notches cut up to
+   ~17px into the panel where a straight border took 4, so the band grows 12px
+   taller — staying flush under the frame at the panel edge — and the matching
+   pad drops its text 12px clear of the notches (the date caption below mirrors
+   this at the panel bottom via --date-caption-h). */
 .day-panel-today .day-caption {
   font-size: 33px;
+  height: 52px;
+  padding-top: 12px;
 }
 
 /* The panel body below the caption: the positioning context for the full-bleed
@@ -272,9 +304,12 @@
   bottom: 0;
   /* 41px (was 36): the today panel grew 5px at the bottom, and that 5px goes
      to this caption so the visible art above it gains only 10 of the panel's
-     15px growth. Shared as --date-caption-h so the art centers above it. */
+     15px growth. Shared as --date-caption-h so the art centers above it —
+     including the extra 12px of band + bottom pad that keep the text clear of
+     the burst frame's notches (see the day-name caption above). */
   height: var(--date-caption-h, 41px);
   box-sizing: border-box;
+  padding-bottom: 12px;
   border-top: 3px solid #000;
   background: var(--day-caption-bg);
   display: flex;
