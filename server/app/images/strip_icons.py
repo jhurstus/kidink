@@ -118,6 +118,9 @@ palette.  You should strive to only use the following colors:
 | Butter | 40% yellow 60% white |
 
 Avoid purple and brown hues.  They do not render well.\
+
+Finally, use a single flat, solid background color behind the scene (it fills \
+the panel, so pick one that contrasts with the art).
 """
 
 # The edit prompt for the excited today variant: applied to the base art's
