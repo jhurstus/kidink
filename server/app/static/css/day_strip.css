@@ -13,8 +13,8 @@
   height: 205px;
   display: flex;
   /* Symmetric vertical centering: normal panels (195px) sit 5px in from the
-     strip's top and bottom; the taller today panel (205px) fills the strip and
-     pops 5px past its neighbors on both edges. */
+     strip's top and bottom; the taller today panel (235px) overflows the strip
+     and pops 15px past it on both edges. */
   align-items: center;
   gap: 5px;
   font-style: italic;
@@ -53,19 +53,22 @@
 }
 
 /* The today panel: ~30% wider (via DayCell.width) and taller than its siblings,
-   popping past them asymmetrically — 10px above their tops and 5px below into
-   the strip-to-content gutter (where the TODAY!/TOMORROW! module tabs also
-   reach, so it must stack above them). It is 220px in a 205px strip, which
-   align-items:center would center (7.5px proud each side); the -2.5px nudge
-   biases that pop to -10 top / +5 bottom. */
+   popping 20px past their tops and bottoms alike - 15px past the strip edges,
+   crossing the strip-to-content gutter below so its bottom border overlaps
+   (and hides) the content's top frame border. The extra height all flows to
+   the flex:1 body, i.e. to the visible art. At 235px in the 205px strip,
+   align-items:center seats it exactly 15px proud on each side. */
 .day-panel-today {
   /* Shared by the date caption's height and the art/badge offsets below, so
      the lone-pick art can be centered in the window ABOVE this caption. */
   --date-caption-h: 41px;
   position: relative;
-  z-index: 2;
-  height: 220px;
-  top: -2.5px;
+  top: 4px;
+  /* Above everything it can reach - the content module frames, the
+     TODAY!/TOMORROW! tabs (z 3), and the countdown burst (z 5) all share the
+     board's root stacking context with this panel. */
+  z-index: 10;
+  height: 235px;
 }
 
 /* Each weekday gets its own caption colour (Mon..Sun in DOM order), shared by
@@ -74,13 +77,41 @@
    luminance so the black caption text stays legible (the darker inks red and
    blue only ever appear as sparse dots on white, never a solid dark field),
    while still reading as distinct colours (§5.5). */
-.day-panel:nth-child(1) { --day-caption-bg: #ffc24d; } /* Monday — light orange */
-.day-panel:nth-child(2) { --day-caption-bg: #ffd633; } /* Tuesday — yellow */
-.day-panel:nth-child(3) { --day-caption-bg: #a6d024; } /* Wednesday — lime */
-.day-panel:nth-child(4) { --day-caption-bg: #a6e6b3; } /* Thursday — green */
-.day-panel:nth-child(5) { --day-caption-bg: #ffbecd; } /* Friday — pink */
-.day-panel:nth-child(6) { --day-caption-bg: #aad8f7; } /* Saturday — light sky */
-.day-panel:nth-child(7) { --day-caption-bg: #a3d4f5; } /* Sunday — light blue */
+.day-panel:nth-child(1) {
+  --day-caption-bg: #ffc24d;
+}
+
+/* Monday — light orange */
+.day-panel:nth-child(2) {
+  --day-caption-bg: #ffd633;
+}
+
+/* Tuesday — yellow */
+.day-panel:nth-child(3) {
+  --day-caption-bg: #a6d024;
+}
+
+/* Wednesday — lime */
+.day-panel:nth-child(4) {
+  --day-caption-bg: #a6e6b3;
+}
+
+/* Thursday — green */
+.day-panel:nth-child(5) {
+  --day-caption-bg: #ffbecd;
+}
+
+/* Friday — pink */
+.day-panel:nth-child(6) {
+  --day-caption-bg: #aad8f7;
+}
+
+/* Saturday — light sky */
+.day-panel:nth-child(7) {
+  --day-caption-bg: #a3d4f5;
+}
+
+/* Sunday — light blue */
 
 /* Day-name caption band across the panel top (spec §9.1); its colour is the
    day's --day-caption-bg above. */
@@ -128,7 +159,7 @@
    reads at a good size. The art box is oversized and centered on the body; the
    body's overflow crops the excess evenly on all sides. The tear case (below)
    zooms via its own scale, so this targets only the direct-child lone art. */
-.day-body > .day-art {
+.day-body>.day-art {
   top: 50%;
   left: 50%;
   width: 145%;
@@ -143,7 +174,7 @@
    art's center to the middle of THAT window so the subject reads visually
    centered instead of sinking behind the caption. (The art still covers the
    full body — its lower edge simply runs behind the opaque caption.) */
-.day-panel-today .day-body > .day-art {
+.day-panel-today .day-body>.day-art {
   top: calc((100% - var(--date-caption-h)) / 2);
   width: 100%;
   height: 100%;
@@ -237,7 +268,7 @@
    fully INSIDE the panel: bottom-right of a lone pick's art; the outer corners
    (top-left / bottom-right) of a torn panel's triangles.
    --------------------------------------------------------------------------- */
-.day-body > .kid-badges {
+.day-body>.kid-badges {
   right: 6px;
   bottom: 6px;
 }
@@ -255,7 +286,7 @@
 }
 
 /* On the today panel, lift bottom-anchored badges clear of the date caption. */
-.day-panel-today .day-body > .kid-badges,
+.day-panel-today .day-body>.kid-badges,
 .day-panel-today .day-tear-b .kid-badges {
   bottom: calc(var(--date-caption-h) + 6px);
 }
@@ -270,9 +301,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  /* 41px (was 36): the today panel grew 5px at the bottom, and that 5px goes
-     to this caption so the visible art above it gains only 10 of the panel's
-     15px growth. Shared as --date-caption-h so the art centers above it. */
+  /* Shared as --date-caption-h so the art centers in the window above it;
+     any extra panel height flows to that art window, not this caption. */
   height: var(--date-caption-h, 41px);
   box-sizing: border-box;
   border-top: 3px solid #000;

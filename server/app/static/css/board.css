@@ -34,8 +34,9 @@ body {
    bottom margin (31px) is tuned to look visually even against them once the
    frame's obscured edge pixels (spec §2: 3px left, 4px right, 6px bottom) are
    subtracted. The strip occupies y 30–235, leaving a 15px gutter between the
-   day panels (bottoms at y=230; the taller today panel pops 5px into the
-   gutter, §9.1) and the content at y=245, which runs to y=1169.
+   day panels (bottoms at y=230; the taller today panel crosses the gutter and
+   overlaps the content's top frame border, §9.1) and the content at y=245,
+   which runs to y=1169.
    --------------------------------------------------------------------------- */
 .content {
    position: absolute;
