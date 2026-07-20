@@ -1,26 +1,28 @@
 {#- ===========================================================================
-today.html — the Today module (spec §10). Full left column: a creased-corner
-"TODAY" tab, the Morning/Day/Evening event buckets, and the weather subpanel
-(§10.3) at the bottom.
+today.html — the Today module (spec §10). Full left column: an in-panel
+"TODAY!" label, the Morning/Day/Evening event buckets, and the weather
+subpanel (§10.3) at the bottom.
 
 today(panel, weather):
 panel a TodayPanel view model (see app/today.py), with:
-.seed border seed for the outer panel
+.weekday the target date's weekday (0=Mon..6=Sun), tinting the tab
+with the day strip's colour for that day
 .buckets non-empty TodayBuckets (Morning→Day→Evening), each with
-.name/.key/.seed/.rows; rows render via the shared event_row macro
+.name/.key/.rows; rows render via the shared event_row macro
 weather a WeatherPanel view model (see app/weather/view.py), or none when
 the forecast is unavailable — the slot then stays empty but keeps
 its footprint (the row budget already subtracts it)
 
-The outer frame is a plain white div with a 4px black border (.module-frame in
-board.css); each bucket inside is its own comic_panel (white, thin hand-drawn
-border). Buckets flex-grow by their row count so the column's slack distributes
-proportionally. Layout constants live in static/css/today.css and must stay in
-sync with the row-budget geometry in app/today.py.
+The outer frame is the shared .module-frame div (4px black border) with a
+today-only skin (.today-frame in today.css): 2px-rounded corners, sunny_bg.png
+pinned to the panel's bottom edge and sky blue filling the rest. Each bucket
+inside is a plain white div with the same border treatment, its events laid out
+two across in reading order. Buckets shrink-wrap their visual-row count; the
+column's slack pools below them. Layout constants live in
+static/css/today.css and must stay in sync with the row-budget geometry in
+app/today.py.
 =========================================================================== -#}
-{% from "macros/comic.html" import comic_panel %}
 {% from "macros/event_row.html" import event_row %}
-{% from "macros/tab.html" import corner_tab %}
 {% from "modules/weather.html" import weather as weather_subpanel %}
 
 {#- Comic time-of-day glyph for a bucket header: rising sun / sun / moon, drawn
@@ -61,27 +63,31 @@ as inline SVG with a thin black ink outline (in-palette yellows). -#}
 {%- endmacro %}
 
 {% macro today(panel, weather=none) -%}
-{#- The tab is a SIBLING of the panel, not a child: the frame clips its
-contents (overflow:hidden), and the tab pops up-left past the panel's corner
-(absolute against .today-pane; see today.css). -#}
-<div class="module-tab today-tab">{% call corner_tab() %}Today!{% endcall %}</div>
-<div class="module-frame">
+<div class="module-frame today-frame">
+{#- Unlike the other modules' creased pop-out tabs, the TODAY! label is a
+plain bordered div matching the buckets, fully inside the frame (a child of
+it) and left-aligned with them (see today.css). -#}
+<div class="today-tab" style="background: var(--weekday-color-{{ panel.weekday }})">Today!</div>
+{#- TEMP: worst-case calendar extent marker — a red line at the deepest pixel
+the bucket column can ever reach; everything below it is guaranteed free of
+calendar panels/rows (see today.css for the derivation). Remove when done. -#}
+<div class="today-max-extent-line"></div>
 <div class="today">
   <div class="today-buckets">
     {%- for bucket in panel.buckets %}
     {#- Each bucket shrink-wraps its content; the body is absolutely positioned
-    (board.css), so the height is computed here: 10px top pad + 34px header +
-    12px bottom pad + per row a 12px gap and 60px of icon = 56 + 72·rows. Keep
-    in sync with today.css and the app/today.py budget constants. -#}
-    <div class="today-bucket today-bucket-{{ bucket.key }}" style="height: {{ 56 + 72 * (bucket.rows | length) }}px">
-      {% call comic_panel(width=546, height=180, bg='#fff', halftones=[],
-      border={'color': '#000', 'radius': 6, 'mid_width': 2, 'corner_width': 2,
-      'seed': bucket.seed}) %}
+    inside the bucket's border (today.css), so the height is computed here:
+    4px top border + 10px top pad + 34px header + 12px bottom pad + 4px bottom
+    border + per visual row (two events side by side, reading order) a 12px
+    gap and 60px of icon = 64 + 72·⌈events/2⌉. Keep in sync with today.css and
+    the app/today.py budget constants. -#}
+    <div class="today-bucket today-bucket-{{ bucket.key }}" style="height: {{ 64 + 72 * ((bucket.rows | length + 1) // 2) }}px">
       <div class="today-bucket-body">
         <div class="today-bucket-header">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
-        {%- for row in bucket.rows %}{{ event_row(row) }}{% endfor -%}
+        <div class="today-bucket-rows">
+          {%- for row in bucket.rows %}{{ event_row(row) }}{% endfor -%}
+        </div>
       </div>
-      {% endcall %}
     </div>
     {%- endfor %}
   </div>

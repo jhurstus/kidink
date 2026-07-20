@@ -158,11 +158,13 @@ def test_failed_resolution_leaves_icon_url_none() -> None:
     assert panel.rows[0].title == "Soccer"
 
 
-def test_build_is_deterministic_and_seed_is_date_pure() -> None:
+def test_build_is_deterministic() -> None:
     events = [_event("Breakfast", hour=8)]
     panel = build_tomorrow(TARGET, events, kids=KIDS)
 
     assert panel == build_tomorrow(TARGET, events, kids=KIDS)
-    # +4: the next seed after the Today module's target..+3 range, so the two
-    # panels' border ripples stay distinct within a page (§3.4).
-    assert panel.seed == TARGET.toordinal() + 4
+
+
+def test_weekday_is_the_day_after_targets() -> None:
+    # Tints the TOMORROW! tab with the day strip's colour for the shown day.
+    assert build_tomorrow(TARGET).weekday == 3  # target is Wednesday -> Thursday

@@ -12,6 +12,23 @@
    font-family: "NorB Pen", serif;
 }
 
+/* Shared weekday palette, indexed like Python's date.weekday() (0=Monday).
+   Used by the day strip's caption bands (day_strip.css) and the Today/
+   Tomorrow module tabs (--tab-bg, set in their templates). A spectrum of
+   light one/two-ink e-ink tints: kept high in luminance so the black caption
+   text stays legible (the darker inks red and blue only ever appear as
+   sparse dots on white, never a solid dark field), while still reading as
+   distinct colours (§5.5). */
+.board {
+   --weekday-color-0: #ffc24d; /* Monday — light orange */
+   --weekday-color-1: #ffd633; /* Tuesday — yellow */
+   --weekday-color-2: #a6d024; /* Wednesday — lime */
+   --weekday-color-3: #a6e6b3; /* Thursday — green */
+   --weekday-color-4: #ffbecd; /* Friday — pink */
+   --weekday-color-5: #aad8f7; /* Saturday — light sky */
+   --weekday-color-6: #a3d4f5; /* Sunday — light blue */
+}
+
 /* ---------------------------------------------------------------------------
    Day-of-week strip slot (spec §9). 30px margin to the top of the page, 30px to
    the left, 32px to the right (the 1538px strip ends at x=1568) — visually even
@@ -34,9 +51,8 @@ body {
    bottom margin (31px) is tuned to look visually even against them once the
    frame's obscured edge pixels (spec §2: 3px left, 4px right, 6px bottom) are
    subtracted. The strip occupies y 30–235, leaving a 15px gutter between the
-   day panels (bottoms at y=230; the taller today panel crosses the gutter and
-   overlaps the content's top frame border, §9.1) and the content at y=245,
-   which runs to y=1169.
+   day panels (all bottoms at y=230, the taller today panel's included, §9.1)
+   and the content at y=245, which runs to y=1169.
    --------------------------------------------------------------------------- */
 .content {
    position: absolute;
@@ -48,9 +64,7 @@ body {
    gap: 15px;
 }
 
-/* Left column: the full-height Today panel, fixed 610px wide (spec §10).
-   Positioned so the module's pop-out TODAY! tab (an absolute sibling of the
-   panel, see today.css) anchors to this cell's corner. */
+/* Left column: the full-height Today panel, fixed 610px wide (spec §10). */
 .today-pane {
    position: relative;
    width: 610px;
@@ -86,31 +100,13 @@ body {
    gap: 15px;
 }
 
-/* Every module's comic_panel stretches to fill its layout cell; the width/height
-   passed to comic_panel only fix the border path's aspect ratio. */
-.content .comic-panel {
-   width: 100%;
-   height: 100%;
-}
-
-/* Center each placeholder module name in its panel (above the halftone/base at
-   z-index 1, below the border at z-index 2). */
-.content .comic-content {
-   position: absolute;
-   inset: 0;
-   display: flex;
-   align-items: center;
-   justify-content: center;
-}
-
 /* Outer module frame (Today / Tomorrow / Countdown / Dinner / Chore / Joke): a
    plain white panel with a 4px black border, filling its layout cell — the
    replacement for the hand-drawn comic_panel that used to wrap each module.
    border-box keeps the border inside the cell; overflow clips full-bleed heroes
    to the frame; flex centering seats the in-flow empty/fallback states
-   (each module's own absolute-inset body escapes it). The inner Today buckets
-   keep their comic_panel — the .content .comic-panel rule above still sizes
-   them. */
+   (each module's own absolute-inset body escapes it). Today skins its frame
+   with a sky background and rounded corners (.today-frame, today.css). */
 .content .module-frame {
    position: relative;
    box-sizing: border-box;
@@ -122,9 +118,4 @@ body {
    display: flex;
    align-items: center;
    justify-content: center;
-}
-
-.module-name {
-   font-size: 44px;
-   color: #000;
 }

@@ -20,8 +20,12 @@
   font-style: italic;
 }
 
-/* The "TOMORROW!" tab is the shared .module-tab (comic.css), anchored to
-   .tomorrow-cell. */
+/* The "TOMORROW!" tab is the shared pop-out .module-tab (comic.css), anchored
+   to .tomorrow-cell, but horizontally seated on the list grid: its left edge
+   aligns with the event icons' left edge (4px frame border + 16px padding). */
+.tomorrow-tab {
+  left: 20px;
+}
 
 /* The event list claims everything left of the weather slot (absolutely
    positioned; it shrink-wraps to ~468px — icon + kid figure + bar at the

@@ -12,9 +12,10 @@
   width: 1538px;
   height: 205px;
   display: flex;
-  /* Symmetric vertical centering: normal panels (195px) sit 5px in from the
-     strip's top and bottom; the taller today panel (235px) overflows the strip
-     and pops 15px past it on both edges. */
+  /* Vertical centering: normal panels (195px) sit 5px in from the strip's
+     top and bottom; the taller today panel (211px) pops 11px past the strip's
+     top while its bottom stays aligned with its siblings' (see
+     .day-panel-today). */
   align-items: center;
   gap: 5px;
   font-style: italic;
@@ -52,66 +53,56 @@
   margin-left: 10px;
 }
 
-/* The today panel: ~30% wider (via DayCell.width) and taller than its siblings,
-   popping 20px past their tops and bottoms alike - 15px past the strip edges,
-   crossing the strip-to-content gutter below so its bottom border overlaps
-   (and hides) the content's top frame border. The extra height all flows to
-   the flex:1 body, i.e. to the visible art. At 235px in the 205px strip,
-   align-items:center seats it exactly 15px proud on each side. */
+/* The today panel: ~30% wider (via DayCell.width) and taller than its
+   siblings, with all the extra height popping upward: its top border sits
+   16px above theirs (11px past the strip's own top edge) while its bottom
+   border stays on their shared line, 5px in from the strip bottom. The extra
+   height all flows to the flex:1 body, i.e. to the visible art.
+   align-items:center would seat the 211px panel 3px proud of the strip on
+   both sides; the -8px nudge lifts it so the bottoms align. */
 .day-panel-today {
   /* Shared by the date caption's height and the art/badge offsets below, so
      the lone-pick art can be centered in the window ABOVE this caption. */
   --date-caption-h: 41px;
   position: relative;
-  top: 4px;
-  /* Above everything it can reach - the content module frames, the
-     TODAY!/TOMORROW! tabs (z 3), and the countdown burst (z 5) all share the
-     board's root stacking context with this panel. */
+  top: -8px;
+  /* Above anything that can reach it - the pop-out TOMORROW! tab (z 3) and
+     the countdown burst (z 5) share the board's root stacking context with
+     this panel. */
   z-index: 10;
-  height: 235px;
+  height: 211px;
 }
 
-/* Each weekday gets its own caption colour (Mon..Sun in DOM order), shared by
-   the day-name caption and — on today — the date caption via --day-caption-bg.
-   The set is a spectrum of light one/two-ink e-ink tints: kept high in
-   luminance so the black caption text stays legible (the darker inks red and
-   blue only ever appear as sparse dots on white, never a solid dark field),
-   while still reading as distinct colours (§5.5). */
+/* Each weekday's caption colour (Mon..Sun in DOM order) comes from the shared
+   board palette (--weekday-color-*, board.css) and is shared by the day-name
+   caption and — on today — the date caption via --day-caption-bg. */
 .day-panel:nth-child(1) {
-  --day-caption-bg: #ffc24d;
+  --day-caption-bg: var(--weekday-color-0);
 }
 
-/* Monday — light orange */
 .day-panel:nth-child(2) {
-  --day-caption-bg: #ffd633;
+  --day-caption-bg: var(--weekday-color-1);
 }
 
-/* Tuesday — yellow */
 .day-panel:nth-child(3) {
-  --day-caption-bg: #a6d024;
+  --day-caption-bg: var(--weekday-color-2);
 }
 
-/* Wednesday — lime */
 .day-panel:nth-child(4) {
-  --day-caption-bg: #a6e6b3;
+  --day-caption-bg: var(--weekday-color-3);
 }
 
-/* Thursday — green */
 .day-panel:nth-child(5) {
-  --day-caption-bg: #ffbecd;
+  --day-caption-bg: var(--weekday-color-4);
 }
 
-/* Friday — pink */
 .day-panel:nth-child(6) {
-  --day-caption-bg: #aad8f7;
+  --day-caption-bg: var(--weekday-color-5);
 }
 
-/* Saturday — light sky */
 .day-panel:nth-child(7) {
-  --day-caption-bg: #a3d4f5;
+  --day-caption-bg: var(--weekday-color-6);
 }
-
-/* Sunday — light blue */
 
 /* Day-name caption band across the panel top (spec §9.1); its colour is the
    day's --day-caption-bg above. */

@@ -29,7 +29,7 @@ from app.event_rows import (
 # Row-budget geometry (§4.1), mirroring static/css/tomorrow.css — keep in sync.
 # The list area is what remains of the 295px panel (board.css sizes the cell
 # for three rows) after the top padding (68, clearing the pop-out TOMORROW!
-# tab, sized like Today's) and the bottom padding (11): 295 - 68 - 11 = 216.
+# tab) and the bottom padding (11): 295 - 68 - 11 = 216.
 _AVAILABLE_H = 216
 # One event row: 12px flex gap + 60px icon row (shared with Today, §11).
 _ROW_H = 72
@@ -39,8 +39,10 @@ _ROW_H = 72
 class TomorrowPanel:
     """The complete view model rendered by ``templates/modules/tomorrow.html``."""
 
-    seed: int
-    """Border seed for the panel (date-pure, §3.4)."""
+    weekday: int
+    """The shown day's weekday — the day after the target date (0=Monday..
+    6=Sunday, ``date.weekday()``); tints the TOMORROW! tab with the day
+    strip's colour for that day."""
 
     rows: list[EventRow]
     """Surviving events in chronological display order (§11)."""
@@ -70,10 +72,7 @@ def build_tomorrow(
     survivors = sorted(day_events, key=rank_key)[:budget]
     ordered = sorted(survivors, key=display_key)
     icons = resolve_icons(ordered, icon_resolver)
-    # The Today module's border seeds span target.toordinal()..+3 (panel plus
-    # up to three buckets); +4 keeps this panel's ripple distinct on the page
-    # while staying date-pure (§3.4).
     return TomorrowPanel(
-        seed=target.toordinal() + 4,
+        weekday=tomorrow.weekday(),
         rows=[build_row(e, kids, icons) for e in ordered],
     )

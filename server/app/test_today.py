@@ -108,16 +108,20 @@ def test_chores_and_other_days_are_excluded() -> None:
     assert panel.buckets == []
 
 
-def test_worst_case_cap_keeps_top_five_by_interesting() -> None:
-    # All three buckets visible -> budget is 5 (§10.1 step 1-2); the four
-    # least-interesting events are dropped silently (§4.1).
+def test_worst_case_cap_keeps_four_rows_of_pairs() -> None:
+    # All three buckets visible -> budget is 4 visual rows (§10.1 step 1-2);
+    # rows hold two events each, so eight events fit (Morning 4 + Day 2 +
+    # Evening 2 = 2+1+1 rows) and the least-interesting three are dropped
+    # silently (§4.1).
     events = [
-        _event("Breakfast", time_of_day=TimeOfDay.MORNING, interesting=800),
-        _event("School", time_of_day=TimeOfDay.MORNING, interesting=700),
-        _event("Soccer", time_of_day=TimeOfDay.DAY, interesting=600),
-        _event("Library", time_of_day=TimeOfDay.DAY, interesting=500),
-        _event("Movie night", time_of_day=TimeOfDay.EVENING, interesting=400),
-        _event("Bath", time_of_day=TimeOfDay.EVENING, interesting=300),
+        _event("M1", time_of_day=TimeOfDay.MORNING, interesting=900),
+        _event("M2", time_of_day=TimeOfDay.MORNING, interesting=850),
+        _event("M3", time_of_day=TimeOfDay.MORNING, interesting=800),
+        _event("M4", time_of_day=TimeOfDay.MORNING, interesting=750),
+        _event("D1", time_of_day=TimeOfDay.DAY, interesting=700),
+        _event("D2", time_of_day=TimeOfDay.DAY, interesting=650),
+        _event("E1", time_of_day=TimeOfDay.EVENING, interesting=600),
+        _event("E2", time_of_day=TimeOfDay.EVENING, interesting=550),
         _event("Dropped 1", time_of_day=TimeOfDay.MORNING, interesting=30),
         _event("Dropped 2", time_of_day=TimeOfDay.DAY, interesting=20),
         _event("Dropped 3", time_of_day=TimeOfDay.EVENING, interesting=10),
@@ -125,39 +129,68 @@ def test_worst_case_cap_keeps_top_five_by_interesting() -> None:
     panel = build_today(TARGET, events)
 
     shown = {row.title for bucket in panel.buckets for row in bucket.rows}
-    assert shown == {"Breakfast", "School", "Soccer", "Library", "Movie night"}
+    assert shown == {"M1", "M2", "M3", "M4", "D1", "D2", "E1", "E2"}
+
+
+def test_odd_buckets_waste_a_half_row() -> None:
+    # Rows never mix buckets: three Morning + three Day events consume four
+    # visual rows (2+2, each with a half-filled last row), exhausting the
+    # worst-case budget — the Evening pair is dropped with its header even
+    # though only six events are shown.
+    events = [
+        _event("M1", time_of_day=TimeOfDay.MORNING, interesting=900),
+        _event("M2", time_of_day=TimeOfDay.MORNING, interesting=880),
+        _event("M3", time_of_day=TimeOfDay.MORNING, interesting=860),
+        _event("D1", time_of_day=TimeOfDay.DAY, interesting=840),
+        _event("D2", time_of_day=TimeOfDay.DAY, interesting=820),
+        _event("D3", time_of_day=TimeOfDay.DAY, interesting=800),
+        _event("E1", time_of_day=TimeOfDay.EVENING, interesting=700),
+        _event("E2", time_of_day=TimeOfDay.EVENING, interesting=680),
+    ]
+    panel = build_today(TARGET, events)
+
+    assert [b.key for b in panel.buckets] == ["morning", "day"]
+    shown = {row.title for bucket in panel.buckets for row in bucket.rows}
+    assert shown == {"M1", "M2", "M3", "D1", "D2", "D3"}
 
 
 def test_backfill_fills_visible_buckets_only() -> None:
-    # Top-5 land in Morning+Evening only, so Day never becomes visible: the
-    # 6th-ranked (Day) event is skipped and the 7th-ranked (Morning) event
-    # backfills the freed header row instead (§10.1 step 4; capacity 6 with
-    # two visible headers).
+    # The top-ranked events fill the four worst-case rows with Morning+Evening
+    # only, so Day never becomes visible: the next-ranked (Day) event is
+    # skipped and later Morning events backfill the freed header row instead
+    # (§10.1 step 4; capacity 5 rows with two visible headers).
     events = [
-        _event("M1", time_of_day=TimeOfDay.MORNING, interesting=900),
-        _event("M2", time_of_day=TimeOfDay.MORNING, interesting=800),
-        _event("M3", time_of_day=TimeOfDay.MORNING, interesting=700),
-        _event("E1", time_of_day=TimeOfDay.EVENING, interesting=600),
-        _event("E2", time_of_day=TimeOfDay.EVENING, interesting=500),
-        _event("Day skipped", time_of_day=TimeOfDay.DAY, interesting=400),
-        _event("M4 backfilled", time_of_day=TimeOfDay.MORNING, interesting=300),
-        _event("M5 over capacity", time_of_day=TimeOfDay.MORNING, interesting=200),
+        _event(f"M{i}", time_of_day=TimeOfDay.MORNING, interesting=900 - i, minute=i)
+        for i in range(1, 7)
+    ] + [
+        _event("E1", time_of_day=TimeOfDay.EVENING, interesting=700),
+        _event("E2", time_of_day=TimeOfDay.EVENING, interesting=690),
+        _event("Day skipped", time_of_day=TimeOfDay.DAY, interesting=500),
+        _event("M7 backfilled", time_of_day=TimeOfDay.MORNING, interesting=400),
+        _event("M8 backfilled", time_of_day=TimeOfDay.MORNING, interesting=390),
+        _event("M9 over capacity", time_of_day=TimeOfDay.MORNING, interesting=380),
     ]
     panel = build_today(TARGET, events)
 
     assert [b.key for b in panel.buckets] == ["morning", "evening"]
     shown = {row.title for bucket in panel.buckets for row in bucket.rows}
-    assert shown == {"M1", "M2", "M3", "E1", "E2", "M4 backfilled"}
+    assert shown == {f"M{i}" for i in range(1, 7)} | {
+        "E1",
+        "E2",
+        "M7 backfilled",
+        "M8 backfilled",
+    }
 
 
-def test_single_bucket_day_caps_at_seven() -> None:
+def test_single_bucket_day_caps_at_twelve() -> None:
+    # One visible bucket -> capacity 6 visual rows = 12 events, two per row.
     events = [
-        _event(f"D{i}", time_of_day=TimeOfDay.DAY, interesting=100 - i, hour=10 + i)
-        for i in range(10)
+        _event(f"D{i:02}", time_of_day=TimeOfDay.DAY, interesting=100 - i, minute=i)
+        for i in range(15)
     ]
     panel = build_today(TARGET, events)
 
-    assert _titles(panel, "day") == [f"D{i}" for i in range(7)]
+    assert _titles(panel, "day") == [f"D{i:02}" for i in range(12)]
 
 
 def test_display_order_is_chronological_within_bucket() -> None:
@@ -250,16 +283,17 @@ def test_no_configured_kids_yields_no_badges() -> None:
 def test_icons_resolved_only_for_surviving_rows() -> None:
     resolver = _RecordingResolver()
     events = [
-        _event(f"D{i}", time_of_day=TimeOfDay.DAY, interesting=100 - i, hour=10 + i)
-        for i in range(10)
+        _event(f"D{i:02}", time_of_day=TimeOfDay.DAY, interesting=100 - i, minute=i)
+        for i in range(15)
     ]
     build_today(TARGET, events, icon_resolver=resolver)
 
-    # 10 events, one visible bucket -> 7 rows; the dropped three never reach
-    # the resolver (no wasted generations), and the whole panel resolves in a
-    # single batch so missing images can generate concurrently.
+    # 15 events, one visible bucket -> 12 (six visual rows of two); the
+    # dropped three never reach the resolver (no wasted generations), and the
+    # whole panel resolves in a single batch so missing images can generate
+    # concurrently.
     assert resolver.calls == 1
-    assert sorted(resolver.items) == sorted((f"D{i}", None) for i in range(7))
+    assert sorted(resolver.items) == sorted((f"D{i:02}", None) for i in range(12))
 
 
 def test_resolver_receives_title_and_icon_description() -> None:
@@ -282,7 +316,7 @@ def test_failed_resolution_leaves_icon_url_none() -> None:
     assert row.title == "Soccer"
 
 
-def test_build_is_deterministic_and_seeds_are_date_pure() -> None:
+def test_build_is_deterministic() -> None:
     events = [
         _event("Breakfast", time_of_day=TimeOfDay.MORNING),
         _event("Soccer", time_of_day=TimeOfDay.DAY),
@@ -290,10 +324,8 @@ def test_build_is_deterministic_and_seeds_are_date_pure() -> None:
     panel = build_today(TARGET, events, kids=KIDS)
 
     assert panel == build_today(TARGET, events, kids=KIDS)
-    assert panel.seed == TARGET.toordinal()
-    # Bucket seeds are offset by the bucket's fixed index (morning=1, day=2),
-    # so they stay distinct within a page and stable across renders (§3.4).
-    assert [b.seed for b in panel.buckets] == [
-        TARGET.toordinal() + 1,
-        TARGET.toordinal() + 2,
-    ]
+
+
+def test_weekday_is_targets() -> None:
+    # Tints the TODAY! tab with the day strip's colour for the target day.
+    assert build_today(TARGET).weekday == 2  # Wednesday

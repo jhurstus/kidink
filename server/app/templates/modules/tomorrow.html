@@ -6,7 +6,8 @@ the weather subpanel filling the panel's right half.
 
 tomorrow(panel, weather):
 panel a TomorrowPanel view model (see app/tomorrow.py), with:
-.seed border seed for the panel
+.weekday the shown day's weekday (0=Mon..6=Sun), tinting the tab
+with the day strip's colour for that day
 .rows EventRows in chronological order (shared event_row macro)
 weather a WeatherPanel view model (see app/weather/view.py) for the day
 after the target — condition icon + clothing kid + temperature
@@ -22,10 +23,12 @@ the row-budget geometry in app/tomorrow.py.
 {% from "modules/weather.html" import weather as weather_subpanel %}
 
 {% macro tomorrow(panel, weather=none) -%}
-{#- Like Today's, the tab is a SIBLING of the panel: the frame clips its
-contents (overflow:hidden), and the tab pops up-left past the panel's corner
-(absolute against .tomorrow-cell; see tomorrow.css). -#}
-<div class="module-tab tomorrow-tab">{% call corner_tab() %}Tomorrow!{% endcall %}</div>
+{#- The tab is a SIBLING of the panel, not a child: the frame clips its
+contents (overflow:hidden), and the tab pokes above the frame's top edge
+(absolute against .tomorrow-cell; see tomorrow.css), its left edge aligned
+with the event icons. -#}
+<div class="module-tab tomorrow-tab" style="--tab-bg: var(--weekday-color-{{ panel.weekday }})">
+  {%- call corner_tab() %}Tomorrow!{% endcall %}</div>
 <div class="module-frame">
 <div class="tomorrow">
   <div class="tomorrow-rows">

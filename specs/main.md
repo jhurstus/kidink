@@ -729,8 +729,8 @@ prints in a caption band across the bottom of the **today** panel (e.g. "JUNE 3,
   full-bleed prompt: bold flat fills, thick black outlines, pure saturated primary
   colors, minimal detail.
 - **Today** is the hero panel: **30% wider and taller** than its six siblings,
-  popping slightly past them on both edges (and over the content tucked under the
-  strip — acceptable, as with the old burst). It **always shows a single image**,
+  with all the extra height popping above their tops — its bottom border stays on
+  the shared bottom line. It **always shows a single image**,
   never the torn two-image split (§9.2) — a two-pick day collapses to its one
   most-interesting candidate. That art is swapped for an **"excited" variant**
   regenerated from the base image via an edit-from-base comic-excitement prompt,
@@ -791,30 +791,35 @@ icon was picked:
 Occupies the full left column. Calendar entries are bucketed into **Morning**, **Day**,
 and **Evening** panels; empty buckets are not shown (their header is dropped and the
 remaining buckets expand to reclaim the space). Each event renders as a fixed-height
-row: AI icon + kid label(s) + title.
+cell: AI icon + kid label(s) + title, laid out **two across** per visual row.
 
 ### 10.1 Cap and bucketing (resolution order)
 
-The available height is the column minus the fixed weather subpanel. The visible-header
-count is circular (which headers show depends on which events survive, which depends on
-the cap, which depends on the header count), so it is resolved in a fixed order:
+The available height is the column minus the fixed weather subpanel. Visual rows hold
+**two events each** (§10.2), so budgets count rows: an event is free when its bucket has
+a half-filled row and opens a new row otherwise. The visible-header count is circular
+(which headers show depends on which events survive, which depends on the cap, which
+depends on the header count), so it is resolved in a fixed order:
 
-1. Compute the event-row budget **assuming the worst case of all three headers present**:
-   `N = floor((available_height − 3·header_height) / row_height)`.
-2. Take the **global top-N** events for the day by `interesting`.
+1. Compute the visual-row budget **assuming the worst case of all three headers
+   present**: `R = floor((available_height − 3·header_height) / row_height)`.
+2. Take the **longest prefix** of the day's events ranked by `interesting` that fits in
+   `R` rows.
 3. Bucket the survivors into Morning / Day / Evening and **drop any empty bucket's
    header**.
 4. **Backfill:** if fewer than three headers ended up visible, the freed header rows are
-   spare space; fill them with the next events by `interesting`, but **only if they fall
-   into an already-visible bucket** (never creating a new header), until the freed rows
-   are used. This terminates and stays deterministic.
+   spare space; recompute the row capacity with the actual header count and keep taking
+   further events by `interesting` that still fit, but **only if they fall into an
+   already-visible bucket** (never creating a new header). This terminates and stays
+   deterministic.
 
 ### 10.2 Ordering within a bucket
 
 Selection (the cap) is by `interesting`, but **display order within a bucket is
 chronological by start time** (all-day events first within Day), with ties broken by
 `interesting` then title — so the cap is by interestingness while the reading order is
-by time, matching Tomorrow.
+by time, matching Tomorrow. The ordered list lays out in **book reading order**: two
+columns filled left to right, then top to bottom.
 
 ### 10.3 Weather subpanel
 

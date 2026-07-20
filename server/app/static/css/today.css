@@ -6,22 +6,71 @@
    slot) feed the row-budget geometry in app/today.py — keep the two in sync.
    ============================================================================ */
 
-/* Fills the outer .module-frame. The 68px top padding clears the pop-out tab
-   (its face bottom lands 59px into the panel: 70px tall, popped 11px up); the
-   column is 924px, so the bucket area gets 924 - 68 - 16 - 14 - 250 = 576px
-   (_AVAILABLE_H in app/today.py). Italic to match the day strip's type. */
+/* Today-only skin over the shared .module-frame (board.css): 2px-rounded
+   corners, and a backdrop of sunny_bg.png pinned to the frame's bottom edge
+   (scaled to the full interior width, height following) with sky #37b0fb
+   filling the rest above it. Loaded after board.css, so this background
+   replaces the frame's plain white; the buckets and weather panel sit on
+   top of it. */
+.content .today-frame {
+  border-radius: 2px;
+  background: #4b5cff url("../img/weather/sunny_bg.png") bottom center / 100% auto no-repeat;
+}
+
+/* TEMP: worst-case calendar extent marker (see today.html). The bucket column
+   starts at y=98 (below the top padding) and its deepest legal configuration
+   is three visible buckets with four total visual rows (the §10.1
+   capacities): 3·64px bucket chrome + 2·12px gaps + 4·72px rows = 504px,
+   ending at y=602. (Two buckets/5 rows ends at 598; one bucket/6 rows at
+   594.) Remove when done. */
+.today-max-extent-line {
+  position: absolute;
+  top: 602px;
+  left: 0;
+  right: 0;
+  border-top: 4px solid red;
+  z-index: 1;
+}
+
+/* Fills the outer .module-frame. The 98px top padding clears the in-panel
+   TODAY! tab (16px top offset + 70px face + a 12px gap, matching the
+   inter-bucket rhythm); the frame interior is 916px (924px column minus the
+   4px top/bottom borders), so the bucket area gets
+   916 - 98 - 16 - 14 - 250 = 538px (_AVAILABLE_H in app/today.py). Italic to
+   match the day strip's type. */
 .today {
   position: absolute;
   inset: 0;
-  padding: 68px 16px 16px;
+  padding: 98px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   font-style: italic;
 }
 
-/* The "TODAY!" tab is the shared .module-tab (comic.css), anchored to
-   .today-pane. */
+/* The "TODAY!" label: a plain div with the buckets' border treatment (4px
+   black, 2px radius) instead of the other modules' creased corner-tab slip,
+   seated fully inside the frame: 16px below the frame border, uniform with
+   the buckets' 16px side inset it left-aligns with. 70px tall overall (the
+   corner-tab face's size, keeping the 98px top-padding math below), type
+   matching the .module-tab tabs (comic.css); the weekday-tint background is
+   set inline in the template. */
+.today-tab {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  box-sizing: border-box;
+  height: 70px;
+  display: flex;
+  align-items: center;
+  padding: 0 22px;
+  border: 4px solid #000;
+  border-radius: 2px;
+  font-size: 42px;
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+}
 
 .today-buckets {
   flex: 1;
@@ -31,18 +80,25 @@
   gap: 12px;
 }
 
-/* One bucket's cell. The body inside is absolutely positioned, so the bucket
-   has no intrinsic height: the template sets an explicit height computed from
-   its row count (56 + 72·rows — see today.html); leftover column space pools
-   below the buckets. */
+/* One bucket: a plain white panel with the outer frame's border treatment
+   (4px black, 2px radius). The body inside is absolutely positioned, so the
+   bucket has no intrinsic height: the template sets an explicit height
+   computed from its row count (64 + 72·rows, borders included — see
+   today.html); leftover column space pools below the buckets. */
 .today-bucket {
   flex: none;
+  position: relative;
+  box-sizing: border-box;
+  background: #fff;
+  border: 4px solid #000;
+  border-radius: 2px;
 }
 
-/* Inside the bucket's comic_panel. The 10px top padding + 34px header + 12px
-   bottom padding are _HEADER_BLOCK_H's ingredients in app/today.py. The 12px
-   flex gap and bottom padding reuse the body's 12px left inset, so the space
-   between rows and under the last icon equals the space left of the icons. */
+/* Inside the bucket's border. The borders + 10px top padding + 34px header +
+   12px bottom padding are _HEADER_BLOCK_H's ingredients in app/today.py. The
+   12px gaps and bottom padding reuse the body's 12px left inset, so the
+   space between rows and under the last icon equals the space left of the
+   icons. */
 .today-bucket-body {
   position: absolute;
   inset: 0;
@@ -70,6 +126,21 @@
   display: block;
   width: 30px;
   height: 30px;
+}
+
+/* The bucket's event grid: two columns filled in reading order (left-right,
+   then top-bottom — DOM order is the §10.2 display order), 60px rows at the
+   shared 12px gap pitch. Grid items need min-width:0 so long titles ellipsize
+   (event_rows.css) instead of widening their column. */
+.today-bucket-rows {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 60px;
+  gap: 12px;
+}
+
+.today-bucket-rows .event-row {
+  min-width: 0;
 }
 
 /* The weather subpanel's slot (§10.3). Its height is already subtracted from
