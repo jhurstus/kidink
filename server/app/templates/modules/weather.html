@@ -21,61 +21,48 @@ row horizontally compact (§11) via scoped overlaps in weather.css.
 {#- The temperature bar (§ Weather): a vertical five-band scale, hottest at the
 top — red / light-red / light-yellow / light-blue / blue, all flat fills (the second
 and fourth bands were Ben-Day dot patterns; flat won by eye — the device
-quantizer dithers them anyway). A flame caps the hot end, a snowflake the
-cold end, and a black arrow floats over the bar pointing at the day's
-"feels like" high. -#}
-{#- The viewBox ends where the widest two-digit label ends ("88°" at x≈119),
-with no trailing dead space: the SVG sits flush against the slot's right edge
-so the whole bar+arrow+label group is right-aligned and every two-digit label
-stays inside it. A rare three-digit label overflows the viewBox by a few px
-(overflow is visible in weather.css) into the panel padding rather than
-pushing the group left. -#}
+quantizer dithers them anyway). In Today the bar is painted onto the wooden
+signpost of the sunny_bg backdrop (weather.css positions it over the sign);
+the day's "feels like" high reads from a white label box floating left of the
+bar (4px black border, 7px corner radius) whose triangular notch, protruding
+from the box's right edge with the same border, is the temperature indicator:
+its tip touches the bar at the high's band position. -#}
+{#- The SVG maps 1:1 onto CSS pixels (viewBox 108×200 = the 108×200px box
+weather.css sizes it to in Today's slot). The bar face is 36×170 at x 70–106;
+weather.css's absolute offset centers it on the sign's inner face. The label
+box is fixed-width for two digits; a rare three-digit label overflows it
+symmetrically (SVG text doesn't clip) rather than resizing the box. -#}
 {% macro temp_bar(bar, uid='today') -%}
-{%- set arrow_y = 28 + 154 * bar.arrow_percent / 100 -%}
-<svg class="weather-bar" viewBox="0 0 119 210" aria-hidden="true">
+{%- set arrow_y = 15 + 170 * bar.arrow_percent / 100 -%}
+<svg class="weather-bar" viewBox="0 0 108 200" aria-hidden="true">
   <defs>
     <clipPath id="wx-{{ uid }}-clip">
-      <rect x="24" y="28" width="40" height="154" rx="6" />
+      <rect x="70" y="15" width="36" height="170" rx="6" />
     </clipPath>
   </defs>
-  {#- Heat endcap: a flame over the hot end. -#}
-  <path
-    d="M44 2 C 42 6.5, 38 9.5, 38 14.5 A 6.5 6.5 0 0 0 51 14.5 C 51 11.5, 49.5 9, 47.5 7 C 47.5 9.5, 46 11, 44.6 11.5 C 43.8 8.5, 43.6 5, 44 2 Z"
-    fill="#ff0000" stroke="#000" stroke-width="2" stroke-linejoin="round" />
-  {#- The five bands, hottest → coldest, equal fifths of the 154px bar. -#}
+  {#- The five bands, hottest → coldest, equal fifths of the 170px bar. -#}
   <g clip-path="url(#wx-{{ uid }}-clip)">
-    <rect x="24" y="28" width="40" height="30.8" fill="#ff0000" />
-    <rect x="24" y="58.8" width="40" height="30.8" fill="#ff8080" />
-    <rect x="24" y="89.6" width="40" height="30.8" fill="#ffff99" />
-    <rect x="24" y="120.4" width="40" height="30.8" fill="#8ec4f2" />
-    <rect x="24" y="151.2" width="40" height="30.8" fill="#0000ff" />
-    <g stroke="#000" stroke-width="1.5">
-      <line x1="24" y1="58.8" x2="64" y2="58.8" />
-      <line x1="24" y1="89.6" x2="64" y2="89.6" />
-      <line x1="24" y1="120.4" x2="64" y2="120.4" />
-      <line x1="24" y1="151.2" x2="64" y2="151.2" />
+    <rect x="70" y="15" width="36" height="34" fill="#ff0000" />
+    <rect x="70" y="49" width="36" height="34" fill="#ff8080" />
+    <rect x="70" y="83" width="36" height="34" fill="#ffff99" />
+    <rect x="70" y="117" width="36" height="34" fill="#8ec4f2" />
+    <rect x="70" y="151" width="36" height="34" fill="#0000ff" />
+    <g stroke="#000" stroke-width="3.6">
+      <line x1="70" y1="49" x2="106" y2="49" />
+      <line x1="70" y1="83" x2="106" y2="83" />
+      <line x1="70" y1="117" x2="106" y2="117" />
+      <line x1="70" y1="151" x2="106" y2="151" />
     </g>
   </g>
-  {#- 1.68 SVG units render as 2px in the 250px-tall slot (250/210 scale),
-  matching the host panels' 2px drawn border. -#}
-  <rect x="24" y="28" width="40" height="154" rx="6" fill="none" stroke="#000" stroke-width="1.68" />
-  {#- Cold endcap: a snowflake under the cold end. Stroked lines can't carry
-  an SVG outline, so a fatter black copy is drawn underneath the blue one —
-  reading as the same black ink edge as the flame above. -#}
-  <g stroke="#000" stroke-width="6.5" stroke-linecap="round">
-    <line x1="37" y1="198" x2="51" y2="198" />
-    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
-    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
-  </g>
-  <g stroke="#0000ff" stroke-width="3" stroke-linecap="round">
-    <line x1="37" y1="198" x2="51" y2="198" />
-    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(60 44 198)" />
-    <line x1="37" y1="198" x2="51" y2="198" transform="rotate(120 44 198)" />
-  </g>
-  {#- The arrow: floats over the bar's right edge, tip on the feels-like high. -#}
-  <polygon points="58,{{ '%.1f' | format(arrow_y) }} 76,{{ '%.1f' | format(arrow_y - 8.25) }} 76,{{ '%.1f' | format(arrow_y + 8.25) }}"
-    fill="#000" />
-  <text class="weather-bar-high" x="80" y="{{ '%.1f' | format(arrow_y + 8) }}">{{ bar.high_f }}°</text>
+  <rect x="70" y="15" width="36" height="170" rx="6" fill="none" stroke="#000" stroke-width="4" />
+  {#- The label box + notch, one path so the border runs unbroken around both:
+  a 60×43 rounded rect (7px-radius corners) centered on arrow_y, its right
+  edge growing a triangle whose tip lands 2px past the bar's left border.
+  Drawn after the bar so the tip overlaps the paint. -#}
+  {%- set box_top = arrow_y - 21.5 %}{% set box_bottom = arrow_y + 21.5 %}
+  <path d="M 10 {{ '%.1f' | format(box_top) }} H 56 A 7 7 0 0 1 63 {{ '%.1f' | format(box_top + 7) }} V {{ '%.1f' | format(arrow_y - 9) }} L 73 {{ '%.1f' | format(arrow_y) }} L 63 {{ '%.1f' | format(arrow_y + 9) }} V {{ '%.1f' | format(box_bottom - 7) }} A 7 7 0 0 1 56 {{ '%.1f' | format(box_bottom) }} H 10 A 7 7 0 0 1 3 {{ '%.1f' | format(box_bottom - 7) }} V {{ '%.1f' | format(box_top + 7) }} A 7 7 0 0 1 10 {{ '%.1f' | format(box_top) }} Z"
+    fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+  <text class="weather-bar-high" x="30" y="{{ '%.1f' | format(arrow_y + 10.5) }}">{{ bar.high_f }}°</text>
 </svg>
 {%- endmacro %}
 

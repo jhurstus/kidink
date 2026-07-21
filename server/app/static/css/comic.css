@@ -190,8 +190,8 @@
 
 .kid-badges {
   position: absolute;
-  right: -4px;
-  bottom: -4px;
+  right: -12px;
+  bottom: -12px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -208,7 +208,7 @@
   height: 30px;
 }
 
-.kid-badge > svg {
+.kid-badge>svg {
   display: block;
   width: 100%;
   height: 100%;

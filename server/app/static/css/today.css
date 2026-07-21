@@ -17,21 +17,6 @@
   background: #4b5cff url("../img/weather/sunny_bg.png") bottom center / 100% auto no-repeat;
 }
 
-/* TEMP: worst-case calendar extent marker (see today.html). The bucket column
-   starts at y=98 (below the top padding) and its deepest legal configuration
-   is three visible buckets with four total visual rows (the §10.1
-   capacities): 3·64px bucket chrome + 2·12px gaps + 4·72px rows = 504px,
-   ending at y=602. (Two buckets/5 rows ends at 598; one bucket/6 rows at
-   594.) Remove when done. */
-.today-max-extent-line {
-  position: absolute;
-  top: 602px;
-  left: 0;
-  right: 0;
-  border-top: 4px solid red;
-  z-index: 1;
-}
-
 /* Fills the outer .module-frame. The 98px top padding clears the in-panel
    TODAY! tab (16px top offset + 70px face + a 12px gap, matching the
    inter-bucket rhythm); the frame interior is 916px (924px column minus the
@@ -145,8 +130,11 @@
 
 /* The weather subpanel's slot (§10.3). Its height is already subtracted from
    _AVAILABLE_H in app/today.py — at this size the extra height comes out of
-   the column's pooled slack, so no event-row capacity is lost. */
+   the column's pooled slack, so no event-row capacity is lost. Positioned so
+   the temperature bar can pin itself over the backdrop's signpost
+   (weather.css). */
 .today-weather-slot {
   flex: none;
+  position: relative;
   height: 250px;
 }

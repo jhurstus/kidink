@@ -32,6 +32,12 @@
   object-fit: contain;
 }
 
+.today .weather-condition {
+  position: relative;
+  top: -81px;
+  left: -7px;
+}
+
 .weather-kid {
   flex: none;
   display: block;
@@ -41,10 +47,13 @@
 }
 
 /* Today only: tuck the kid figure toward the condition icon (tuned by eye);
-   the compensating right margin keeps the bar where it is. */
+   the bar is out of the flex row here (painted on the sign, below), so no
+   compensation is needed. */
 .today-weather-slot .weather-kid {
-  margin-left: -12px;
-  margin-right: 12px;
+  margin-left: -70px;
+  margin-bottom: 16px;
+  width: 300px;
+  height: 300px;
 }
 
 /* Tomorrow only (§11): the slot is carved out of the event list's width, so
@@ -60,24 +69,41 @@
   margin-left: -60px;
 }
 
-/* The temperature bar SVG spans the slot's full height (width follows from
-   the viewBox aspect). As the row's last flex item it sits flush against the
-   slot's right edge = the event buckets' right border, and the viewBox is
-   trimmed so the temp label ends there too (see weather.html). Overflow stays
-   visible so a rare three-digit label extends a few px instead of clipping. */
+/* The temperature bar SVG. In Tomorrow it's still an in-row flex item spanning
+   the slot's full height; Today lifts it out of the row entirely (below).
+   Overflow stays visible so the floating temp label box never clips. */
 .weather-bar {
   flex: none;
   height: 100%;
   overflow: visible;
-  /* Pull the bar closer to the kid figure than the shared flex gap
+  /* Tomorrow: pull the bar closer to the kid figure than the shared flex gap
      (tuned by eye). */
   margin-left: -8px;
 }
 
-/* Light like the event-row titles (event_rows.css, weight 200), but italic. */
+/* Today: the bar is painted onto the wooden signpost of the sunny_bg backdrop
+   (today.css), so it leaves the flex row and pins to the slot. The SVG maps
+   1:1 onto CSS pixels (108×200 viewBox, weather.html): left 428 puts the bar
+   face (svg x 70–106) at slot x 498–534, centered on the sign's inner face:
+   x 483–549, y −4–199 in slot coordinates at the 602px background width.
+   Re-derive those numbers if sunny_bg.png, the module width, or the slot
+   height changes. */
+.today-weather-slot .weather-bar {
+  position: absolute;
+  left: 428px;
+  top: 0;
+  width: 108px;
+  height: 200px;
+  margin: 0;
+}
+
+/* Light like the event-row titles (event_rows.css, weight 200), but italic.
+   Centered in the label box (weather.html puts the anchor on the box's
+   vertical axis). */
 .weather-bar-high {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 200;
   font-style: italic;
+  text-anchor: middle;
   fill: #000;
 }

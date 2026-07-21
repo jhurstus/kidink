@@ -13,7 +13,7 @@
   height: 60px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 /* Icon slot: every icon box is a uniform 60px square, so titles align and the
@@ -26,22 +26,19 @@
   justify-content: flex-start;
 }
 
-/* A uniform 60×60 inked frame; the transparent icon aspect-fits inside it
-   (object-fit: contain — never stretched), border-box so the framed box is
-   exactly the 60px row base. */
+/* The transparent icon aspect-fits into a frameless 60×60 box
+   (object-fit: contain — never stretched). */
 .event-icon {
   display: block;
   box-sizing: border-box;
   width: 60px;
   height: 60px;
   object-fit: contain;
-  padding: 2px;
-  border: 2px solid #000;
-  border-radius: 1px;
 }
 
 /* §7.3 fallback chip for a missing/failed icon — the strip chip's cream, in
-   the same inked frame as a real icon. */
+   an inked frame (kept here so the chip still reads as a shape now that real
+   icons are frameless). */
 .event-chip {
   box-sizing: border-box;
   width: 60px;
