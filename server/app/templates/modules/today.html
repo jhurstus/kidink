@@ -14,8 +14,11 @@ the forecast is unavailable — the slot then stays empty but keeps
 its footprint (the row budget already subtracts it)
 
 The outer frame is the shared .module-frame div (4px black border) with a
-today-only skin (.today-frame in today.css): 2px-rounded corners, sunny_bg.png
-pinned to the panel's bottom edge and sky blue filling the rest. Each bucket
+today-only skin (.today-frame in today.css): 2px-rounded corners, a weather
+backdrop pinned to the panel's bottom edge and sky blue filling the rest.
+Every condition bucket has matching &lt;condition&gt;_bg.png art (identical
+geometry, § Weather), so the file is picked inline off the forecast's
+condition; a missing forecast falls back to the sunny art. Each bucket
 inside is a plain white div with the same border treatment, its events laid out
 two across in reading order. Buckets shrink-wrap their visual-row count; the
 column's slack pools below them. Layout constants live in
@@ -63,7 +66,7 @@ as inline SVG with a thin black ink outline (in-palette yellows). -#}
 {%- endmacro %}
 
 {% macro today(panel, weather=none) -%}
-<div class="module-frame today-frame">
+<div class="module-frame today-frame" style="background-image: url({{ url_for('static', filename='img/weather/' ~ (weather.condition if weather else 'sunny') ~ '_bg.png') }})">
 {#- Unlike the other modules' creased pop-out tabs, the TODAY! label is a
 plain bordered div matching the buckets, fully inside the frame (a child of
 it) and left-aligned with them (see today.css). -#}

@@ -386,6 +386,19 @@ def test_render_today_weather_subpanel() -> None:
     assert "66°" in text
 
 
+def test_render_today_backdrop_follows_condition() -> None:
+    # The frame's backdrop is the condition bucket's <condition>_bg art: the
+    # fake forecast's partly-cloudy day gets partly_cloudy_bg, and a §3.5
+    # debug override swaps the backdrop along with the condition.
+    client = _app_with_ics(EMPTY_ICS).test_client()
+
+    default = client.get("/render?date=2026-06-03").text
+    assert "img/weather/partly_cloudy_bg.png" in default
+    snow = client.get("/render?date=2026-06-03&weather_icon=snow").text
+    assert "img/weather/snow_bg.png" in snow
+    assert "partly_cloudy_bg" not in snow
+
+
 def _weather_sections(text: str) -> tuple[str, str]:
     """Split a render into (today's, tomorrow's) weather-subpanel HTML.
 
@@ -547,7 +560,8 @@ def test_render_invalid_weather_override_is_400() -> None:
 
 def test_render_survives_weather_fetch_failure() -> None:
     # Weather degrades softly (unlike the calendar): the board still renders,
-    # the slot keeps its footprint, and the subpanel is simply absent.
+    # the slot keeps its footprint, the subpanel is simply absent, and the
+    # backdrop falls back to the sunny art.
     app = _app_with_ics(EMPTY_ICS)
 
     def boom(*args: object, **kwargs: object) -> dict:
@@ -559,6 +573,7 @@ def test_render_survives_weather_fetch_failure() -> None:
     assert response.status_code == 200
     assert "today-weather-slot" in response.text
     assert "weather-bar" not in response.text
+    assert "img/weather/sunny_bg.png" in response.text
 
 
 def test_render_today_rows_show_icons(tmp_path: Path) -> None:

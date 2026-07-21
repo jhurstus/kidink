@@ -7,14 +7,17 @@
    ============================================================================ */
 
 /* Today-only skin over the shared .module-frame (board.css): 2px-rounded
-   corners, and a backdrop of sunny_bg.png pinned to the frame's bottom edge
+   corners, and a weather backdrop pinned to the frame's bottom edge
    (scaled to the full interior width, height following) with sky #37b0fb
    filling the rest above it. Loaded after board.css, so this background
    replaces the frame's plain white; the buckets and weather panel sit on
-   top of it. */
+   top of it. The image itself is set inline by today.html — the condition
+   bucket's <condition>_bg.png. All the art is 1448px wide with the signpost
+   at identical coordinates above the bottom edge, so the temp-bar offsets
+   in weather.css hold for every condition. */
 .content .today-frame {
   border-radius: 2px;
-  background: #4b5cff url("../img/weather/sunny_bg.png") bottom center / 100% auto no-repeat;
+  background: #4b5cff bottom center / 100% auto no-repeat;
 }
 
 /* Fills the outer .module-frame. The 98px top padding clears the in-panel

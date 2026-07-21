@@ -81,13 +81,15 @@
   margin-left: -8px;
 }
 
-/* Today: the bar is painted onto the wooden signpost of the sunny_bg backdrop
-   (today.css), so it leaves the flex row and pins to the slot. The SVG maps
-   1:1 onto CSS pixels (108×200 viewBox, weather.html): left 428 puts the bar
-   face (svg x 70–106) at slot x 498–534, centered on the sign's inner face:
-   x 483–549, y −4–199 in slot coordinates at the 602px background width.
-   Re-derive those numbers if sunny_bg.png, the module width, or the slot
-   height changes. */
+/* Today: the bar is painted onto the wooden signpost of the weather backdrop
+   (the per-condition <condition>_bg art — today.html picks the file; the
+   signpost sits at identical scaled coordinates in all of them), so it
+   leaves the flex row and pins to the slot. The
+   SVG maps 1:1 onto CSS pixels (108×200 viewBox, weather.html): left 428 puts
+   the bar face (svg x 70–106) at slot x 498–534, centered on the sign's inner
+   face: x 483–549, y −4–199 in slot coordinates at the 602px background
+   width. Re-derive those numbers if the backdrop art, the module width, or
+   the slot height changes. */
 .today-weather-slot .weather-bar {
   position: absolute;
   left: 428px;
