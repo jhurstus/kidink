@@ -1,4 +1,5 @@
-from datetime import date
+import threading
+from datetime import date, timedelta
 from pathlib import Path
 
 from app.captions.captions import (
@@ -109,6 +110,56 @@ def test_pinned_date_survives_list_shrinking(tmp_path: Path) -> None:
         conn.close()
 
     assert make_caption_provider(tmp_path, day2)() == "caption A"  # 1 % 1 == 0
+
+
+def test_concurrent_first_renders_take_distinct_captions(tmp_path: Path) -> None:
+    # Allocation must serialize: simultaneous first renders of *different*
+    # dates (each on its own connection) may not read the same rotation
+    # pointer and duplicate a slot - all eight must come away with distinct
+    # consecutive captions, whatever order the transactions win in.
+    _seed(tmp_path, [f"caption {i}" for i in range(8)])
+    days = [date(2026, 7, 20) + timedelta(days=i) for i in range(8)]
+    barrier = threading.Barrier(len(days))
+    results: dict[date, str | None] = {}
+
+    def render(day: date) -> None:
+        barrier.wait()
+        results[day] = make_caption_provider(tmp_path, day)()
+
+    threads = [threading.Thread(target=render, args=(day,)) for day in days]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert sorted(results.values()) == [f"caption {i}" for i in range(8)]
+
+
+def test_concurrent_first_renders_of_one_day_share_its_pin(tmp_path: Path) -> None:
+    # Simultaneous first renders of the *same* date must converge on a single
+    # pin: one assignment row, one pointer advance, identical captions.
+    _seed(tmp_path, ["caption A", "caption B"])
+    barrier = threading.Barrier(6)
+    results: list[str | None] = [None] * 6
+
+    def render(i: int) -> None:
+        barrier.wait()
+        results[i] = make_caption_provider(tmp_path, _DAY)()
+
+    threads = [threading.Thread(target=render, args=(i,)) for i in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert results == ["caption A"] * 6
+    assert _stored(tmp_path, _DAY) == (0, 0)
+    conn = open_captions_db(tmp_path)
+    try:
+        rows = conn.execute("SELECT COUNT(*) FROM caption_assignments").fetchone()[0]
+        assert rows == 1
+    finally:
+        conn.close()
 
 
 def test_emptied_list_goes_silent_even_for_pinned_dates(tmp_path: Path) -> None:

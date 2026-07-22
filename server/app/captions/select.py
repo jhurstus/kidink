@@ -3,7 +3,8 @@
 Kept free of I/O so render bytes stay a pure function of their inputs (§3.4):
 the caption list, the date's pin, and the rotation pointer are inputs exactly
 like the image store, and the *write* of a fresh pin lives in
-:mod:`app.captions.provider`, never here.
+:func:`app.captions.captions.assign_caption` (which runs this logic inside
+its serializing transaction), never here.
 """
 
 from collections.abc import Sequence

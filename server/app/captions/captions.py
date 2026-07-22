@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
+from app.captions.select import SelectedCaption, select_caption
 from app.images.db import open_db
 
 _CAPTIONS_SCHEMA = """
@@ -130,9 +131,10 @@ def get_assignment(conn: sqlite3.Connection, day: date) -> int | None:
 def record_assignment(conn: sqlite3.Connection, day: date, index: int) -> None:
     """Pin ``day`` to ``index`` and advance the rotation pointer to it.
 
-    First writer wins: if the day is already pinned (a concurrent render got
-    there first), neither the pin nor the pointer changes - concurrent racers
-    compute the same index anyway, this just keeps the invariant airtight.
+    A seeding/admin primitive (it can pin any index, and first writer wins on
+    a same-day conflict). The render path never calls it - it allocates
+    through :func:`assign_caption`, whose transaction also serializes the
+    pointer read the next index is computed from.
     """
     with conn:
         inserted = conn.execute(
@@ -146,6 +148,44 @@ def record_assignment(conn: sqlite3.Connection, day: date, index: int) -> None:
                 "ON CONFLICT(id) DO UPDATE SET last_index = excluded.last_index",
                 (index,),
             )
+
+
+def assign_caption(conn: sqlite3.Connection, day: date) -> SelectedCaption | None:
+    """The caption ``day`` shows, pinning it first when new (§10.5) - atomically.
+
+    The whole read-select-write runs in one ``BEGIN IMMEDIATE`` transaction:
+    the write lock is acquired *before* the reads, so concurrent renders
+    serialize - a racer blocks until the winner commits (WAL + the 5s busy
+    timeout), then re-reads the committed pin and pointer. Without this, two
+    first renders of *different* unpinned dates could read the same pointer
+    and take the same rotation slot. Returns ``None`` when the caption table
+    is empty.
+    """
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        captions = [caption.text for caption in list_captions(conn)]
+        selected = select_caption(
+            captions, get_assignment(conn, day), get_last_index(conn)
+        )
+        if selected is not None and selected.fresh:
+            # The lock predates the reads, so the day cannot have been pinned
+            # nor the pointer moved since: the assignment INSERT needs no
+            # conflict clause (the pointer upsert's is the ordinary
+            # singleton-row update, not race arbitration).
+            conn.execute(
+                "INSERT INTO caption_assignments (day, caption_index) VALUES (?, ?)",
+                (day.isoformat(), selected.index),
+            )
+            conn.execute(
+                "INSERT INTO caption_rotation (id, last_index) VALUES (1, ?) "
+                "ON CONFLICT(id) DO UPDATE SET last_index = excluded.last_index",
+                (selected.index,),
+            )
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+    return selected
 
 
 def latest_assignment(conn: sqlite3.Connection) -> Assignment | None:
