@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48">
-  <!-- SFX "whisker" speed lines (countdown.css): three very oblique ovals —
+  <!-- SFX "whisker" speed lines (macros/sfx.html + .sfx in comic.css): three
+       very oblique ovals —
        pen strokes with soft rounded ends — fanning toward a focal point off
        the right edge (the word's center). The right-hand group is this same
        asset mirrored with scaleX(-1). -->
