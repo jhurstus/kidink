@@ -26,6 +26,7 @@ def _event(
     all_day: bool = False,
     kids: list[str] | None = None,
     icon_description: str | None = None,
+    sfx: str | None = None,
 ) -> CalendarEvent:
     """A minimal event for Today bucketing/ranking tests."""
     if all_day:
@@ -48,6 +49,7 @@ def _event(
             interesting=interesting,
             kids=kids or [],
             icon_description=icon_description,
+            sfx=sfx,
         ),
     )
 
@@ -314,6 +316,111 @@ def test_failed_resolution_leaves_icon_url_none() -> None:
     row = panel.buckets[0].rows[0]
     assert row.icon_url is None
     assert row.title == "Soccer"
+
+
+def test_sfx_shows_on_a_lone_event() -> None:
+    # A single event leaves its bucket odd: its left-column cell has an empty
+    # right-hand neighbor, so the shout renders there (§10.4).
+    panel = build_today(TARGET, [_event("Breakfast", sfx="Yum!")])
+
+    assert panel.buckets[0].sfx == "Yum!"
+
+
+def test_sfx_needs_an_empty_right_cell() -> None:
+    # Two events fill the visual row completely — no empty right-hand cell, so
+    # no shout, no matter which events carry the override.
+    events = [
+        _event("Breakfast", hour=8, sfx="Yum!"),
+        _event("Soccer", hour=10, sfx="Pow!"),
+    ]
+    panel = build_today(TARGET, events)
+
+    assert panel.buckets[0].sfx is None
+
+
+def test_sfx_only_the_trailing_event_qualifies() -> None:
+    # The override sits on the chronologically-first event: it renders in the
+    # left column, but its row is full. Only the trailing event's cell is
+    # empty, and that event carries no sfx -> no shout anywhere.
+    events = [
+        _event("Breakfast", hour=8, sfx="Yum!"),
+        _event("Assembly", hour=10),
+        _event("Lunch", hour=12),
+    ]
+    panel = build_today(TARGET, events)
+
+    assert [b.sfx for b in panel.buckets] == [None]
+
+
+def test_sfx_candidate_is_the_display_order_last_event() -> None:
+    # The trailing (empty-right-cell) slot belongs to the chronologically-last
+    # displayed event (§10.2), not the highest-ranked one.
+    events = [
+        _event("Zoo", hour=10, interesting=500),
+        _event("Breakfast", hour=8),
+        _event("Nap", hour=14, interesting=50, sfx="Zzz!"),
+    ]
+    panel = build_today(TARGET, events)
+
+    assert panel.buckets[0].sfx == "Zzz!"
+
+
+def test_sfx_at_most_one_and_most_interesting_wins() -> None:
+    # Two qualifying candidates in different buckets: only the more
+    # interesting one shouts; the other bucket stays silent.
+    events = [
+        _event("Breakfast", time_of_day=TimeOfDay.MORNING, interesting=200, sfx="Yum!"),
+        _event(
+            "Movie night", time_of_day=TimeOfDay.EVENING, interesting=300, sfx="Pow!"
+        ),
+    ]
+    panel = build_today(TARGET, events)
+
+    assert {b.key: b.sfx for b in panel.buckets} == {
+        "morning": None,
+        "evening": "Pow!",
+    }
+
+
+def test_sfx_tie_breaks_alphabetically_by_title() -> None:
+    # Equal interesting -> the alphabetically-first title wins, regardless of
+    # bucket order (the evening event here beats the morning one).
+    events = [
+        _event("Zebra feeding", time_of_day=TimeOfDay.MORNING, sfx="Roar!"),
+        _event("Art class", time_of_day=TimeOfDay.EVENING, sfx="Tada!"),
+    ]
+    panel = build_today(TARGET, events)
+
+    assert {b.key: b.sfx for b in panel.buckets} == {
+        "morning": None,
+        "evening": "Tada!",
+    }
+
+
+def test_sfx_empty_string_never_shows() -> None:
+    panel = build_today(TARGET, [_event("Breakfast", sfx="")])
+
+    assert panel.buckets[0].sfx is None
+
+
+def test_sfx_ignores_events_dropped_by_the_cap() -> None:
+    # 13 single-bucket events: the cap keeps 12 (§10.1), an even count filling
+    # every row. The dropped 13th — chronologically last, sfx set — must not
+    # conjure a shout off the pre-cap odd count: eligibility is judged on what
+    # actually renders (§10.4).
+    events = [
+        _event(
+            f"D{i:02}",
+            time_of_day=TimeOfDay.DAY,
+            interesting=100 - i,
+            minute=i,
+            sfx="Boom!" if i == 12 else None,
+        )
+        for i in range(13)
+    ]
+    panel = build_today(TARGET, events)
+
+    assert panel.buckets[0].sfx is None
 
 
 def test_build_is_deterministic() -> None:

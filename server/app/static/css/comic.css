@@ -228,3 +228,40 @@
   font-weight: 700;
   font-style: normal;
 }
+
+/* ---------------------------------------------------------------------------
+   SFX shout (macros/sfx.html) — a comic exclamation word with "whisker"
+   speed lines (img/sfx_lines.svg; the right-hand group is the same asset
+   mirrored), shared by the Countdown peak shouts (§12, flanked both sides)
+   and the Today panel's event shout (§10.4, right-hand group only — the
+   macro's lines param). This is the type + whisker treatment only; each
+   caller positions its instance with the extra class it passes to the macro
+   (.countdown-sfx-* in countdown.css, .today-sfx in today.css).
+   --------------------------------------------------------------------------- */
+.sfx {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Breathing room so the white stroke + italic overhang never clip at the
+     paint bounds. */
+  padding: 8px 6px;
+  font-size: 40px;
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #000;
+  /* White halo behind the glyphs keeps the word readable over art. */
+  -webkit-text-stroke: 15px #fff;
+  paint-order: stroke fill;
+}
+
+.sfx-lines {
+  flex: none;
+  width: 48px;
+  height: 36px;
+}
+
+.sfx-lines-flip {
+  transform: scaleX(-1);
+}

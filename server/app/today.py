@@ -4,7 +4,9 @@ Builds the target date's non-chore events into Morning/Day/Evening buckets:
 selection is capped by the §10.1 row-budget geometry (worst-case-three-headers
 budget, then backfill of freed header rows into already-visible buckets), while
 display order within a bucket is chronological (§10.2), laid out two events
-per visual row in reading order. The row/badge/icon
+per visual row in reading order. At most one displayed event's ``sfx``
+override renders as a comic shout in its bucket's trailing empty cell
+(§10.4). The row/badge/icon
 machinery shared with the Tomorrow panel lives in :mod:`app.event_rows`. The
 weather subpanel (§10.3) is not built yet; its space is reserved by the
 template, and the geometry constants below already subtract it.
@@ -59,6 +61,11 @@ class TodayBucket:
 
     rows: list[EventRow]
 
+    sfx: str | None = None
+    """SFX shout text (§10.4) rendered in the empty right-hand cell after the
+    bucket's last row; set on at most one bucket per panel, and only when this
+    bucket's row count is odd (so the cell exists)."""
+
 
 @dataclass(frozen=True)
 class TodayPanel:
@@ -98,6 +105,7 @@ def build_today(
         ],
         icon_resolver,
     )
+    sfx_event = _pick_sfx(selected)
     buckets: list[TodayBucket] = []
     for time_of_day in _BUCKET_ORDER:
         bucket_events = selected.get(time_of_day)
@@ -108,9 +116,39 @@ def build_today(
                 name=time_of_day.value.upper(),
                 key=time_of_day.value,
                 rows=[build_row(e, kids, icons) for e in bucket_events],
+                sfx=(
+                    sfx_event.overrides.sfx
+                    if sfx_event is not None and sfx_event.time_of_day == time_of_day
+                    else None
+                ),
             )
         )
     return TodayPanel(weekday=target.weekday(), buckets=buckets)
+
+
+def _pick_sfx(
+    buckets: dict[TimeOfDay, list[CalendarEvent]],
+) -> CalendarEvent | None:
+    """The one displayed event whose SFX shout renders, or ``None`` (§10.4).
+
+    The shout occupies the empty right-hand cell beside its event, so only a
+    bucket's last displayed event qualifies, and only when the bucket's count
+    is odd (§10.2 reading order fills every row of an even bucket) — judged
+    here on ``_select``'s output, i.e. after the cap/backfill. Among the
+    qualifying events that carry an ``sfx`` override, the winner is the most
+    interesting, ties broken by title; a full tie falls to bucket order
+    (``min`` is stable, candidates are gathered Morning → Day → Evening).
+    """
+    candidates = [
+        events[-1]
+        for time_of_day in _BUCKET_ORDER
+        if (events := buckets.get(time_of_day))
+        and len(events) % 2 == 1
+        and events[-1].overrides.sfx
+    ]
+    if not candidates:
+        return None
+    return min(candidates, key=lambda e: (-e.overrides.interesting, e.title))
 
 
 def _select(

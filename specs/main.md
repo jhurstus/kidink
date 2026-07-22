@@ -476,6 +476,7 @@ These are the fields of the `EventOverrides` Pydantic model (§6.3):
 | `interesting` | int (>0) | `100` | Higher = more interesting; drives ranking. |
 | `kids` | list[string] | `[]` | Kid assignment (§8, §9.2); aligns with the app config's `kids` list (§18). |
 | `countdown_eligible` | bool | `false` | Eligible to appear in the Countdown module. |
+| `sfx` | string | unset | Comic SFX shout text (e.g. `"Yum!"`); opts the event into the Today panel's single SFX slot (§10.4). Today only — Tomorrow and Chores ignore it. |
 
 **Time-of-day derivation** (when not overridden), in the configured timezone:
 **morning** if the event ends at or before 09:00; **evening** if it starts at or after
@@ -825,6 +826,24 @@ columns filled left to right, then top to bottom.
 
 At the bottom of the column. Today's weather subpanel, left to right: **condition icon →
 clothing kid → temperature bar** (§ Weather).
+
+### 10.4 SFX shout
+
+An event may carry an `sfx` string (§6.4) — a comic exclamation ("Yum!", "Pow!") drawn
+in the Countdown module's SFX treatment (§12): the word in comic shout type, with the
+whisker speed lines on its **right side only** (the Countdown corners keep both sides).
+Rules:
+
+- **At most one** SFX renders in the whole panel; the other panels (Tomorrow, Chores)
+  never show SFX.
+- The shout occupies the **empty right-hand cell beside its event**, so only events in
+  the **left column with no right-hand neighbor** qualify — i.e. the *last displayed*
+  event of a bucket with an **odd** event count (§10.2 reading order). Eligibility is
+  judged after the cap/backfill, on what actually renders. Within the cell it sits
+  **pulled toward its event's title** rather than centered.
+- Among qualifying events that have `sfx` set, the winner is the **highest
+  `interesting`**, ties broken **alphabetically by title** (then bucket order as a
+  stable final tiebreak).
 
 ---
 

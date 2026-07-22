@@ -131,6 +131,24 @@
   min-width: 0;
 }
 
+/* The single SFX shout (§10.4): the shared .sfx treatment (comic.css,
+   macros/sfx.html, speed lines on the right side only) as a plain grid item
+   after the bucket's last row — the bucket's count is odd whenever it is set,
+   so reading order flows it into that row's empty right-hand cell. Pulled
+   toward its event rather than centered: start-aligned, then nudged 70px
+   further left into the title column's trailing slack (a long title can run
+   under the shout's transparent box — acceptable for the hand-curated short
+   sfx words) and 6px up off the row's centerline. Small comic tilt (between
+   the countdown corners' -10deg/7deg). */
+.today-sfx {
+  justify-self: start;
+  align-self: center;
+  transform: rotate(-6deg);
+  position: relative;
+  left: -70px;
+  top: -6px;
+}
+
 /* The weather subpanel's slot (§10.3). Its height is already subtracted from
    _AVAILABLE_H in app/today.py — at this size the extra height comes out of
    the column's pooled slack, so no event-row capacity is lost. Positioned so

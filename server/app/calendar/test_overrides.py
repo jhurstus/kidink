@@ -9,7 +9,8 @@ def test_full_valid_toml_sets_every_field() -> None:
         "interesting = 200\n"
         'kids = ["J", "S"]\n'
         "countdown_eligible = true\n"
-        'icon_description = "soccer ball"'
+        'icon_description = "soccer ball"\n'
+        'sfx = "Yum!"'
     )
     assert overrides == EventOverrides(
         time_of_day=TimeOfDay.EVENING,
@@ -17,6 +18,7 @@ def test_full_valid_toml_sets_every_field() -> None:
         kids=["J", "S"],
         countdown_eligible=True,
         icon_description="soccer ball",
+        sfx="Yum!",
     )
 
 
@@ -63,6 +65,14 @@ def test_invalid_time_of_day_falls_back_keeping_siblings() -> None:
     overrides = parse_overrides('time_of_day = "midnight"\ncountdown_eligible = true')
     assert overrides.time_of_day is None  # default → derive later
     assert overrides.countdown_eligible is True  # sibling preserved
+
+
+def test_invalid_sfx_falls_back_keeping_siblings() -> None:
+    # Pydantic never coerces numbers to strings, so a non-string sfx reverts
+    # to its default (no shout) without touching its valid siblings.
+    overrides = parse_overrides("sfx = 5\ninteresting = 7")
+    assert overrides.sfx is None
+    assert overrides.interesting == 7
 
 
 def test_bad_kids_element_drops_the_whole_field() -> None:

@@ -170,29 +170,13 @@
 }
 
 /* ---------------------------------------------------------------------------
-   SFX shouts (peak only) — siblings of the masked burst stack so they can
+   SFX shouts (peak only) — the shared shout treatment (macros/sfx.html, .sfx
+   in comic.css), positioned as siblings of the masked burst stack so they can
    hang past the panel edge, above everything (the tabs sit at z-index 3).
-   Each word wears the same white-halo stroke as the title/copy, flanked by
-   "whisker" speed lines: three oblique pen-stroke ovals per side
-   (img/countdown/sfx_lines.svg), fanning toward the word's center — the
-   right-hand group is the same asset mirrored.
    --------------------------------------------------------------------------- */
 .countdown-sfx {
   position: absolute;
   z-index: 5;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  /* Breathing room so the white stroke + italic overhang never clip at the
-     paint bounds (same failure mode the title had). */
-  padding: 8px 6px;
-  font-size: 40px;
-  font-weight: 700;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: #000;
-  -webkit-text-stroke: 15px #fff;
-  paint-order: stroke fill;
 }
 
 /* The whisker groups widen the box ~55px per side; the offsets pull the
@@ -207,14 +191,4 @@
   bottom: -18px;
   left: -48px;
   transform: rotate(7deg);
-}
-
-.sfx-lines {
-  flex: none;
-  width: 48px;
-  height: 36px;
-}
-
-.sfx-lines-flip {
-  transform: scaleX(-1);
 }

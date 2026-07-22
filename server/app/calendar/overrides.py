@@ -58,6 +58,10 @@ class EventOverrides(BaseModel):
     countdown_eligible: bool = False
     """Whether the event may appear in the Countdown module (spec §12)."""
 
+    sfx: str | None = None
+    """Comic SFX shout text for the Today panel's single SFX slot (spec §10.4);
+    ``None`` (or empty) means the event never shows a shout."""
+
 
 def _field_adapter(annotation: object, metadata: list[object]) -> TypeAdapter:
     """A ``TypeAdapter`` for one model field, preserving its constraint metadata.

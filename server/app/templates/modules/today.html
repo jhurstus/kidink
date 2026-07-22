@@ -8,7 +8,10 @@ panel a TodayPanel view model (see app/today.py), with:
 .weekday the target date's weekday (0=Mon..6=Sun), tinting the tab
 with the day strip's colour for that day
 .buckets non-empty TodayBuckets (Morning→Day→Evening), each with
-.name/.key/.rows; rows render via the shared event_row macro
+.name/.key/.rows; rows render via the shared event_row macro.
+.sfx (at most one bucket per panel, §10.4) appends the shared SFX
+shout after the rows — the bucket's count is odd then, so the
+grid flows it into the last row's empty right-hand cell
 weather a WeatherPanel view model (see app/weather/view.py), or none when
 the forecast is unavailable — the slot then stays empty but keeps
 its footprint (the row budget already subtracts it)
@@ -26,6 +29,7 @@ static/css/today.css and must stay in sync with the row-budget geometry in
 app/today.py.
 =========================================================================== -#}
 {% from "macros/event_row.html" import event_row %}
+{% from "macros/sfx.html" import sfx %}
 {% from "modules/weather.html" import weather as weather_subpanel %}
 
 {#- Comic time-of-day glyph for a bucket header: rising sun / sun / moon, drawn
@@ -85,6 +89,7 @@ it) and left-aligned with them (see today.css). -#}
         <div class="today-bucket-header">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
         <div class="today-bucket-rows">
           {%- for row in bucket.rows %}{{ event_row(row) }}{% endfor -%}
+          {%- if bucket.sfx %}{{ sfx(bucket.sfx, 'today-sfx', lines='right') }}{% endif -%}
         </div>
       </div>
     </div>

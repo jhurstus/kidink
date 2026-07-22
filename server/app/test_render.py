@@ -363,6 +363,44 @@ def test_render_today_buckets_only_nonempty(tmp_path: Path) -> None:
     assert "Movie night" in text
 
 
+# TODAY_ICS with an sfx override on each event (§10.4): both buckets are odd
+# (one event each), so both events qualify for the single SFX slot.
+SFX_ICS = (
+    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
+    "BEGIN:VEVENT\nUID:breakfast\nSUMMARY:Breakfast\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T080000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T090000\n"
+    'DESCRIPTION:sfx = "Yum!"\nEND:VEVENT\n'
+    "BEGIN:VEVENT\nUID:movie\nSUMMARY:Movie night\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T190000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T200000\n"
+    'DESCRIPTION:sfx = "Pow!"\nEND:VEVENT\n'
+    "END:VCALENDAR\n"
+)
+
+
+def test_render_today_sfx_shout(tmp_path: Path) -> None:
+    # At most one SFX renders (§10.4): equal interesting -> "Breakfast" wins
+    # alphabetically, so only its "Yum!" shows, as the shared shout in the
+    # bucket's trailing grid cell — whisker lines on the right side only (the
+    # mirrored group), never the plain left-hand one.
+    client = _app_with_ics(SFX_ICS, tmp_path, _generate_ok).test_client()
+    text = client.get("/render?date=2026-06-03").text
+
+    assert text.count('class="sfx today-sfx"') == 1
+    assert "Yum!" in text
+    assert "Pow!" not in text
+    assert 'class="sfx-lines sfx-lines-flip"' in text
+    assert 'class="sfx-lines" src' not in text
+
+    # Rendered a day earlier the same events land on the Tomorrow panel, which
+    # never shows SFX.
+    day_before = client.get("/render?date=2026-06-02").text
+    assert "Movie night" in day_before
+    assert "today-sfx" not in day_before
+    assert "Yum!" not in day_before
+
+
 def test_render_today_has_tab_and_reserved_weather_slot() -> None:
     text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
 

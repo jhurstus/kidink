@@ -22,6 +22,8 @@ no content, preserving the module's footprint.
 Layout constants live in static/css/countdown.css and must stay in sync with
 the moon/hero geometry in app/countdown/.
 =========================================================================== -#}
+{% from "macros/sfx.html" import sfx %}
+
 {#- The hero is a full-bleed background layer (object-fit: cover) under the
 panel's frame, with the title/copy overlaid on white-haloed comic type. -#}
 {% macro _countdown_body(panel) -%}
@@ -49,11 +51,7 @@ panel's frame, with the title/copy overlaid on white-haloed comic type. -#}
       alt="">
   </div>
   {%- for word in panel.sfx %}
-  <div class="countdown-sfx countdown-sfx-{{ loop.index }}">
-    <img class="sfx-lines" src="{{ url_for('static', filename='img/countdown/sfx_lines.svg') }}" alt="">
-    {{- word -}}
-    <img class="sfx-lines sfx-lines-flip" src="{{ url_for('static', filename='img/countdown/sfx_lines.svg') }}" alt="">
-  </div>
+  {{ sfx(word, 'countdown-sfx countdown-sfx-' ~ loop.index) }}
   {%- endfor %}
   {%- endif %}
 </div>

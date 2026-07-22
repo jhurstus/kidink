@@ -1,0 +1,21 @@
+{#- ===========================================================================
+sfx.html — one comic SFX shout, shared by the Countdown module (§12, the peak
+tier's corner shouts) and the Today panel (§10.4, the single event shout): the
+word on comic shout type flanked by "whisker" speed lines — three oblique
+pen-stroke ovals per side (static/img/sfx_lines.svg), fanning toward the
+word's center; the right-hand group is the same asset mirrored.
+
+sfx(word, class='', lines='both'): word is the shout text; class adds the
+caller's positioning class(es) next to the shared .sfx base (styled in
+comic.css); lines picks the whisker groups — 'both' (default, the Countdown
+corners) or 'right' (the trailing group only — the Today shout, §10.4).
+=========================================================================== -#}
+{% macro sfx(word, class='', lines='both') -%}
+<div class="sfx{% if class %} {{ class }}{% endif %}">
+  {%- if lines != 'right' %}
+  <img class="sfx-lines" src="{{ url_for('static', filename='img/sfx_lines.svg') }}" alt="">
+  {%- endif %}
+  {{- word -}}
+  <img class="sfx-lines sfx-lines-flip" src="{{ url_for('static', filename='img/sfx_lines.svg') }}" alt="">
+</div>
+{%- endmacro %}
