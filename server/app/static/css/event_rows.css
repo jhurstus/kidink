@@ -52,9 +52,11 @@
    §8 component (.kid-badge* in comic.css, emitted by macros/kids.html). */
 
 /* Title: upright and light, setting the event text apart from the italic
-   headers/labels around it. */
+   headers/labels around it. Shrink-wraps to its text (still ellipsizing when
+   the text outgrows the row) so the .event-row-trail anchor after it sits at
+   the end of the words, not the row's edge. */
 .event-row-title {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   font-size: 31px;
   font-style: normal;
@@ -63,4 +65,15 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Zero-width anchor for a row's trailing decoration (the event_row macro's
+   call block — the Today SFX shout, §10.4): takes no row space itself, spans
+   the row's height, and positions its children relative to the point right
+   after the title text (plus the row's 10px flex gap). */
+.event-row-trail {
+  flex: none;
+  width: 0;
+  align-self: stretch;
+  position: relative;
 }

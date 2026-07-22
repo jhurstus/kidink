@@ -7,6 +7,12 @@ present only when the event concerns a proper subset of the kids.
 
 event_row(row): row is an EventRow view model (see app/event_rows.py), with
 .title/.icon_url/.kids. Styled by static/css/event_rows.css.
+
+Called as {% call event_row(row) %}...{% endcall %}, the block's content is
+appended after the title inside a zero-width .event-row-trail anchor sitting
+at the end of the title *text* (the title shrink-wraps), so decorations — the
+Today SFX shout (§10.4) — can position relative to where the words end rather
+than to the row's box.
 =========================================================================== -#}
 {% from "macros/kids.html" import kid_badges %}
 
@@ -23,5 +29,6 @@ event_row(row): row is an EventRow view model (see app/event_rows.py), with
     </div>
   </div>
   <div class="event-row-title">{{ row.title }}</div>
+  {%- if caller %}<div class="event-row-trail">{{ caller() }}</div>{% endif -%}
 </div>
 {%- endmacro %}

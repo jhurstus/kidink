@@ -131,24 +131,23 @@
   min-width: 0;
 }
 
-/* The single SFX shout (§10.4): the shared .sfx treatment (comic.css,
-   macros/sfx.html, speed lines on the right side only) as a plain grid item
-   after the bucket's last row — the bucket's count is odd whenever it is set,
-   so reading order flows it into that row's empty right-hand cell. Pulled
-   toward its event rather than centered: start-aligned, then nudged 70px
-   further left into the title column's trailing slack (a long title can run
-   under the shout's transparent box — acceptable for the hand-curated short
-   sfx words) and 1px down off the row's centerline. Small comic tilt (between
-   the countdown corners' -10deg/7deg), pivoting on the left edge's midpoint
-   so the word's start stays put regardless of the sfx text's length. */
+/* The single SFX shout (§10.4): the shared .sfx type (comic.css,
+   macros/sfx.html) as the bare word — no whisker lines. Hung inside the last
+   row's .event-row-trail anchor (event_rows.css), which sits at the end of
+   the event title's text, so the shout tracks the title's length: its left
+   edge 14px past the anchor (24px after the last glyph, with the row's 10px
+   gap), left-center on the row's centerline nudged 1px down, extending right
+   into the row's empty neighbor cell (the bucket's count is odd whenever sfx
+   is set). Small comic tilt (between the countdown corners' -10deg/7deg)
+   pivoting on that left-center point — translateY first, so the origin's
+   left-center lands on the anchor line — keeping the word's start put
+   regardless of the sfx or title text's length. */
 .today-sfx {
-  justify-self: start;
-  align-self: center;
-  transform: rotate(-4deg);
+  position: absolute;
+  left: 14px;
+  top: calc(50% + 1px);
+  transform: translateY(-50%) rotate(-4deg);
   transform-origin: left center;
-  position: relative;
-  left: -70px;
-  top: 1px;
 }
 
 /* The weather subpanel's slot (§10.3). Its height is already subtracted from

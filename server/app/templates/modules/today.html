@@ -9,9 +9,11 @@ panel a TodayPanel view model (see app/today.py), with:
 with the day strip's colour for that day
 .buckets non-empty TodayBuckets (Morning→Day→Evening), each with
 .name/.key/.rows; rows render via the shared event_row macro.
-.sfx (at most one bucket per panel, §10.4) appends the shared SFX
-shout after the rows — the bucket's count is odd then, so the
-grid flows it into the last row's empty right-hand cell
+.sfx (at most one bucket per panel, §10.4) hangs the SFX shout —
+the bare word, no whisker lines — off the last row's title via
+the event_row call block, anchored at the end of the title text;
+the bucket's count is odd then, so the word extends into the
+row's empty right-hand cell
 .caption the weather kid's speech-bubble line (§10.5), or none — only
 set on layouts whose pooled slack fits the bubble (at most two
 buckets, each a single visual row)
@@ -91,8 +93,11 @@ it) and left-aligned with them (see today.css). -#}
       <div class="today-bucket-body">
         <div class="today-bucket-header">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
         <div class="today-bucket-rows">
-          {%- for row in bucket.rows %}{{ event_row(row) }}{% endfor -%}
-          {%- if bucket.sfx %}{{ sfx(bucket.sfx, 'today-sfx', lines='right') }}{% endif -%}
+          {%- for row in bucket.rows %}
+          {%- if bucket.sfx and loop.last -%}
+          {%- call event_row(row) %}{{ sfx(bucket.sfx, 'today-sfx', lines='none') }}{% endcall -%}
+          {%- else %}{{ event_row(row) }}{% endif -%}
+          {%- endfor -%}
         </div>
       </div>
     </div>

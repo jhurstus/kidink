@@ -387,17 +387,16 @@ SFX_ICS = (
 
 def test_render_today_sfx_shout(tmp_path: Path) -> None:
     # At most one SFX renders (§10.4): equal interesting -> "Breakfast" wins
-    # alphabetically, so only its "Yum!" shows, as the shared shout in the
-    # bucket's trailing grid cell — whisker lines on the right side only (the
-    # mirrored group), never the plain left-hand one.
+    # alphabetically, so only its "Yum!" shows — the bare word (no whisker
+    # lines) in its event row's trail anchor, hanging off the title text.
     client = _app_with_ics(SFX_ICS, tmp_path, _generate_ok).test_client()
     text = client.get("/render?date=2026-06-03").text
 
     assert text.count('class="sfx today-sfx"') == 1
     assert "Yum!" in text
     assert "Pow!" not in text
-    assert 'class="sfx-lines sfx-lines-flip"' in text
-    assert 'class="sfx-lines" src' not in text
+    assert text.count('class="event-row-trail"') == 1
+    assert "sfx-lines" not in text
 
     # Rendered a day earlier the same events land on the Tomorrow panel, which
     # never shows SFX.

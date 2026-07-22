@@ -5,9 +5,10 @@ selection is capped by the §10.1 row-budget geometry (worst-case-three-headers
 budget, then backfill of freed header rows into already-visible buckets), while
 display order within a bucket is chronological (§10.2), laid out two events
 per visual row in reading order. At most one displayed event's ``sfx``
-override renders as a comic shout in its bucket's trailing empty cell
-(§10.4). On sparse days (:func:`caption_eligible`) an injected provider
-supplies the weather kid's speech-bubble caption (§10.5). The row/badge/icon
+override renders as a comic shout hung off its event's title, extending into
+the bucket's trailing empty cell (§10.4). On sparse days
+(:func:`caption_eligible`) an injected provider supplies the weather kid's
+speech-bubble caption (§10.5). The row/badge/icon
 machinery shared with the Tomorrow panel lives in :mod:`app.event_rows`; the
 weather subpanel itself (§10.3) is built by :mod:`app.weather.view` into the
 slot the geometry constants below already subtract.
@@ -171,8 +172,8 @@ def _pick_sfx(
 ) -> CalendarEvent | None:
     """The one displayed event whose SFX shout renders, or ``None`` (§10.4).
 
-    The shout occupies the empty right-hand cell beside its event, so only a
-    bucket's last displayed event qualifies, and only when the bucket's count
+    The shout extends into the empty right-hand cell beside its event, so only
+    a bucket's last displayed event qualifies, and only when the bucket's count
     is odd (§10.2 reading order fills every row of an even bucket) — judged
     here on ``_select``'s output, i.e. after the cap/backfill. Among the
     qualifying events that carry an ``sfx`` override, the winner is the most

@@ -230,10 +230,10 @@
 }
 
 /* ---------------------------------------------------------------------------
-   SFX shout (macros/sfx.html) — a comic exclamation word with "whisker"
-   speed lines (img/sfx_lines.svg; the right-hand group is the same asset
-   mirrored), shared by the Countdown peak shouts (§12, flanked both sides)
-   and the Today panel's event shout (§10.4, right-hand group only — the
+   SFX shout (macros/sfx.html) — a comic exclamation word, optionally with
+   "whisker" speed lines (img/sfx_lines.svg; the right-hand group is the same
+   asset mirrored), shared by the Countdown peak shouts (§12, flanked both
+   sides) and the Today panel's event shout (§10.4, the bare word — the
    macro's lines param). This is the type + whisker treatment only; each
    caller positions its instance with the extra class it passes to the macro
    (.countdown-sfx-* in countdown.css, .today-sfx in today.css).

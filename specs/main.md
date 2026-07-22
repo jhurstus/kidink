@@ -830,17 +830,19 @@ clothing kid → temperature bar** (§ Weather).
 ### 10.4 SFX shout
 
 An event may carry an `sfx` string (§6.4) — a comic exclamation ("Yum!", "Pow!") drawn
-in the Countdown module's SFX treatment (§12): the word in comic shout type, with the
-whisker speed lines on its **right side only** (the Countdown corners keep both sides).
-Rules:
+in the Countdown module's SFX shout type (§12) as the **bare word** — no whisker speed
+lines (the Countdown corners keep theirs). Rules:
 
 - **At most one** SFX renders in the whole panel; the other panels (Tomorrow, Chores)
   never show SFX.
-- The shout occupies the **empty right-hand cell beside its event**, so only events in
-  the **left column with no right-hand neighbor** qualify — i.e. the *last displayed*
+- The shout extends into the **empty right-hand cell beside its event**, so only events
+  in the **left column with no right-hand neighbor** qualify — i.e. the *last displayed*
   event of a bucket with an **odd** event count (§10.2 reading order). Eligibility is
-  judged after the cap/backfill, on what actually renders. Within the cell it sits
-  **pulled toward its event's title** rather than centered.
+  judged after the cap/backfill, on what actually renders.
+- It anchors to the **end of its event's title text**: the word starts a fixed gap
+  after the title's last glyph, on the row's centerline, with a small comic tilt
+  pivoting on the word's left edge — so the anchoring holds whatever the title or
+  sfx length.
 - Among qualifying events that have `sfx` set, the winner is the **highest
   `interesting`**, ties broken **alphabetically by title** (then bucket order as a
   stable final tiebreak).
