@@ -138,15 +138,17 @@
    toward its event rather than centered: start-aligned, then nudged 70px
    further left into the title column's trailing slack (a long title can run
    under the shout's transparent box — acceptable for the hand-curated short
-   sfx words) and 6px up off the row's centerline. Small comic tilt (between
-   the countdown corners' -10deg/7deg). */
+   sfx words) and 1px down off the row's centerline. Small comic tilt (between
+   the countdown corners' -10deg/7deg), pivoting on the left edge's midpoint
+   so the word's start stays put regardless of the sfx text's length. */
 .today-sfx {
   justify-self: start;
   align-self: center;
-  transform: rotate(-6deg);
+  transform: rotate(-4deg);
+  transform-origin: left center;
   position: relative;
   left: -70px;
-  top: -6px;
+  top: 1px;
 }
 
 /* The weather subpanel's slot (§10.3). Its height is already subtracted from
@@ -176,17 +178,20 @@
 .today-caption {
   position: absolute;
   left: 118px;
-  bottom: 300px; /* 50px above the slot's top edge: ~37px over the hat/sign */
+  bottom: 300px;
+  /* 50px above the slot's top edge: ~37px over the hat/sign */
   box-sizing: border-box;
   width: fit-content;
-  min-width: 260px; /* keeps the fixed-x tail mouth inside a short box */
+  min-width: 260px;
+  /* keeps the fixed-x tail mouth inside a short box */
   max-width: 320px;
   padding: 8px 16px 10px;
   background: #fff;
   border: 4px solid #000;
   border-radius: 2px;
   font-size: 30px;
-  font-weight: 200; /* the event-title/temp-label light weight */
+  font-weight: 200;
+  /* the event-title/temp-label light weight */
   font-style: normal;
   line-height: 1.15;
   text-align: center;
