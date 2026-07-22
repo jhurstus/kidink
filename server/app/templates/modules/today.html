@@ -12,6 +12,9 @@ with the day strip's colour for that day
 .sfx (at most one bucket per panel, §10.4) appends the shared SFX
 shout after the rows — the bucket's count is odd then, so the
 grid flows it into the last row's empty right-hand cell
+.caption the weather kid's speech-bubble line (§10.5), or none — only
+set on layouts whose pooled slack fits the bubble (at most two
+buckets, each a single visual row)
 weather a WeatherPanel view model (see app/weather/view.py), or none when
 the forecast is unavailable — the slot then stays empty but keeps
 its footprint (the row budget already subtracts it)
@@ -99,6 +102,26 @@ it) and left-aligned with them (see today.css). -#}
   forecast is unavailable; the row budget in app/today.py already subtracts it. -#}
   <div class="today-weather-slot">
     {%- if weather %}{{ weather_subpanel(weather, uid='today') }}{% endif -%}
+    {#- The §10.5 speech caption, floating in the sky above the slot (only set
+    on layouts that leave the room - see caption_eligible in app/today.py; the
+    route also suppresses it when the forecast, and so the kid, is missing).
+    The bubble body is a plain div with the buckets' border treatment; its
+    tail is an SVG whose path is deliberately left open: the fill paints the
+    implicitly-closed triangle (erasing the bubble's border along the
+    attachment span - children paint over the parent's border) while the
+    stroke draws only the two slanted sides, tip pointing down-left at the
+    weather kid's head. The sides' endpoints sit above the viewBox (y -8) and
+    the SVG's top edge rides exactly on the border's top (today.css), so the
+    default svg overflow clipping cuts both strokes flush with the border -
+    no stubs poking into the bubble's interior. -#}
+    {%- if panel.caption %}
+    <div class="today-caption">
+      {{- panel.caption -}}
+      <svg class="today-caption-tail" viewBox="0 0 60 48" aria-hidden="true">
+        <path d="M 34 -8 L 6 44 L 58 -8" fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+      </svg>
+    </div>
+    {%- endif %}
   </div>
 </div>
 </div>

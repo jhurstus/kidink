@@ -6,13 +6,14 @@ budget, then backfill of freed header rows into already-visible buckets), while
 display order within a bucket is chronological (§10.2), laid out two events
 per visual row in reading order. At most one displayed event's ``sfx``
 override renders as a comic shout in its bucket's trailing empty cell
-(§10.4). The row/badge/icon
-machinery shared with the Tomorrow panel lives in :mod:`app.event_rows`. The
-weather subpanel (§10.3) is not built yet; its space is reserved by the
-template, and the geometry constants below already subtract it.
+(§10.4). On sparse days (:func:`caption_eligible`) an injected provider
+supplies the weather kid's speech-bubble caption (§10.5). The row/badge/icon
+machinery shared with the Tomorrow panel lives in :mod:`app.event_rows`; the
+weather subpanel itself (§10.3) is built by :mod:`app.weather.view` into the
+slot the geometry constants below already subtract.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -47,6 +48,19 @@ _ROW_H = 72
 # Bucket display order and header text (§10): Morning → Day → Evening.
 _BUCKET_ORDER = [TimeOfDay.MORNING, TimeOfDay.DAY, TimeOfDay.EVENING]
 
+type CaptionProvider = Callable[[], str | None]
+"""A zero-arg source for the §10.5 speech-bubble caption, invoked at most once
+and only when the built buckets are :func:`caption_eligible`. The render route
+injects :func:`app.captions.make_caption_provider` (whose call may pin the
+date to the rotation's next caption - hence the call-only-when-eligible
+contract); the default :func:`no_caption` keeps the builder a pure function of
+its inputs."""
+
+
+def no_caption() -> None:
+    """The default :data:`CaptionProvider`: never a caption, no side effects."""
+    return None
+
 
 @dataclass(frozen=True)
 class TodayBucket:
@@ -78,12 +92,32 @@ class TodayPanel:
     buckets: list[TodayBucket]
     """Only non-empty buckets, always in Morning → Day → Evening order."""
 
+    caption: str | None = None
+    """The weather kid's speech-bubble caption (§10.5), or ``None`` on days
+    whose bucket layout leaves no room for the bubble (or with no caption to
+    show)."""
+
+
+def caption_eligible(buckets: Sequence[TodayBucket]) -> bool:
+    """Whether the bucket layout leaves room for the speech bubble (§10.5).
+
+    At most two visible buckets, each a single visual row (1-2 events, §10.2
+    two-across layout; empty buckets are already dropped, so ``rows`` is never
+    empty). Two single-row buckets use 284px of the 538px bucket area
+    (2·136px + a 12px gap), leaving ~268px of sky above the weather slot
+    (including the 14px flex gap) - comfortably clearing the worst-case
+    bubble (~180px with its tail). A day with no buckets at all qualifies
+    too (the ``all`` is vacuous).
+    """
+    return len(buckets) <= 2 and all(len(b.rows) <= 2 for b in buckets)
+
 
 def build_today(
     target: date,
     events: Iterable[CalendarEvent] = (),
     kids: Sequence[Kid] = (),
     icon_resolver: IconResolver = no_icons,
+    caption_provider: CaptionProvider = no_caption,
 ) -> TodayPanel:
     """Build the Today panel view model for the resolved render date ``target``.
 
@@ -94,7 +128,9 @@ def build_today(
     ``icon_resolver`` in a single batch — so missing images can generate
     concurrently — after the cap, never for dropped events (see
     :data:`app.images.IconResolver`; the default resolves nothing, keeping the
-    view model a pure function of its inputs).
+    view model a pure function of its inputs). ``caption_provider`` supplies
+    the §10.5 speech-bubble caption and is consulted only when the built
+    buckets are :func:`caption_eligible` (the default supplies none).
     """
     selected = _select([e for e in events if e.local_day == target and not e.is_chore])
     icons = resolve_icons(
@@ -123,7 +159,11 @@ def build_today(
                 ),
             )
         )
-    return TodayPanel(weekday=target.weekday(), buckets=buckets)
+    return TodayPanel(
+        weekday=target.weekday(),
+        buckets=buckets,
+        caption=caption_provider() if caption_eligible(buckets) else None,
+    )
 
 
 def _pick_sfx(

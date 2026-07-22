@@ -11,6 +11,12 @@ from pydantic import SecretStr
 
 from app import create_app
 from app.calendar import CalendarFetchError
+from app.captions.captions import (
+    add_captions,
+    get_assignment,
+    get_last_index,
+    open_captions_db,
+)
 from app.config import get_settings
 from app.dinner.overrides import open_meals_db, set_override
 from app.images import ImageGenerationError
@@ -1126,6 +1132,105 @@ def test_render_joke_is_deterministic_for_a_date(tmp_path: Path) -> None:
     assert 'alt="joke B"' in first
     assert 'alt="joke B"' in second
     assert 'alt="joke A"' not in first
+
+
+# Three same-bucket events on Wed 2026-06-03: the Day bucket spans two visual
+# rows (§10.2 two-across), so the layout is caption-ineligible (§10.5).
+BUSY_DAY_ICS = (
+    "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
+    "BEGIN:VEVENT\nUID:d1\nSUMMARY:Soccer\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T120000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T130000\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:d2\nSUMMARY:Library\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T140000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T150000\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:d3\nSUMMARY:Piano\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T150000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T153000\nEND:VEVENT\n"
+    "END:VCALENDAR\n"
+)
+
+
+def _seed_captions(tmp_path: Path, texts: list[str]) -> None:
+    conn = open_captions_db(tmp_path)
+    try:
+        add_captions(conn, texts)
+    finally:
+        conn.close()
+
+
+def _caption_pins(tmp_path: Path, day: date) -> tuple[int | None, int | None]:
+    """(the day's pinned caption index, the rotation pointer) as stored."""
+    conn = open_captions_db(tmp_path)
+    try:
+        return get_assignment(conn, day), get_last_index(conn)
+    finally:
+        conn.close()
+
+
+def test_render_caption_shows_and_pins_the_date(tmp_path: Path) -> None:
+    # An empty day is caption-eligible (§10.5); its first render takes the
+    # rotation's next caption and pins it, and every re-render repeats it
+    # byte-identically (§3.4).
+    _seed_captions(tmp_path, ["Blorp.", "Quack."])
+    client = _app_with_ics(EMPTY_ICS, tmp_path).test_client()
+
+    first = client.get("/render?date=2026-06-03").text
+
+    assert 'class="today-caption"' in first
+    assert "Blorp." in first
+    assert "today-caption-tail" in first
+    assert _caption_pins(tmp_path, date(2026, 6, 3)) == (0, 0)
+    assert client.get("/render?date=2026-06-03").text == first
+
+
+def test_render_caption_pins_dates_in_render_order(tmp_path: Path) -> None:
+    # The §10.5 out-of-order scenario: rendering (or previewing) a later date
+    # first pins it first - each unpinned date takes the next caption in the
+    # order it is rendered, and re-renders stick to the pins.
+    _seed_captions(tmp_path, ["Blorp.", "Quack.", "Honk."])
+    client = _app_with_ics(EMPTY_ICS, tmp_path).test_client()
+
+    assert "Blorp." in client.get("/render?date=2026-06-03").text
+    assert "Quack." in client.get("/render?date=2026-06-05").text
+    assert "Honk." in client.get("/render?date=2026-06-04").text
+    assert "Quack." in client.get("/render?date=2026-06-05").text
+
+
+def test_render_caption_hides_on_a_busy_day(tmp_path: Path) -> None:
+    # A two-row bucket leaves no sky for the bubble; the provider is never
+    # consulted, so no caption is consumed and nothing is pinned.
+    _seed_captions(tmp_path, ["Blorp."])
+    client = _app_with_ics(BUSY_DAY_ICS, tmp_path, _generate_ok).test_client()
+
+    text = client.get("/render?date=2026-06-03").text
+
+    assert "today-caption" not in text
+    assert _caption_pins(tmp_path, date(2026, 6, 3)) == (None, None)
+
+
+def test_render_caption_absent_without_a_store() -> None:
+    # Poison storage (no sqlite.db): the render must neither show a bubble nor
+    # conjure a database on this caption-eligible empty day.
+    text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
+
+    assert "today-caption" not in text
+
+
+def test_render_caption_hides_when_weather_is_unavailable(tmp_path: Path) -> None:
+    # No forecast -> no weather kid to speak: the bubble is suppressed and no
+    # caption is consumed, even on an eligible day.
+    _seed_captions(tmp_path, ["Blorp."])
+    app = _app_with_ics(EMPTY_ICS, tmp_path)
+
+    def boom(*args: object, **kwargs: object) -> dict:
+        raise WeatherFetchError("weather forecast fetch failed")
+
+    app.config["FETCH_FORECAST"] = boom
+    text = app.test_client().get("/render?date=2026-06-03").text
+
+    assert "today-caption" not in text
+    assert _caption_pins(tmp_path, date(2026, 6, 3)) == (None, None)
 
 
 def test_render_does_not_leak_secrets(tmp_path: Path) -> None:

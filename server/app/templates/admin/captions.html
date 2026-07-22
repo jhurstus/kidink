@@ -1,0 +1,83 @@
+<!doctype html>
+{#- Admin: the weather kid's speech-bubble captions (see app/captions/admin.py).
+One row per caption: the editable text (an empty save deletes it) and a delete
+button; the highlighted row is the caption the next unpinned day will show
+(§10.5 rotation). A textarea bulk-adds more captions (one per line), and the
+rotation's latest date pin is shown with a reset action. -#}
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>kidink — captions</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px 24px; background: #fff; }
+    h1 { font-size: 28px; margin: 0 0 12px; }
+    h2 { font-size: 18px; margin: 24px 0 8px; }
+    .error { color: #b00020; background: #fde7ea; border: 1px solid #b00020; padding: 8px 12px; margin: 0 0 12px; max-width: 60em; }
+    .status { color: #0a5; background: #e7f7ef; border: 1px solid #0a5; padding: 8px 12px; margin: 0 0 12px; max-width: 60em; }
+    table { border-collapse: collapse; width: 100%; max-width: 70em; }
+    th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid #ddd; vertical-align: middle; }
+    th { font-size: 14px; text-transform: uppercase; color: #666; }
+    tr.next { background: #fff8dc; }
+    td.num { font-family: monospace; color: #666; white-space: nowrap; }
+    td form { display: inline-flex; gap: 6px; margin: 0; }
+    td form.edit { display: flex; }
+    input[name="text"] { flex: 1; width: 100%; }
+    textarea { width: 100%; max-width: 70em; box-sizing: border-box; margin-bottom: 6px; }
+    .empty { color: #999; }
+    .muted { color: #666; }
+    .muted form { display: inline; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Captions</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if status %}<p class="status">{{ status }}</p>{% endif %}
+
+  {% if rows %}
+  <table>
+    <tr>
+      <th>#</th>
+      <th>Caption (save empty to delete)</th>
+      <th></th>
+    </tr>
+    {% for row in rows %}
+    <tr{% if row.is_next %} class="next"{% endif %}>
+      <td class="num">{{ loop.index }}{% if row.is_next %} ★{% endif %}</td>
+      <td>
+        <form class="edit" method="post" action="{{ url_for('captions_admin.admin_caption_edit', caption_id=row.id) }}">
+          <input name="text" value="{{ row.text }}">
+          <button>Save</button>
+        </form>
+      </td>
+      <td>
+        <form method="post" action="{{ url_for('captions_admin.admin_caption_delete', caption_id=row.id) }}">
+          <button>Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p class="muted">★ marks the caption the next unpinned day will show ({{ rows | length }} caption(s) total).</p>
+  {% else %}
+  <p class="empty">No captions yet. Add some below.</p>
+  {% endif %}
+
+  <div class="muted">
+    {%- if assigned -%}
+    Last assigned {{ assigned.date }}: {% if assigned.text is not none %}“{{ assigned.text }}”{% else %}(caption since deleted){% endif %}
+    {%- else -%}
+    Never shown yet.
+    {%- endif -%}
+    <form method="post" action="{{ url_for('captions_admin.admin_captions_reset') }}">
+      <button>Reset rotation</button>
+    </form>
+  </div>
+
+  <h2>Add captions (one per line)</h2>
+  <form method="post" action="{{ url_for('captions_admin.admin_captions_add') }}">
+    <textarea name="captions" rows="6" placeholder="Do NOT wake up the spaghetti."></textarea>
+    <div><button>Add</button></div>
+  </form>
+</body>
+</html>

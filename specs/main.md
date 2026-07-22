@@ -845,6 +845,42 @@ Rules:
   `interesting`**, ties broken **alphabetically by title** (then bucket order as a
   stable final tiebreak).
 
+### 10.5 Speech caption
+
+On sparse days the weather kid (§10.3) says a rotating silly line in a comic speech
+bubble floating in the backdrop sky **up and right of its head**, its tail pointing
+down-left at the kid.
+
+- **Source:** a `captions` table in the shared `sqlite.db` (the joke store's shape,
+  §15), managed on **`/admin/captions`**: bulk add one per line (blank and `#` lines
+  skipped), per-row edit (an empty save deletes), delete, and a rotation reset
+  (forgetting every date's pin and the pointer). Rotation order is insertion order
+  (stable across edits).
+- **Eligibility:** only layouts that leave the bubble room - **at most two visible
+  buckets, each exactly one visual row** (1-2 events, §10.2 two-across). An event-less
+  day qualifies. The bubble is also suppressed when the weather subpanel itself is
+  unavailable (no forecast → no kid to speak).
+- **Selection - a per-date pinned rotation, not §15's date modulo:** captions appear
+  only on eligible days, so a date-modulo index would burn lines on the intervening
+  bubble-less days. Instead the **first** caption-eligible render of a date - device
+  render, `?date=` debug render (§3.5), and warm-up prerender (§3.6) alike - takes the
+  caption after the most recently assigned one (the `caption_rotation` pointer,
+  wrapping) and **pins it to that date** (`caption_assignments`); every later render of
+  the date repeats its pin, keeping renders byte-identical (§3.4 - the store is an
+  *input*, and the pin is memoized on first use exactly like a §7.1 image record).
+  Rotation therefore follows **assignment order, not calendar order**: previewing
+  dates out of order pins them out of list order, and a pinned date whose calendar
+  later fills up simply never shows its caption - that line is skipped for good
+  (accepted). Eligibility flapping is otherwise harmless: a date first rendered busy
+  pins nothing and takes whatever is next when it later renders eligible. A pin past
+  the end of a since-shrunken list reads modulo the current length; an emptied list
+  shows nothing.
+- **Rendering:** the bubble body matches the bucket sub-panels (4px black border, 2px
+  radius, white fill) and shrink-wraps its text (1-3 wrapped lines of the panel's
+  handwriting type); the tail is an open-topped SVG triangle whose white fill erases
+  the border seam so the outline runs unbroken, like the temperature bar's label box
+  (§ Weather).
+
 ---
 
 ## 11. Module — Tomorrow
@@ -1110,7 +1146,7 @@ the per-event TOML fields in §6.3. The fields:
 | `family_calendar_ics_url` | Google Calendar private ICS (events + chores). |
 | `anylist_mealplan_ics_url` | Anylist meal-plan ICS (dinner). |
 | `openai_api_key` | AI image generation. |
-| `app_storage_path` | **Required** root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata, §7.1), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). |
+| `app_storage_path` | **Required** root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, and meal-override §13 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). |
 | `module_model_tiers` | Per-module image-model overrides. |
 | `kids` | Names and initials (label text), pose/figure mapping. |
 | `joke_file_path`, `joke_start_date` | Joke source and base date. |

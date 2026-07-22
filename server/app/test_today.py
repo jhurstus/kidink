@@ -4,7 +4,7 @@ from datetime import date, datetime
 from app.calendar import CalendarEvent, EventOverrides, TimeOfDay
 from app.config import Kid
 from app.event_rows import KID_COLORS
-from app.today import build_today
+from app.today import build_today, caption_eligible
 
 TARGET = date(2026, 6, 3)  # Wednesday
 
@@ -436,3 +436,106 @@ def test_build_is_deterministic() -> None:
 def test_weekday_is_targets() -> None:
     # Tints the TODAY! tab with the day strip's colour for the target day.
     assert build_today(TARGET).weekday == 2  # Wednesday
+
+
+class _RecordingCaptionProvider:
+    """Caption-provider stub recording whether it was consulted (§10.5)."""
+
+    def __init__(self, caption: str | None = "Blorp.") -> None:
+        self.caption = caption
+        self.calls = 0
+
+    def __call__(self) -> str | None:
+        self.calls += 1
+        return self.caption
+
+
+def _bucket_events(shape: dict[TimeOfDay, int]) -> list[CalendarEvent]:
+    """Events producing ``shape``'s per-bucket counts (spread across minutes)."""
+    return [
+        _event(f"{time_of_day.value} {i}", time_of_day=time_of_day, minute=i)
+        for time_of_day, count in shape.items()
+        for i in range(count)
+    ]
+
+
+def test_caption_shows_on_an_empty_day() -> None:
+    provider = _RecordingCaptionProvider()
+    panel = build_today(TARGET, caption_provider=provider)
+
+    assert panel.caption == "Blorp."
+    assert provider.calls == 1
+
+
+def test_caption_shows_on_one_and_two_single_row_buckets() -> None:
+    for shape in (
+        {TimeOfDay.MORNING: 1},
+        {TimeOfDay.DAY: 2},
+        {TimeOfDay.MORNING: 1, TimeOfDay.EVENING: 2},
+    ):
+        panel = build_today(
+            TARGET, _bucket_events(shape), caption_provider=_RecordingCaptionProvider()
+        )
+        assert panel.caption == "Blorp.", shape
+
+
+def test_caption_hides_when_a_bucket_has_two_rows() -> None:
+    # Three events in one bucket span two visual rows (§10.2 two-across).
+    provider = _RecordingCaptionProvider()
+    panel = build_today(
+        TARGET, _bucket_events({TimeOfDay.DAY: 3}), caption_provider=provider
+    )
+
+    assert panel.caption is None
+    assert provider.calls == 0  # never consulted: the rotation must not advance
+
+
+def test_caption_hides_on_three_buckets() -> None:
+    provider = _RecordingCaptionProvider()
+    events = _bucket_events(
+        {TimeOfDay.MORNING: 1, TimeOfDay.DAY: 1, TimeOfDay.EVENING: 1}
+    )
+    panel = build_today(TARGET, events, caption_provider=provider)
+
+    assert panel.caption is None
+    assert provider.calls == 0
+
+
+def test_caption_hides_when_any_bucket_is_multi_row() -> None:
+    provider = _RecordingCaptionProvider()
+    events = _bucket_events({TimeOfDay.MORNING: 1, TimeOfDay.DAY: 4})
+    panel = build_today(TARGET, events, caption_provider=provider)
+
+    assert panel.caption is None
+    assert provider.calls == 0
+
+
+def test_caption_defaults_to_none() -> None:
+    # The default no_caption provider keeps the builder pure.
+    assert build_today(TARGET, [_event("Breakfast")]).caption is None
+
+
+def test_caption_provider_may_supply_none() -> None:
+    # An eligible day with nothing stored (or empty store) shows no bubble.
+    provider = _RecordingCaptionProvider(caption=None)
+    panel = build_today(TARGET, [_event("Breakfast")], caption_provider=provider)
+
+    assert panel.caption is None
+    assert provider.calls == 1
+
+
+def test_caption_eligible_judges_visual_rows() -> None:
+    def buckets(*row_counts: int):
+        return build_today(
+            TARGET,
+            _bucket_events(
+                dict(zip([TimeOfDay.MORNING, TimeOfDay.DAY], row_counts, strict=False))
+            ),
+        ).buckets
+
+    assert caption_eligible([])
+    assert caption_eligible(buckets(1))
+    assert caption_eligible(buckets(2))
+    assert caption_eligible(buckets(2, 2))
+    assert not caption_eligible(buckets(3))
+    assert not caption_eligible(buckets(1, 3))

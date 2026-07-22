@@ -159,3 +159,50 @@
   position: relative;
   height: 250px;
 }
+
+/* The §10.5 speech caption: a bubble floating in the sky clear above the
+   weather kid and the signpost (both their tops sit ~13px over the slot's
+   top edge), roughly centered on the kid's head (head center slot x ~278;
+   a max-width box at left 118 centers exactly, and the min-width keeps
+   narrower boxes from drifting far off). The body reuses the buckets'
+   border treatment; the text shrink-wraps (fit-content, so a one-liner
+   hugs its words and a wrapped caption hugs its longest line - balanced
+   wrapping would equalize the lines but leave the box at max-width,
+   gutters and all). Upright type: the panel's italic reads as motion, the
+   bubble is plain speech. Capped at 320px so the right edge clears the
+   signpost (face at slot x ≥ 467). Only eligible layouts render it
+   (app/today.py caption_eligible): with two single-row buckets ~268px of
+   sky is free, and a worst-case three-line bubble plus tail is ~220px. */
+.today-caption {
+  position: absolute;
+  left: 118px;
+  bottom: 300px; /* 50px above the slot's top edge: ~37px over the hat/sign */
+  box-sizing: border-box;
+  width: fit-content;
+  min-width: 260px; /* keeps the fixed-x tail mouth inside a short box */
+  max-width: 320px;
+  padding: 8px 16px 10px;
+  background: #fff;
+  border: 4px solid #000;
+  border-radius: 2px;
+  font-size: 30px;
+  font-weight: 200; /* the event-title/temp-label light weight */
+  font-style: normal;
+  line-height: 1.15;
+  text-align: center;
+}
+
+/* The tail: an open SVG triangle (see today.html) hung off the bubble's
+   bottom, right of the box's center, its white fill erasing the border
+   across the mouth so only the two stroked sides emerge, angling down-left
+   to land on the kid's head. top: 100% seats the SVG's top edge exactly on
+   the border's top (the abs containing block is the padding box), which is
+   what lets the viewBox clip the strokes flush with it; left 187 puts the
+   tip (SVG x 6) at slot x ~315, on the hat's right side. */
+.today-caption-tail {
+  position: absolute;
+  left: 187px;
+  top: 100%;
+  width: 60px;
+  height: 48px;
+}

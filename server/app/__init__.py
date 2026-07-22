@@ -3,6 +3,7 @@ from datetime import UTC, date, datetime, timedelta
 from flask import Flask, abort, render_template, request
 
 from app.calendar import CalendarEvent, CalendarFetchError, expand_events, fetch_ics
+from app.captions import captions_admin_bp, make_caption_provider
 from app.chore import build_chore
 from app.comic import comic_border_path
 from app.config import get_settings
@@ -30,7 +31,7 @@ from app.joke import (
     make_joke_hero_resolver,
     stored_jokes,
 )
-from app.today import build_today
+from app.today import build_today, no_caption
 from app.tomorrow import build_tomorrow
 from app.weather import (
     Condition,
@@ -79,6 +80,7 @@ def create_app() -> Flask:
     app.register_blueprint(weather_admin_bp)
     app.register_blueprint(dinner_admin_bp)
     app.register_blueprint(joke_admin_bp)
+    app.register_blueprint(captions_admin_bp)
 
     @app.get("/")
     def index() -> str:
@@ -167,7 +169,23 @@ def create_app() -> Flask:
         strip = build_day_strip(
             target, events, settings.kids, make_strip_icon_resolver(rendered_images)
         )
-        today_panel = build_today(target, events, settings.kids, resolver)
+        # The §10.5 speech caption degrades with the weather: no forecast means
+        # no kid to speak, so the bubble is suppressed and no caption is
+        # consumed. Any caption-eligible render pins its date to the rotation's
+        # next caption - ?date= debug renders (§3.5) and warm-up prerenders
+        # (§3.6) included - so a previewed date keeps showing what the preview
+        # showed.
+        today_panel = build_today(
+            target,
+            events,
+            settings.kids,
+            resolver,
+            caption_provider=(
+                make_caption_provider(app.config["APP_STORAGE_PATH"], target)
+                if weather is not None
+                else no_caption
+            ),
+        )
         tomorrow_panel = build_tomorrow(target, events, settings.kids, resolver)
         countdown_panel = build_countdown(
             target, events, hero_resolver=make_countdown_hero_resolver(rendered_images)
