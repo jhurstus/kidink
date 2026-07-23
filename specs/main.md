@@ -149,6 +149,10 @@ directly. They are invisible to the ESP32 in normal operation:
   supported names is a 400. `weather_temp` alone is enough to render the
   subpanels even when no forecast is available, and when **all three** are set
   the weather fetch is skipped entirely (consumed by `/render`).
+- **`?countdown_sleeps=<int>`** - overrides the Countdown module's computed sleeps
+  value (§12) - and the tier, copy, and SFX derived from it - for previewing any
+  escalation tier against the real target event. Ignored on the blank no-event card;
+  a non-integer is a 400 (consumed by `/render`).
 
 ### 3.6 Warm-up prerenders
 

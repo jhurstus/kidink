@@ -66,9 +66,9 @@
   --date-caption-h: 41px;
   position: relative;
   top: -8px;
-  /* Above anything that can reach it - the pop-out TOMORROW! tab (z 3) and
-     the countdown burst (z 5) share the board's root stacking context with
-     this panel. */
+  /* Above anything that can reach it - the module tabs (z 3), the enlarged
+     countdown burst (z 4), and its SFX shouts (z 5) share the board's root
+     stacking context with this panel. */
   z-index: 10;
   height: 211px;
 }

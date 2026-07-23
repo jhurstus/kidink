@@ -134,12 +134,12 @@ def test_sleeps_counts_calendar_nights() -> None:
 
 
 def test_tier_for_boundaries() -> None:
-    # Hardcoded cutoffs: peak 0, hype 1, excited within 8 sleeps, calm beyond.
+    # Hardcoded cutoffs: peak 0, hype 1, excited within 5 sleeps, calm beyond.
     assert tier_for(0) is Tier.PEAK
     assert tier_for(1) is Tier.HYPE
     assert tier_for(2) is Tier.EXCITED
-    assert tier_for(8) is Tier.EXCITED
-    assert tier_for(9) is Tier.CALM
+    assert tier_for(5) is Tier.EXCITED
+    assert tier_for(6) is Tier.CALM
 
 
 def test_copy_escalates() -> None:
@@ -170,6 +170,36 @@ def test_sfx_order_is_date_seeded() -> None:
 
     assert day_one == build_countdown(TARGET, [_event("T", _in(0))]).sfx
     assert day_one != day_two
+
+
+# --- The ?countdown_sleeps= debug override (§3.5) -----------------------------
+
+
+def test_sleeps_override_drives_sleeps_tier_copy_and_sfx() -> None:
+    events = [_event("Trip", _in(17))]  # really calm
+    panel = build_countdown(TARGET, events, sleeps_override=0)
+
+    assert panel.sleeps == 0
+    assert panel.tier is Tier.PEAK
+    assert panel.copy == "It's today!"
+    assert len(panel.sfx) == 2
+    assert panel.title == "Trip"  # the real target event is kept
+
+
+def test_sleeps_override_requests_the_matching_hero_variant() -> None:
+    # The excited edit variant follows the overridden tier, not the real one.
+    resolver = _RecordingResolver()
+    build_countdown(TARGET, [_event("Trip", _in(17))], resolver, sleeps_override=1)
+
+    assert resolver.calls == [(("Trip", None), True)]
+
+
+def test_sleeps_override_is_ignored_on_the_blank_card() -> None:
+    panel = build_countdown(TARGET, [], sleeps_override=0)
+
+    assert panel.title is None
+    assert panel.copy == ""
+    assert panel.sfx == ()
 
 
 # --- Hero resolution ----------------------------------------------------------

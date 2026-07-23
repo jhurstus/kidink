@@ -62,6 +62,19 @@ def _weather_overrides() -> tuple[Condition | None, Outfit | None, int | None]:
         abort(400, description="invalid weather_* debug arg")
 
 
+def _countdown_sleeps_override() -> int | None:
+    """Parse the ``?countdown_sleeps`` debug arg (§3.5) from the current
+    request: an integer sleeps value forced onto the Countdown panel (tier and
+    copy follow); a non-integer aborts with a 400 rather than being ignored."""
+    raw = request.args.get("countdown_sleeps")
+    if raw is None:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        abort(400, description="invalid countdown_sleeps debug arg")
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     settings = get_settings()
@@ -188,7 +201,10 @@ def create_app() -> Flask:
         )
         tomorrow_panel = build_tomorrow(target, events, settings.kids, resolver)
         countdown_panel = build_countdown(
-            target, events, hero_resolver=make_countdown_hero_resolver(rendered_images)
+            target,
+            events,
+            hero_resolver=make_countdown_hero_resolver(rendered_images),
+            sleeps_override=_countdown_sleeps_override(),
         )
         dinner_panel = build_dinner(
             target,

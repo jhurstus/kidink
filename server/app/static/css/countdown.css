@@ -14,7 +14,6 @@
   position: relative;
   width: 100%;
   height: 100%;
-  font-style: italic;
   text-align: center;
 }
 
@@ -93,7 +92,7 @@
    Body — shared by the .module-frame (calm) and the burst frame. Absolute
    inset escapes the .module-frame's flex-centering in the calm tier;
    later-sibling DOM order paints it above the hero layer. Title at the top,
-   copy at the bottom, both on white-haloed type so they read over the art.
+   copy at the bottom, both in caption boxes so they read over the art.
    --------------------------------------------------------------------------- */
 .countdown-body {
   position: absolute;
@@ -117,28 +116,28 @@
    squeezes toward the opening (scaled to the enlarged 554×366 panel: roughly
    x 61-511, y 67-293, narrowing toward the bottom corners). Like the calm
    state, the title rides high and the copy low — a touch into the ragged
-   band edges, which stay behind the white-haloed type's opening-centered
+   band edges, which stay behind the caption boxes' opening-centered
    spans. */
 .countdown-burst .countdown-body {
   padding: 59px 70px 71px;
 }
 
-/* Plain comic caption boxes: a white plate with a thin black border keeps the
-   title and copy readable over the hero art (replacing the old white-stroke
-   halo). Tight padding on each keeps the plates compact. */
+/* Caption boxes: white plates with the Today/Tomorrow inner-box border
+   treatment (4px black, 2px radius) keep the title and copy readable over
+   the hero art. Tight padding on each keeps the plates compact. */
 .countdown-title,
 .countdown-copy {
   background: #fff;
-  border: 2px solid #000;
-  border-radius: 4px;
+  border: 4px solid #000;
+  border-radius: 2px;
 }
 
 .countdown-title {
   flex: none;
   box-sizing: border-box;
   max-width: 100%;
-  /* Tight caption padding; the horizontal room keeps the italic overhang off
-     the border and inside the ellipsis clip box (worst on the right). */
+  /* Tight caption padding; the horizontal room keeps the text off the border
+     and inside the ellipsis clip box. */
   padding: 2px 12px;
   font-size: 36px;
   font-weight: 700;
@@ -146,6 +145,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* At calm the title drops the bold - the plain resting weight; the burst
+   tiers keep it. */
+.countdown-calm .countdown-title {
+  font-weight: 400;
 }
 
 .countdown-copy {

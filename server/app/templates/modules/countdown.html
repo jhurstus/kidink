@@ -25,7 +25,7 @@ the moon/hero geometry in app/countdown/.
 {% from "macros/sfx.html" import sfx %}
 
 {#- The hero is a full-bleed background layer (object-fit: cover) under the
-panel's frame, with the title/copy overlaid on white-haloed comic type. -#}
+panel's frame, with the title/copy overlaid in caption boxes. -#}
 {% macro _countdown_body(panel) -%}
 {%- if panel.hero_url %}
 <img class="countdown-hero" src="{{ panel.hero_url }}" alt="{{ panel.title }}">

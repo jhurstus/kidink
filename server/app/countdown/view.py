@@ -19,7 +19,7 @@ from app.event_rows import IconItem, icon_item, start_key
 # The excited tier begins this many sleeps out. Hardcoded like the other
 # cutoffs (peak 0, hype 1) per the tier-config decision; a future
 # ``Settings.countdown_tiers`` field (§18) would replace these.
-_EXCITED_AT = 8
+_EXCITED_AT = 5
 
 # SFX words shown at the peak tier, ordered off the date ordinal (§3.4).
 _SFX_WORDS = ("Yass!", "Woot!")
@@ -90,6 +90,7 @@ def build_countdown(
     target: date,
     events: Iterable[CalendarEvent] = (),
     hero_resolver: HeroResolver = no_hero,
+    sleeps_override: int | None = None,
 ) -> CountdownPanel:
     """Build the Countdown panel view model for the resolved render date.
 
@@ -102,6 +103,12 @@ def build_countdown(
     after. The hero resolves through ``hero_resolver`` — never called for the
     blank state, and asked for the excited edit variant only at hype/peak (the
     default resolves nothing, keeping the view model pure).
+
+    ``sleeps_override`` is the ``?countdown_sleeps=`` debug arg (§3.5): it
+    replaces the computed sleeps - and everything derived from it (tier, copy,
+    SFX, the hero's excited variant) - for previewing any tier against the
+    real target event. The blank no-event card ignores it: with no event there
+    is nothing to count down to.
     """
     # Tomorrow's border seed is target.toordinal()+4; +5 keeps this panel's
     # ripple distinct on the page while staying date-pure (§3.4).
@@ -130,6 +137,8 @@ def build_countdown(
     # Both days are already in the configured timezone (resolve_date /
     # expand_events), so the difference is exactly "whole calendar nights".
     sleeps = (event.local_day - target).days
+    if sleeps_override is not None:
+        sleeps = sleeps_override
     tier = tier_for(sleeps)
 
     if tier is Tier.PEAK:

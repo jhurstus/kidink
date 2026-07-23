@@ -717,11 +717,13 @@ COUNTDOWN_ICS = (
 )
 
 
-def _countdown_render(tmp_path: Path, date: str, generate: object = None) -> str:
+def _countdown_render(
+    tmp_path: Path, date: str, generate: object = None, extra_args: str = ""
+) -> str:
     return (
         _app_with_ics(COUNTDOWN_ICS, tmp_path, generate or _generate_ok)
         .test_client()
-        .get(f"/render?date={date}")
+        .get(f"/render?date={date}{extra_args}")
         .text
     )
 
@@ -788,6 +790,29 @@ def test_render_countdown_peak_tier_keeps_title_and_hero(tmp_path: Path) -> None
     assert '<img class="countdown-hero"' in text
     assert "countdown-sfx-1" in text
     assert "countdown-sfx-2" in text
+
+
+def test_render_countdown_sleeps_debug_arg_forces_the_tier(tmp_path: Path) -> None:
+    # ?countdown_sleeps= (§3.5) previews any tier against the real event: 17
+    # real sleeps rendered as the peak zero-state, SFX and all.
+    text = _countdown_render(tmp_path, "2026-06-03", extra_args="&countdown_sleeps=0")
+
+    assert "countdown-peak" in text
+    assert "It&#39;s today!" in text
+    assert "Camping trip" in text
+    assert "countdown-sfx-1" in text
+
+
+def test_render_countdown_sleeps_debug_arg_rejects_non_integers(
+    tmp_path: Path,
+) -> None:
+    response = (
+        _app_with_ics(COUNTDOWN_ICS, tmp_path, _generate_ok)
+        .test_client()
+        .get("/render?date=2026-06-03&countdown_sleeps=soon")
+    )
+
+    assert response.status_code == 400
 
 
 def test_render_countdown_rolls_over_the_day_after(tmp_path: Path) -> None:
