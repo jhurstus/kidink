@@ -21,11 +21,11 @@
 }
 
 /* Fills the outer .module-frame. The 98px top padding clears the in-panel
-   TODAY! tab (16px top offset + 70px face + a 12px gap, matching the
-   inter-bucket rhythm); the frame interior is 916px (924px column minus the
-   4px top/bottom borders), so the bucket area gets
-   916 - 98 - 16 - 14 - 250 = 538px (_AVAILABLE_H in app/today.py). Italic to
-   match the day strip's type. */
+   TODAY! label (the shared .panel-label, board.css: 16px top offset + 70px
+   face + a 12px gap, matching the inter-bucket rhythm); the frame interior is
+   916px (924px column minus the 4px top/bottom borders), so the bucket area
+   gets 916 - 98 - 16 - 14 - 250 = 538px (_AVAILABLE_H in app/today.py).
+   Italic to match the day strip's type. */
 .today {
   position: absolute;
   inset: 0;
@@ -36,29 +36,7 @@
   font-style: italic;
 }
 
-/* The "TODAY!" label: a plain div with the buckets' border treatment (4px
-   black, 2px radius) instead of the other modules' creased corner-tab slip,
-   seated fully inside the frame: 16px below the frame border, uniform with
-   the buckets' 16px side inset it left-aligns with. 70px tall overall (the
-   corner-tab face's size, keeping the 98px top-padding math below), type
-   matching the .module-tab tabs (comic.css); the weekday-tint background is
-   set inline in the template. */
-.today-tab {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  box-sizing: border-box;
-  height: 70px;
-  display: flex;
-  align-items: center;
-  padding: 0 22px;
-  border: 4px solid #000;
-  border-radius: 2px;
-  font-size: 42px;
-  font-style: italic;
-  font-weight: 700;
-  text-transform: uppercase;
-}
+/* The "TODAY!" label is the shared in-panel .panel-label (board.css). */
 
 .today-buckets {
   flex: 1;

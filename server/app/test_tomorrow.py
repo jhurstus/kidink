@@ -101,18 +101,25 @@ def test_all_day_events_sort_first() -> None:
     assert [row.title for row in panel.rows] == ["Field trip", "Soccer"]
 
 
-def test_cap_keeps_top_three_by_interesting() -> None:
-    # _AVAILABLE_H // _ROW_H = 3 (§4.1): the least-interesting events are
-    # dropped silently, while the survivors still read chronologically.
+def test_cap_keeps_top_four_by_interesting() -> None:
+    # 2 · ((_AVAILABLE_H - _PANEL_CHROME_H) // _ROW_H) = 4 (§4.1: two events
+    # per visual row, two rows): the least-interesting events are dropped
+    # silently, while the survivors still read chronologically.
     events = [
         _event("Dropped", hour=9, interesting=10),
         _event("Movie night", hour=19, interesting=400),
         _event("Breakfast", hour=8, interesting=800),
         _event("Soccer", hour=15, interesting=600),
+        _event("Lunch", hour=12, interesting=500),
     ]
     panel = build_tomorrow(TARGET, events)
 
-    assert [row.title for row in panel.rows] == ["Breakfast", "Soccer", "Movie night"]
+    assert [row.title for row in panel.rows] == [
+        "Breakfast",
+        "Lunch",
+        "Soccer",
+        "Movie night",
+    ]
 
 
 def test_assigned_event_shows_matching_kid_only() -> None:
@@ -130,13 +137,18 @@ def test_shared_event_shows_no_badges() -> None:
 
 def test_icons_resolved_in_one_batch_for_surviving_rows_only() -> None:
     resolver = _RecordingResolver()
-    events = [_event(f"E{i}", hour=10 + i, interesting=100 - i) for i in range(5)]
+    events = [_event(f"E{i}", hour=10 + i, interesting=100 - i) for i in range(6)]
     build_tomorrow(TARGET, events, icon_resolver=resolver)
 
-    # 5 events, budget 3: the dropped two never reach the resolver (no wasted
+    # 6 events, budget 4: the dropped two never reach the resolver (no wasted
     # generations), and the panel resolves in a single batch.
     assert resolver.calls == 1
-    assert sorted(resolver.items) == [("E0", None), ("E1", None), ("E2", None)]
+    assert sorted(resolver.items) == [
+        ("E0", None),
+        ("E1", None),
+        ("E2", None),
+        ("E3", None),
+    ]
 
 
 def test_resolver_receives_title_and_icon_description() -> None:
@@ -166,5 +178,5 @@ def test_build_is_deterministic() -> None:
 
 
 def test_weekday_is_the_day_after_targets() -> None:
-    # Tints the TOMORROW! tab with the day strip's colour for the shown day.
+    # Tints the TOMORROW! label with the day strip's colour for the shown day.
     assert build_tomorrow(TARGET).weekday == 3  # target is Wednesday -> Thursday

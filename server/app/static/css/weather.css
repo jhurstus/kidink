@@ -6,9 +6,11 @@
    (§ Weather inventory, static/img/weather/); the bar is an authored SVG.
    ============================================================================ */
 
-/* Items stack from the left with a tight gap: the bar sits right after the
-   kid figure instead of being pinned to the slot's right edge, keeping its
-   temp label clear of the panel's drawn border on any digit width. */
+/* The flex row lays out whatever stays in normal flow with a tight gap -
+   in Today that's the condition icon and the kid figure; in Tomorrow every
+   piece is absolutely positioned (scoped rules below), so the row is just
+   the slot-filling container. Both hosts pin the temperature bar
+   absolutely. */
 .weather {
   height: 100%;
   display: flex;
@@ -56,29 +58,92 @@
   height: 300px;
 }
 
-/* Tomorrow only (§11): the slot is carved out of the event list's width, so
-   the row packs horizontally compact — the icon/figure/bar boxes overlap
-   (net ~52px at each seam after the flex gap). The art carries generous
-   left/right transparency, so no ink collides. The event list's carve-out in
-   tomorrow.css assumes the slot width these overlaps produce — keep in sync. */
+/* Tomorrow only (§11): the condition icon leaves the flex row entirely and
+   tucks BEHIND the room art (.tomorrow-room, tomorrow.css - the icon has no
+   z-index, the room is tier 1), peeking through the window's transparent
+   panes: half the pinned 180px box, its pre-shrink top-left (slot 0, 35 -
+   the 180px box flex-centered in the 250px slot) nudged 20px up and left.
+   The bar stays above the room (tier 2), the kid above the bar (tier 3). */
 .tomorrow-weather-slot .weather-condition {
-  margin-right: -60px;
+  position: absolute;
+  left: -25px;
+  top: 31px;
+  width: 100px;
+  height: 100px;
 }
 
+/* The kid figure leaves the flex row too: in Tomorrow all three pieces
+   (icon, kid, bar) are absolutely positioned in the slot, each tunable
+   without moving the others - in particular the bar stays printed on the
+   room art's picture frame wherever the kid goes. left/top place the kid
+   in the room (tuned by eye). Tier 3: the kid stands in front of the
+   temperature bar and its temp label (both tier 2). */
+.tomorrow-weather-slot .weather-kid {
+  position: absolute;
+  left: 7px;
+  top: -20px;
+  z-index: 3;
+  width: 275px;
+  height: 275px;
+}
+
+/* Tomorrow's bar: printed on the green picture frame in the room art. The
+   frame hangs on the receding right wall, drawn in true linear perspective:
+   the white interior is a quad with vertical sides and a horizontal top
+   (image px x 2564-2739, top y 100, bottom y sloping down-right 11.6
+   degrees from 608.9 to 644.8; fitted from room.png's white pixels). At the
+   art's rendered scale (287/837) and the slot origin (602, 26 in the frame
+   interior, tomorrow.css) that quad is, in slot coordinates: TL (222.1,
+   8.3), TR (282.1, 8.3), BR (282.1, 195.1), BL (222.1, 182.8).
+   The matrix3d is the exact homography mapping the bar FACE's untransformed
+   rect onto a bilinear inset of that quad: 2/3 of the white area's width
+   (1/6 inset per side) by 90 percent of its height (5 percent inset top and
+   bottom) - a tall, narrow print, tuned by request; the label hangs out
+   past the frame's left edge, which is fine by design. A skew cannot do
+   this: the top edge stays horizontal while lower horizontals tilt
+   progressively (perspective convergence toward a vanishing point left of
+   the panel), which needs the projective terms of matrix3d.
+   The box below places the face, untransformed, axis-aligned on the inset
+   quad at uniform scale 40/36 (1.111x the viewBox): face_h 146.3
+   (weather.html) matches the inset quad's 40 x 162.6px proportions, so the
+   homography barely rescales and strokes stay near-uniform. Re-derive box,
+   matrix and face_h together (fit the white quad, apply the insets, solve
+   the four-corner homography with origin 0 0) if room.png's frame, the art
+   scale, or the slot origin changes. */
 .tomorrow-weather-slot .weather-bar {
-  margin-left: -60px;
+  position: absolute;
+  margin: 0;
+  left: 154.29px;
+  top: 0.45px;
+  width: 120.02px;
+  height: 195.92px;
+  z-index: 2;
+  transform-origin: 0 0;
+  transform: matrix3d(0.800108, -0.008014, 0, -0.00102200, 0, 0.899628, 0, 0, 0, 0, 1, 0, 9.3652, 0.9713, 0, 1);
 }
 
-/* The temperature bar SVG. In Tomorrow it's still an in-row flex item spanning
-   the slot's full height; Today lifts it out of the row entirely (below).
-   Overflow stays visible so the floating temp label box never clips. */
+/* Tomorrow's bar SVG renders at 1.111x its viewBox (40/36, above), which
+   would inflate the temp label with it. The counter-scale 0.63
+   (= 0.7 x 36/40) pins the label at 70 percent of Today's rendered size
+   (30 percent smaller, tuned by request) before the perspective matrix
+   squeezes it slightly toward the vanishing point. The origin is the
+   group's geometry's right-center = the notch tip (weather.html), so the
+   label shrinks toward the bar face and the tip stays on it. Re-derive the
+   factor if the bar's pinned size changes. */
+.tomorrow-weather-slot .weather-bar-label {
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+  transform: scale(0.63);
+}
+
+/* The temperature bar SVG. Both hosts lift it out of the flex row and pin
+   it absolutely (Tomorrow above, Today below). The 100% fallback height
+   only serves hosts without their own sizing. Overflow stays visible so the
+   floating temp label box never clips. */
 .weather-bar {
   flex: none;
   height: 100%;
   overflow: visible;
-  /* Tomorrow: pull the bar closer to the kid figure than the shared flex gap
-     (tuned by eye). */
-  margin-left: -8px;
 }
 
 /* Today: the bar is painted onto the wooden signpost of the weather backdrop

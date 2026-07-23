@@ -1,13 +1,14 @@
 """View model for the Tomorrow panel's calendar list (spec §11).
 
 Builds the day after the target date's non-chore events into a single
-chronological list — no morning/day/evening buckets. Selection is capped by
-the §4.1 row-budget geometry (``floor(available_height / row_height)``,
-dropping the lowest-``interesting`` events silently), while display order is
-chronological (§11). The row/badge/icon machinery shared with the Today panel
-lives in :mod:`app.event_rows`. The weather subpanel filling the panel's right
-half is built separately (:func:`app.weather.build_weather`, slot 1) and
-passed to the template alongside this model.
+header-less events panel — no morning/day/evening buckets — laid out two
+across per visual row in reading order, up to four events. Selection is
+capped by the §4.1 row-budget geometry (two events per row over the visual
+rows that fit, dropping the lowest-``interesting`` events silently), while
+display order is chronological (§11). The row/badge/icon machinery shared
+with the Today panel lives in :mod:`app.event_rows`. The weather subpanel in
+the panel's right side is built separately (:func:`app.weather.build_weather`,
+slot 1) and passed to the template alongside this model.
 """
 
 from collections.abc import Iterable, Sequence
@@ -27,11 +28,18 @@ from app.event_rows import (
 )
 
 # Row-budget geometry (§4.1), mirroring static/css/tomorrow.css — keep in sync.
-# The list area is what remains of the 295px panel (board.css sizes the cell
-# for three rows) after the top padding (68, clearing the pop-out TOMORROW!
-# tab) and the bottom padding (11): 295 - 68 - 11 = 216.
-_AVAILABLE_H = 216
-# One event row: 12px flex gap + 60px icon row (shared with Today, §11).
+# The events area is what remains of the frame interior — 287px, the 295px
+# cell (board.css) minus the frame's 4px top/bottom borders — after the top
+# padding (98, clearing the in-panel TOMORROW! label) and the bottom padding
+# (16): 287 - 98 - 16 = 173.
+_AVAILABLE_H = 173
+# The events panel's chrome around the row grid: 4px top + 4px bottom border
+# + 12px top + 12px bottom padding, minus the 12px grid gap the first row
+# doesn't pay (each row costs _ROW_H = gap + row).
+_PANEL_CHROME_H = 20
+# One visual row: 12px grid gap + 60px icon row. A row holds two events side
+# by side (§11 reading order, matching Today's buckets), so the budget counts
+# rows, then doubles.
 _ROW_H = 72
 
 
@@ -41,7 +49,7 @@ class TomorrowPanel:
 
     weekday: int
     """The shown day's weekday — the day after the target date (0=Monday..
-    6=Sunday, ``date.weekday()``); tints the TOMORROW! tab with the day
+    6=Sunday, ``date.weekday()``); tints the TOMORROW! label with the day
     strip's colour for that day."""
 
     rows: list[EventRow]
@@ -68,7 +76,7 @@ def build_tomorrow(
     """
     tomorrow = target + timedelta(days=1)
     day_events = [e for e in events if e.local_day == tomorrow and not e.is_chore]
-    budget = _AVAILABLE_H // _ROW_H
+    budget = 2 * ((_AVAILABLE_H - _PANEL_CHROME_H) // _ROW_H)
     survivors = sorted(day_events, key=rank_key)[:budget]
     ordered = sorted(survivors, key=display_key)
     icons = resolve_icons(ordered, icon_resolver)

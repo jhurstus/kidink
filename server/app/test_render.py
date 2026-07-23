@@ -410,7 +410,7 @@ def test_render_today_has_tab_and_reserved_weather_slot() -> None:
     text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
 
     assert "today-tab" in text
-    assert "corner-tab" in text
+    assert "panel-label" in text
     assert "today-weather-slot" in text
     assert "today-bucket-" not in text  # empty day: no buckets at all
 
@@ -440,6 +440,20 @@ def test_render_today_backdrop_follows_condition() -> None:
     snow = client.get("/render?date=2026-06-03&weather_icon=snow").text
     assert "img/weather/snow_bg.png" in snow
     assert "partly_cloudy_bg" not in snow
+
+
+def test_render_tomorrow_sky_follows_condition() -> None:
+    # The Tomorrow frame's inline background is the sky behind the room art,
+    # visible through its transparent window panes (§11): Today's sky blue on
+    # fair days (sunny / partly cloudy - the fake forecast's default),
+    # overcast gray for every other condition.
+    client = _app_with_ics(EMPTY_ICS).test_client()
+
+    default = client.get("/render?date=2026-06-03").text
+    assert 'tomorrow-frame" style="background: #4b5cff"' in default
+    snow = client.get("/render?date=2026-06-03&weather_icon=snow").text
+    assert 'tomorrow-frame" style="background: #d0d0d0"' in snow
+    assert "#4b5cff" not in snow.split("tomorrow-frame", 1)[1]
 
 
 def _weather_sections(text: str) -> tuple[str, str]:
@@ -617,6 +631,8 @@ def test_render_survives_weather_fetch_failure() -> None:
     assert "today-weather-slot" in response.text
     assert "weather-bar" not in response.text
     assert "img/weather/sunny_bg.png" in response.text
+    # Tomorrow's window sky falls back to overcast gray without a forecast.
+    assert 'tomorrow-frame" style="background: #d0d0d0"' in response.text
 
 
 def test_render_today_rows_show_icons(tmp_path: Path) -> None:
@@ -655,7 +671,9 @@ def test_render_tomorrow_shows_next_days_events(tmp_path: Path) -> None:
         .text
     )
 
-    tomorrow_rows = text.split('class="tomorrow-rows"')[1].split("tomorrow-weather")[0]
+    tomorrow_rows = text.split('class="tomorrow-events"')[1].split("tomorrow-weather")[
+        0
+    ]
     assert "Soccer practice" in tomorrow_rows
     assert '<img class="event-icon"' in tomorrow_rows
 

@@ -2,20 +2,22 @@
 weather.html — the weather subpanel (spec §10.3/§11, § Weather), shared by
 Today and Tomorrow.
 
-weather(panel, uid='today'):
+weather(panel, uid='today', bar_face_h=170):
 panel a WeatherPanel view model (see app/weather/view.py), with:
 .condition icon bucket (sunny/…/snow — also the future asset name)
 .kid_name/.outfit/.figure the clothing kid and its future asset name
 .bar .high_f (rounded label) and .arrow_percent (0=top … 100=bottom)
 uid distinct per instance — prefixes the SVG pattern/clip ids so
 Today's and Tomorrow's defs never collide on one page
+bar_face_h the temp bar's five-band face height in SVG units (see
+temp_bar below; Tomorrow passes 146.3 to match its picture frame)
 
 Left to right (§10.3/§11): condition icon → clothing kid → temperature bar.
 The condition icon and clothing figure are hand-made static assets under
 static/img/weather/ (§ Weather inventory; browse them at /admin/weather) —
 ones not drawn yet render as broken images. The temperature bar is an
-authored SVG (§ Weather: no hand-made images). Tomorrow's slot packs the same
-row horizontally compact (§11) via scoped overlaps in weather.css.
+authored SVG (§ Weather: no hand-made images). Tomorrow stages the same
+pieces in its room scene (§11) via scoped absolute pins in weather.css.
 =========================================================================== -#}
 
 {#- The temperature bar (§ Weather): a vertical five-band scale, hottest at the
@@ -27,46 +29,55 @@ the day's "feels like" high reads from a white label box floating left of the
 bar (4px black border, 7px corner radius) whose triangular notch, protruding
 from the box's right edge with the same border, is the temperature indicator:
 its tip touches the bar at the high's band position. -#}
-{#- The SVG maps 1:1 onto CSS pixels (viewBox 108×200 = the 108×200px box
-weather.css sizes it to in Today's slot). The bar face is 36×170 at x 70–106;
-weather.css's absolute offset centers it on the sign's inner face. The label
-box is fixed-width for two digits; a rare three-digit label overflows it
-symmetrically (SVG text doesn't clip) rather than resizing the box. -#}
-{% macro temp_bar(bar, uid='today') -%}
-{%- set arrow_y = 15 + 170 * bar.arrow_percent / 100 -%}
-<svg class="weather-bar" viewBox="0 0 108 200" aria-hidden="true">
+{#- The SVG maps 1:1 onto CSS pixels in Today (viewBox 108×200 = the 108×200px
+box weather.css sizes it to in Today's slot); Tomorrow prints it onto the
+room art's picture frame via a perspective homography (weather.css). face_h
+is the five-band face's height in SVG units: Today's 170, while Tomorrow
+passes 146.3 to match its print area's proportions so the homography
+keeps strokes near-uniform. The bar face is 36 wide at
+x 70–106; weather.css's absolute offset centers it on the sign's inner face
+in Today. The label box is fixed-width for two digits; a rare three-digit
+label overflows it symmetrically (SVG text doesn't clip) rather than
+resizing the box. -#}
+{% macro temp_bar(bar, uid='today', face_h=170) -%}
+{%- set band_h = face_h / 5 -%}
+{%- set arrow_y = 15 + face_h * bar.arrow_percent / 100 -%}
+<svg class="weather-bar" viewBox="0 0 108 {{ '%g' | format(30 + face_h) }}" aria-hidden="true">
   <defs>
     <clipPath id="wx-{{ uid }}-clip">
-      <rect x="70" y="15" width="36" height="170" rx="6" />
+      <rect x="70" y="15" width="36" height="{{ '%g' | format(face_h) }}" rx="6" />
     </clipPath>
   </defs>
-  {#- The five bands, hottest → coldest, equal fifths of the 170px bar. -#}
+  {#- The five bands, hottest → coldest, equal fifths of the face. -#}
   <g clip-path="url(#wx-{{ uid }}-clip)">
-    <rect x="70" y="15" width="36" height="34" fill="#ff0000" />
-    <rect x="70" y="49" width="36" height="34" fill="#ff8080" />
-    <rect x="70" y="83" width="36" height="34" fill="#ffff99" />
-    <rect x="70" y="117" width="36" height="34" fill="#8ec4f2" />
-    <rect x="70" y="151" width="36" height="34" fill="#0000ff" />
+    {%- for color in ('#ff0000', '#ff8080', '#ffff99', '#8ec4f2', '#0000ff') %}
+    <rect x="70" y="{{ '%g' | format(15 + loop.index0 * band_h) }}" width="36" height="{{ '%g' | format(band_h) }}" fill="{{ color }}" />
+    {%- endfor %}
     <g stroke="#000" stroke-width="3.6">
-      <line x1="70" y1="49" x2="106" y2="49" />
-      <line x1="70" y1="83" x2="106" y2="83" />
-      <line x1="70" y1="117" x2="106" y2="117" />
-      <line x1="70" y1="151" x2="106" y2="151" />
+      {%- for i in range(1, 5) %}
+      <line x1="70" y1="{{ '%g' | format(15 + i * band_h) }}" x2="106" y2="{{ '%g' | format(15 + i * band_h) }}" />
+      {%- endfor %}
     </g>
   </g>
-  <rect x="70" y="15" width="36" height="170" rx="6" fill="none" stroke="#000" stroke-width="4" />
+  <rect x="70" y="15" width="36" height="{{ '%g' | format(face_h) }}" rx="6" fill="none" stroke="#000" stroke-width="4" />
   {#- The label box + notch, one path so the border runs unbroken around both:
   a 60×43 rounded rect (7px-radius corners) centered on arrow_y, its right
   edge growing a triangle whose tip lands 2px past the bar's left border.
-  Drawn after the bar so the tip overlaps the paint. -#}
+  Drawn after the bar so the tip overlaps the paint. The group wrapper is a
+  styling hook: hosts that render the SVG at a non-1:1 scale counter-scale
+  the label back to its Today rendered size (.weather-bar-label,
+  weather.css); the tip is the group's geometry's right-center, so a
+  fill-box right-center transform origin keeps it on the bar face. -#}
   {%- set box_top = arrow_y - 21.5 %}{% set box_bottom = arrow_y + 21.5 %}
-  <path d="M 10 {{ '%.1f' | format(box_top) }} H 56 A 7 7 0 0 1 63 {{ '%.1f' | format(box_top + 7) }} V {{ '%.1f' | format(arrow_y - 9) }} L 73 {{ '%.1f' | format(arrow_y) }} L 63 {{ '%.1f' | format(arrow_y + 9) }} V {{ '%.1f' | format(box_bottom - 7) }} A 7 7 0 0 1 56 {{ '%.1f' | format(box_bottom) }} H 10 A 7 7 0 0 1 3 {{ '%.1f' | format(box_bottom - 7) }} V {{ '%.1f' | format(box_top + 7) }} A 7 7 0 0 1 10 {{ '%.1f' | format(box_top) }} Z"
-    fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" />
-  <text class="weather-bar-high" x="30" y="{{ '%.1f' | format(arrow_y + 10.5) }}">{{ bar.high_f }}°</text>
+  <g class="weather-bar-label">
+    <path d="M 10 {{ '%.1f' | format(box_top) }} H 56 A 7 7 0 0 1 63 {{ '%.1f' | format(box_top + 7) }} V {{ '%.1f' | format(arrow_y - 9) }} L 73 {{ '%.1f' | format(arrow_y) }} L 63 {{ '%.1f' | format(arrow_y + 9) }} V {{ '%.1f' | format(box_bottom - 7) }} A 7 7 0 0 1 56 {{ '%.1f' | format(box_bottom) }} H 10 A 7 7 0 0 1 3 {{ '%.1f' | format(box_bottom - 7) }} V {{ '%.1f' | format(box_top + 7) }} A 7 7 0 0 1 10 {{ '%.1f' | format(box_top) }} Z"
+      fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+    <text class="weather-bar-high" x="30" y="{{ '%.1f' | format(arrow_y + 10.5) }}">{{ bar.high_f }}°</text>
+  </g>
 </svg>
 {%- endmacro %}
 
-{% macro weather(panel, uid='today') -%}
+{% macro weather(panel, uid='today', bar_face_h=170) -%}
 <div class="weather">
   <img class="weather-condition" src="{{ url_for('static', filename='img/weather/' ~ panel.condition ~ '.png') }}"
     alt="{{ panel.condition.replace('_', ' ') }}" />
@@ -74,6 +85,6 @@ symmetrically (SVG text doesn't clip) rather than resizing the box. -#}
   <img class="weather-kid" src="{{ url_for('static', filename='img/weather/' ~ panel.figure ~ '.png') }}"
     alt="{{ panel.kid_name }}: {{ panel.outfit }} outfit" />
   {%- endif %}
-  {{ temp_bar(panel.bar, uid) }}
+  {{ temp_bar(panel.bar, uid, bar_face_h) }}
 </div>
 {%- endmacro %}

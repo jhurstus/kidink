@@ -890,15 +890,25 @@ down-left at the kid.
 Top of the right column. Same event rows and kid labels as Today, with these
 differences:
 
-- **No** morning/day/evening buckets; events are listed in **chronological** order by
-  start time, ties broken by `interesting` then title.
-- Fewer events typically fit (smaller panel), via the same row-budget logic.
+- The "TOMORROW!" label sits **inside the panel** like Today's, tinted with the day
+  strip's colour for the shown day.
+- **No** morning/day/evening buckets: a single **header-less** white sub-panel with
+  the Today buckets' border treatment and width holds up to **four** events, laid
+  out **two across** over two visual rows in book reading order — **chronological**
+  by start time, ties broken by `interesting` then title. Selection past the cap is
+  by the same row-budget logic (§4.1: the least-interesting events are dropped
+  silently). An event-less day shows no sub-panel at all.
 
-Tomorrow's **weather subpanel** fills the panel's right side and matches Today's,
-left to right: **condition icon → clothing kid → temperature bar**. To leave the
-event list its width, the row packs **horizontally compact**: the icon, figure, and
-bar may touch or slightly overlap (the art carries generous side transparency, so
-no ink collides).
+Tomorrow's **weather subpanel** is staged as a **room scene** right of the events
+panel: a hand-made room art layer (`room.png`) spans the panel, and the frame's
+background behind it is the sky - Today's sky blue on fair days (sunny / partly
+cloudy), overcast gray otherwise and when the forecast is unavailable - visible
+through the room's transparent window panes. The three weather pieces are placed
+in the scene, each independently pinned: the **condition icon** hangs behind the
+room art so it shows through a window; the **clothing kid** stands in the room, in
+front of everything; and the **temperature bar** (with its temp label) is printed
+onto the room's picture frame, perspective-transformed to match the art's linear
+perspective.
 
 ---
 

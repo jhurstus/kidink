@@ -1,44 +1,64 @@
 {#- ===========================================================================
-tomorrow.html — the Tomorrow module (spec §11). Top of the right column: a
-creased-corner "TOMORROW" tab, a single chronological event list (no
-morning/day/evening buckets) rendered with the shared event_row macro, and
-the weather subpanel filling the panel's right half.
+tomorrow.html — the Tomorrow module (spec §11). Top of the right column: an
+in-panel "TOMORROW!" label, a single header-less events panel holding up to
+four events two across (shared event_row macro, chronological reading order),
+and the weather subpanel in the panel's remaining right side.
 
 tomorrow(panel, weather):
 panel a TomorrowPanel view model (see app/tomorrow.py), with:
-.weekday the shown day's weekday (0=Mon..6=Sun), tinting the tab
+.weekday the shown day's weekday (0=Mon..6=Sun), tinting the label
 with the day strip's colour for that day
 .rows EventRows in chronological order (shared event_row macro)
 weather a WeatherPanel view model (see app/weather/view.py) for the day
 after the target — condition icon + clothing kid + temperature
-bar, packed horizontally compact (§11) — or none when the
+bar, staged in the room scene (§11) — or none when the
 forecast is unavailable (the slot then stays empty but keeps its
 footprint)
 
-Layout constants live in static/css/tomorrow.css and must stay in sync with
-the row-budget geometry in app/tomorrow.py.
+The outer frame is the shared .module-frame div (4px black border) with a
+tomorrow-only skin (.tomorrow-frame in tomorrow.css): 2px-rounded corners,
+matching Today's. The room art (static/img/weather/room.png) is a mid-stack
+<img> layer pinned to the frame's right edge, not a frame background: the
+weather condition icon sits BELOW it (visible only through the window's
+transparent panes), while the label, events panel, clothing kid and
+temperature bar paint above it (z-index tiers in tomorrow.css/weather.css). The events panel is a Today bucket without its header row:
+a plain white div with the same border treatment at 540px width, events laid
+out two across in reading order; it shrink-wraps its visual-row count and is
+omitted entirely on an event-less day. Layout constants live in
+static/css/tomorrow.css and must stay in sync with the row-budget geometry in
+app/tomorrow.py.
 =========================================================================== -#}
 {% from "macros/event_row.html" import event_row %}
-{% from "macros/tab.html" import corner_tab %}
 {% from "modules/weather.html" import weather as weather_subpanel %}
 
 {% macro tomorrow(panel, weather=none) -%}
-{#- The tab is a SIBLING of the panel, not a child: the frame clips its
-contents (overflow:hidden), and the tab pokes above the frame's top edge
-(absolute against .tomorrow-cell; see tomorrow.css), its left edge aligned
-with the event icons. -#}
-<div class="module-tab tomorrow-tab" style="--tab-bg: var(--weekday-color-{{ panel.weekday }})">
-  {%- call corner_tab() %}Tomorrow!{% endcall %}</div>
-<div class="module-frame">
+{#- The frame background is the sky behind the room art, visible only through
+the window's transparent panes (around the condition icon): Today's sky blue
+on fair days, overcast gray for every other condition and when the forecast
+is unavailable. -#}
+<div class="module-frame tomorrow-frame" style="background: {{ '#4b5cff' if weather and weather.condition in ('sunny', 'partly_cloudy') else '#d0d0d0' }}">
+{#- The room scenery layer (see the header comment): right-pinned, full
+interior height, painted over the condition icon but under everything else
+(.tomorrow-room, tomorrow.css). -#}
+<img class="tomorrow-room" src="{{ url_for('static', filename='img/weather/room.png') }}" alt="" />
+{#- The TOMORROW! label is the shared in-panel .panel-label (board.css), same
+as Today's: a plain bordered div inside the frame, left-aligned with the
+events panel. -#}
+<div class="panel-label tomorrow-tab" style="background: var(--weekday-color-{{ panel.weekday }})">Tomorrow!</div>
 <div class="tomorrow">
-  <div class="tomorrow-rows">
+  {%- if panel.rows %}
+  <div class="tomorrow-events">
     {%- for row in panel.rows %}{{ event_row(row) }}{% endfor -%}
   </div>
+  {%- endif %}
   {#- The weather subpanel (§11: condition icon + clothing kid + temperature
-  bar, packed compact). The slot keeps its footprint when the forecast is
-  unavailable. -#}
+  bar, staged in the room scene). The slot keeps its footprint when the
+  forecast is unavailable. bar_face_h 146.3 proportions the five-band face to its inset
+  print area on the room art's picture frame, where weather.css's homography
+  prints it in the art's perspective (see .tomorrow-weather-slot
+  .weather-bar there - the two must be re-derived together). -#}
   <div class="tomorrow-weather-slot">
-    {%- if weather %}{{ weather_subpanel(weather, uid='tomorrow') }}{% endif -%}
+    {%- if weather %}{{ weather_subpanel(weather, uid='tomorrow', bar_face_h=146.3) }}{% endif -%}
   </div>
 </div>
 </div>

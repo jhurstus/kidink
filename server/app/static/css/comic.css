@@ -150,14 +150,14 @@
   height: 18px;
 }
 
-/* The module header tab ("TOMORROW!" / "TODAY!" / …) — the corner-tab slip
+/* The module header tab ("Dinner" / "Chores" / …) — the corner-tab slip
    at one shared display size (the face is taller than the strip date box's
    48px default to carry the bigger type). By default a sibling of the
    module's frame (which clips its contents), absolutely positioned against
    the module's layout cell so it pops up and left past the frame's corner;
    the module body's top padding must clear it (the face bottom lands 59px
-   into the panel: 70px tall, popped 11px up). The Today module's label is its
-   own plain in-frame div instead (.today-tab, today.css). */
+   into the panel: 70px tall, popped 11px up). The Today/Tomorrow labels are
+   plain in-frame divs instead (.panel-label, board.css). */
 .module-tab {
   position: absolute;
   top: -11px;

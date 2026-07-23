@@ -1,57 +1,99 @@
 /* ============================================================================
-   tomorrow.css — the Tomorrow module (spec §11): the creased-corner tab, the
-   single chronological event list (shared event_rows.css rows), and the
-   reserved weather slot filling the panel's right half. The vertical sizes
-   here (panel padding, tab height, row gap) feed the row-budget geometry in
+   tomorrow.css — the Tomorrow module (spec §11): the in-panel TOMORROW! label
+   (the shared .panel-label, board.css), the header-less events panel (a 2×2
+   grid of shared event_rows.css rows), and the reserved weather slot in the
+   panel's remaining right side. The sizes here (panel padding, label
+   clearance, events-panel chrome, row pitch) feed the row-budget geometry in
    app/tomorrow.py — keep the two in sync.
    ============================================================================ */
 
-/* Fills the .module-frame. The 68px top padding clears the pop-out TOMORROW! tab
-   (the shared .module-tab, same as Today's — its face bottom lands 59px into
-   the panel); the bottom padding is trimmed to 11px so the 295px panel still
-   gives the list area 295 - 68 - 11 = 216px (_AVAILABLE_H in app/tomorrow.py,
-   three rows). Italic to match the day strip's type. */
+/* Tomorrow-only skin over the shared .module-frame (board.css): the Today
+   frame's 2px-rounded corners. The background is set inline by tomorrow.html
+   (a condition-tinted sky - it shows only through the room art's transparent
+   window panes). */
+.content .tomorrow-frame {
+  border-radius: 2px;
+}
+
+/* The room scenery (tomorrow.html): an <img> layer rather than a frame
+   background so the weather condition icon can hide BEHIND it, showing only
+   through the window's transparent panes (interior x ~611-697, y ~53-159 at
+   this scale). Pinned to the frame's right edge at the full 287px interior
+   height, width following (the 2800x837 art comes out ~960px wide, so it
+   spans the whole ~905px interior; the ~55px left overhang is clipped by
+   .module-frame's overflow: hidden). Stacking tiers: condition icon (no
+   z-index, weather.css) < this room art (1) < the label, events panel and
+   temperature bar (2) < the clothing kid (3, in front of the bar). */
+.tomorrow-room {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  z-index: 1;
+}
+
+/* Above the room art (tier 2, see .tomorrow-room). */
+.content .tomorrow-tab {
+  z-index: 2;
+}
+
+/* Fills the outer .module-frame. The 98px top padding clears the in-panel
+   TOMORROW! label (16px top offset + 70px face + a 12px gap, Today's rhythm);
+   the frame interior is 287px (the 295px cell minus the 4px top/bottom
+   borders), so the events area gets 287 - 98 - 16 = 173px (_AVAILABLE_H in
+   app/tomorrow.py, two visual rows). Italic to match the day strip's type. */
 .tomorrow {
   position: absolute;
   inset: 0;
-  padding: 68px 16px 11px;
-  display: flex;
-  gap: 16px;
+  padding: 98px 16px 16px;
   font-style: italic;
 }
 
-/* The "TOMORROW!" tab is the shared pop-out .module-tab (comic.css), anchored
-   to .tomorrow-cell, but horizontally seated on the list grid: its left edge
-   aligns with the event icons' left edge (4px frame border + 16px padding). */
-.tomorrow-tab {
-  left: 20px;
-}
-
-/* The event list claims everything left of the weather slot (absolutely
-   positioned; it shrink-wraps to ~468px — icon + kid figure + bar at the
-   §11 compact overlaps in weather.css — plus the 16px right padding, hence
-   the 490px carve-out). The 12px flex gap is _ROW_H's ingredient in
-   app/tomorrow.py (12 + the rows' 60px base). */
-.tomorrow-rows {
-  flex: none;
-  width: calc(100% - 490px);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
+/* The events panel: a Today bucket without its header row (.today-bucket,
+   today.css) — white, 4px black border, 2px radius, and 12px body inset —
+   holding up to four events two across in reading order on the buckets'
+   60px-row / 12px-gap grid. 540px wide: 30px narrower than the buckets'
+   570px, shaving 15px off each 1fr column's text area to clear room for the
+   room art. No explicit height: it shrink-wraps its visual rows (20px of
+   border + padding chrome + 72px per row — _PANEL_CHROME_H/_ROW_H in
+   app/tomorrow.py), and the template omits it entirely on an event-less
+   day. */
+.tomorrow-events {
+  position: relative;
+  /* above the room art (tier 2, see .tomorrow-room) */
+  z-index: 2;
+  box-sizing: border-box;
+  width: 540px;
+  padding: 12px;
+  background: #fff;
+  border: 4px solid #000;
+  border-radius: 2px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 60px;
   gap: 12px;
 }
 
-/* The weather subpanel's slot (§11: condition icon + clothing kid +
-   temperature bar, packed compact). Unlike the event list it escapes the
-   68px tab clearance (the tab pops out over the panel's LEFT corner only),
-   rising to 34px from the panel top: 295 - 34 - 11 = 250px tall, exactly
-   Today's slot height, so the weather assets render at one shared pinned
-   size (weather.css). The width shrink-wraps the row at the §11 overlaps
-   (weather.css) and leftover panel width goes to the event list instead. */
+/* Grid items need min-width:0 so long titles ellipsize (event_rows.css)
+   instead of widening their column. */
+.tomorrow-events .event-row {
+  min-width: 0;
+}
+
+/* The weather subpanel's slot (§11: the room scene's coordinate anchor -
+   its pieces pin to it absolutely, weather.css). It escapes the label
+   clearance, rising to 26px from the frame interior's top: 287 - 26 - 11 =
+   250px tall, exactly Today's slot height, so the weather assets render at
+   one shared pinned size. The 602px left offset is pinned to the room art,
+   not derived from the events panel's width: the condition icon must stay
+   under the window's transparent panes and the bar on the picture frame
+   (weather.css), so the slot does not move when the panel narrows. Pieces
+   overflowing rightward are clipped at the frame edge by .module-frame's
+   overflow: hidden. */
 .tomorrow-weather-slot {
   position: absolute;
-  top: 34px;
+  top: 26px;
   bottom: 11px;
-  right: 16px;
+  left: 602px;
   width: fit-content;
 }
