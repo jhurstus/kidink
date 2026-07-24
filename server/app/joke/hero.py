@@ -22,10 +22,10 @@ from app.joke.view import HeroResolver
 JOKE_MODULE = "Joke"
 
 # Logical display box (px): the joke grid cell. The hero fills the whole panel
-# (object-fit: cover) under the comic frame. Drives the generation size
+# (object-fit: cover) under the module frame. Drives the generation size
 # (clamped into the API bounds, §7.2); the stored PNG keeps its native
 # generation resolution. Keep in sync with static/css/joke.css and the
-# comic_panel size in templates/modules/joke.html.
+# module frame in templates/modules/joke.html.
 HERO_W = 449
 HERO_H = 307
 

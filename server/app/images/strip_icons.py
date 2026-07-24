@@ -63,7 +63,7 @@ generate concurrently (:func:`app.images.store.ensure_images`).
 # The user-authored prompt template for day-strip panel art: the calendar-icon
 # template reworked for a full-bleed opaque scene (no chroma-key background -
 # this module is unkeyed). The palette table mirrors the §5.3 halftone
-# swatches so generations quantize well on the panel (§5.5).
+# swatches so generations quantize well on the panel (§5.4).
 _PROMPT_TEMPLATE = """\
 Create a small square illustration that will represent the concept of “{title}” \
 on a children’s calendar.  The illustration should be in the style of a comic \

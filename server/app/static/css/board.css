@@ -18,7 +18,7 @@
    light one/two-ink e-ink tints: kept high in luminance so the black caption
    text stays legible (the darker inks red and blue only ever appear as
    sparse dots on white, never a solid dark field), while still reading as
-   distinct colours (§5.5). */
+   distinct colours (§5.4). */
 .board {
    --weekday-color-0: #ffc24d; /* Monday — light orange */
    --weekday-color-1: #ffd633; /* Tuesday — yellow */
@@ -100,8 +100,7 @@ body {
 }
 
 /* Outer module frame (Today / Tomorrow / Countdown / Dinner / Chore / Joke): a
-   plain white panel with a 4px black border, filling its layout cell — the
-   replacement for the hand-drawn comic_panel that used to wrap each module.
+   plain white panel with a 4px black border, filling its layout cell.
    border-box keeps the border inside the cell; overflow clips full-bleed heroes
    to the frame; flex centering seats the in-flow empty/fallback states
    (each module's own absolute-inset body escapes it). Today and Tomorrow skin

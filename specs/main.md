@@ -271,7 +271,7 @@ Floyd–Steinberg), so they read as comic halftone and rhyme with the hand-autho
 backgrounds (which are already dithered and pass through largely untouched). This
 choice has since been **validated on the physical panel** by the demo pipeline
 ([eink-demo.md](eink-demo.md)): its ordered mixing-plan dither + edge snapping +
-vibrance boost is the intended basis for this pass, and §5.5 records what it taught
+vibrance boost is the intended basis for this pass, and §5.4 records what it taught
 us about color choice.
 
 ### 5.3 Canonical halftone swatches
@@ -281,7 +281,7 @@ coverage. **All densities and angles are starting points to tune on the physical
 panel.** E-ink guidance baked into these choices: keep the two inks in a blend
 high in luminance contrast, use coarse, hard-edged dots, and use black sparingly
 (it darkens a blend fast and muddies it). These rules are now backed by
-measurements from the demo pipeline — §5.5 has the full findings and the
+measurements from the demo pipeline — §5.4 has the full findings and the
 authoring rules they imply.
 
 **Named blends (general palette):**
@@ -309,10 +309,10 @@ authoring rules they imply.
 | Coral | red + white | ~55% red dots on white |
 | Butter | yellow + white | ~40% yellow dots on white |
 
-Forest green, amber, coral, and butter were added after on-panel testing (§5.5) —
+Forest green, amber, coral, and butter were added after on-panel testing (§5.4) —
 all four are high-luma-contrast two-ink blends, the shape that renders best.
 Purple and brown are the panel's **weakest** swatches (their inks sit close
-together on the luma ladder, §5.5) — keep them for accents rather than large
+together on the luma ladder, §5.4) — keep them for accents rather than large
 fills.
 
 **Day-strip caption bands** (§9.1) each get their own colour: a light-tint set
@@ -321,65 +321,14 @@ light-blue pair for the weekend** (Sat + Sun). All are kept high in luminance so
 the **black caption text stays crisp**: the yellow/green-based days (Mon–Wed)
 can be boldly saturated because those are light inks, but the days whose hue
 needs a darker ink — green, and especially red or blue — must stay light tints,
-since a bold amount of those speckles dark dots that fuzz the black text (§5.5).
+since a bold amount of those speckles dark dots that fuzz the black text (§5.4).
 Purple and cyan/teal are unavailable here: as a light tint the panel drops one
 of their two inks (so a lavender renders as plain blue), and a saturated version
-is dark and muddy (§5.5) — which is why the seventh distinct hue isn't possible
+is dark and muddy (§5.4) — which is why the seventh distinct hue isn't possible
 and the weekend simply shares the blue. The wider gutter before Saturday still
 carries the weekday/weekend split.
 
-### 5.4 Comic-panel rendering primitives (the `comic_panel` macro)
-
-Ben-Day fills (§5.2) and the panel frames are produced by the comic_panel macro:
-
-```jinja
-{% from "macros/comic.html" import comic_panel with context %}
-{% call comic_panel(
-     width=520, height=300, bg='rgb(225,220,202)',
-     halftones=[
-       {'color': 'rgb(70,110,170)', 'origin_angle': '270deg', 'magnitude': '70%'},
-     ],
-     border={'color': 'rgb(40,38,34)', 'radius': 16, 'mid_width': 12,
-             'corner_width': 3, 'seed': day_seed}) %}   {# day_seed derived from the date #}
-  <h1>Today</h1>
-{% endcall %}
-```
-
-**Halftone field.** Each dict in `halftones` is one continuous Ben-Day field whose dots
-shrink *smoothly* from an origin edge toward the center (no visible banding). Keys are
-all optional; an omitted key falls back to the `comic.css` / filter default:
-
-| Key | Meaning | Default |
-|---|---|---|
-| `color` | dot ink color | `rgb(187,180,162)` |
-| `dot_size` | lattice pitch (px) | `6` |
-| `origin_angle` | edge the dots are strongest at — CSS angle, `0deg`=top, `90deg`=right, `180deg`=bottom, `270deg`=left | `90deg` |
-| `magnitude` | how far the dots reach in from that edge | `60%` |
-| `max_fill` | peak dot radius as a fraction of the pitch: `0.5` touching, `>0.5` overlapping, `~0.71+` reads solid | `0.42` |
-| `offset` | shift the dot lattice diagonally (px); `~dot_size/2` interleaves two otherwise-coincident fields | `0` |
-| `transparency` | `0..1` dot see-through-ness (`0.8` = 80% transparent) so stacked fields blend | `0` |
-| `uid` | optional stable filter id (only needed for the playground's live editing) | — |
-
-`origin_angle` / `magnitude` / `max_fill` are emitted as CSS custom properties (cheap to
-vary); `color` / `dot_size` / `offset` / `transparency` are baked into a per-field SVG
-filter, and identical fields share one filter.
-
-**Border.** `border` is a dict or `None`. It draws a single filled **vector** frame that
-is thick at the middle of each edge and tapers at the corners, and it **rounds and clips
-the panel** so the background only shows inside the frame. Because it is plain geometry
-(no SVG filter) it stays crisp at any roughness. Keys:
-
-| Key | Meaning | Default |
-|---|---|---|
-| `seed` | **required** — selects the deterministic thickness ripple | — |
-| `color` | frame color | `rgb(40,38,34)` |
-| `radius` | corner radius (px) | `0` |
-| `mid_width` | thickness at edge midpoints (px) | = `corner_width` |
-| `corner_width` | thickness at corners (px) | `4` |
-| `roughness` | px amplitude of a smooth, pen-pressure thickness ripple; `0` = clean | `0` |
-| `frequency` | number of ripple undulations around the perimeter | `6` |
-
-### 5.5 What renders well — findings from the physical panel
+### 5.4 What renders well — findings from the physical panel
 
 The demo push pipeline ([eink-demo.md](eink-demo.md)) made color behavior on the
 real panel measurable. Its quantizer renders every non-ink color as a mix of at
@@ -1210,7 +1159,7 @@ the per-event TOML fields in §6.3. The fields:
   that drive §10's budget, fixed at layout time.
 - Final **halftone densities/angles** for the §5.3 swatches, tuned on the physical panel,
   and **calibration of the quantizer's palette targets** (eink-demo §4) to measured
-  Spectra ink colors (the vibrance-boost factor will want retuning with it, §5.5).
+  Spectra ink colors (the vibrance-boost factor will want retuning with it, §5.4).
 - The **firmware stack** (Inkplate Arduino library vs. ESP-IDF/raw), which determines
   what "a file ready for rendering" is on the wire. The push demo
   ([eink-demo.md](eink-demo.md)) has meanwhile verified the Inkplate Arduino library's

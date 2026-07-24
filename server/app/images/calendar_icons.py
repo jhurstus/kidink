@@ -62,7 +62,7 @@ class RenderedImage:
 
 # The user-authored prompt template for day-strip calendar icons. The palette
 # table mirrors the §5.3 halftone swatches so generations key cleanly and
-# quantize well on the panel (§5.5).
+# quantize well on the panel (§5.4).
 _PROMPT_TEMPLATE = """\
 Create an icon that will represent the concept of “{title}” on a \
 children’s calendar.  The icon should be in the style of comic book, with black \
