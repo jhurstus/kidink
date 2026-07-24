@@ -1,5 +1,5 @@
 {#- ===========================================================================
-dinner.html - the Dinner module (spec §13). A creased-corner "Dinner" tab, an
+dinner.html - the Dinner module (spec §13). A floating "DINNER" label box, an
 AI image of the meal (a keyed transparent PNG, omitted on a generation miss,
 §7.3) on the placemat background, and the menu name(s).
 
@@ -8,20 +8,18 @@ panel a DinnerPanel view model (see app/dinner/view.py). A panel with no name
 renders the mystery card - no meal planned, or the meal-plan fetch failed
 (§13) - whose hand-made art carries its own "Mystery dinner" caption.
 
-The tab is a SIBLING of the panel, not a child: the frame clips its
-contents (overflow:hidden), and the tab pokes up-left past the panel's corner
-(absolute against .dinner; see dinner.css). The placemat lives INSIDE the
-panel, so the frame's border and overflow clip frame it. Layout constants live in
-static/css/dinner.css and must stay in sync with the hero geometry in
-app/dinner/hero.py.
+The label is a child of the frame, fully inside it (like .panel-label in
+board.css), painted above the placemat but BEHIND the hero - DOM order does
+the layering, so it must stay between the placemat and the body (see
+dinner.css). The placemat lives INSIDE the panel, so the frame's border and
+overflow clip frame it. Layout constants live in static/css/dinner.css and
+must stay in sync with the hero geometry in app/dinner/hero.py.
 =========================================================================== -#}
-{% from "macros/tab.html" import corner_tab %}
 
 {% macro dinner(panel) -%}
-<div class="dinner">
-  <div class="module-tab dinner-tab">{% call corner_tab() %}Dinner{% endcall %}</div>
-  <div class="module-frame">
+<div class="module-frame">
   <img class="dinner-placemat" src="{{ url_for('static', filename='img/dinner/placemat.png') }}" alt="">
+  <div class="dinner-tab">Dinner</div>
   <div class="dinner-body">
     {%- if panel.name is none %}
     <img class="dinner-mystery" src="{{ url_for('static', filename='img/dinner/mystery.png') }}" alt="Mystery dinner!">
@@ -31,7 +29,6 @@ app/dinner/hero.py.
     {%- endif %}
     <div class="dinner-name">{{ panel.name }}</div>
     {%- endif %}
-  </div>
   </div>
 </div>
 {%- endmacro %}

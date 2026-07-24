@@ -1,35 +1,30 @@
 /* ============================================================================
-   dinner.css - the Dinner module (spec §13): the creased-corner "Dinner" tab,
+   dinner.css - the Dinner module (spec §13): the floating "DINNER" label box,
    the placemat background, the meal's keyed transparent hero image, and the
    menu name(s); or the mystery card when no meal is known.
    ============================================================================ */
 
-/* Wrapper filling the grid cell: anchors the pop-out tab (a sibling of the
-   frame, which clips its contents), like .countdown. */
-.dinner {
-   position: relative;
-   width: 100%;
-   height: 100%;
-}
-
-/* The "Dinner" tab is the shared .module-tab slip (comic.css), but it keeps
-   this panel's original type (32px, upright, unchanged case) on a shorter
-   face, and it only just barely pokes past the panel's corner - the module
-   grid's gutters are 15px, so nothing reaches the neighboring panels. */
+/* The "DINNER" label - a plain caption box seated fully inside the frame (a
+   child of it, 8px in from the top and left borders) instead of the other
+   modules' creased corner tab. It keeps this panel's original 32px type,
+   now italic and uppercased, on a 44px white slip. No z-index: DOM
+   order layers it - after the placemat but before the body, so it paints
+   above the placemat yet BEHIND the hero. */
 .dinner-tab {
-   top: -6px;
-   left: -6px;
-   font-size: 32px;
-   font-style: normal;
-   font-weight: 400;
-   text-transform: none;
-}
-
-.dinner-tab .corner-tab-face {
+   position: absolute;
+   top: 8px;
+   left: 8px;
+   box-sizing: border-box;
    height: 44px;
-   /* 20px sides: the right keeps the folded corner's crease off the last letter,
-      the left matches it so the label reads evenly. */
-   padding: 0 20px 0 18px;
+   display: flex;
+   align-items: center;
+   padding: 0 18px;
+   background: #fff;
+   border: 3px solid #000;
+   border-radius: 2px;
+   font-size: 32px;
+   font-style: italic;
+   text-transform: uppercase;
 }
 
 /* Placemat background - full-bleed inside the panel, under the body, clipped
@@ -44,9 +39,10 @@
 }
 
 /* Body - absolute inset escapes the .module-frame's flex-centering (same trick
-   as .countdown-body); later-sibling DOM order paints it above the placemat. The
-   top padding clears the tab (44px face poked 6px up: its bottom lands 38px into
-   the panel). */
+   as .countdown-body); later-sibling DOM order paints it above the placemat.
+   The DINNER label sits under this body (the hero may overlap it), so the
+   top padding only tempers that overlap (the label's bottom lands 52px in)
+   rather than fully clearing it. */
 .dinner-body {
    position: absolute;
    inset: 0;
@@ -87,12 +83,16 @@
    -webkit-box-orient: vertical;
    -webkit-line-clamp: 2;
    overflow: hidden;
-   /* Plain comic caption box: a white plate with a thin black border keeps the
-     name readable over the hero art and the placemat (replacing the old white
-     stroke halo). */
+   /* Plain comic caption box: a white plate with the frame's border treatment
+     (4px black, 2px radius) keeps the name readable over the hero art and the
+     placemat. */
    background: #fff;
-   border: 2px solid #000;
-   border-radius: 4px;
+   border: 4px solid #000;
+   border-radius: 2px;
+   /* Seated 2px lower into the body's bottom padding (paint-only shift: the
+      hero band above is unaffected). */
+   position: relative;
+   top: 2px;
 }
 
 /* Mystery card (§13): the hand-made burst art fills the hero band and
