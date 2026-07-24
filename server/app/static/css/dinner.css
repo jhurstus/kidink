@@ -1,31 +1,8 @@
 /* ============================================================================
-   dinner.css - the Dinner module (spec §13): the floating "DINNER" label box,
-   the placemat background, the meal's keyed transparent hero image, and the
-   menu name(s); or the mystery card when no meal is known.
+   dinner.css - the Dinner module (spec §13): the placemat background, the
+   meal's keyed transparent hero image, and the menu name(s); or the mystery
+   card when no meal is known. The panel carries no label.
    ============================================================================ */
-
-/* The "DINNER" label - a plain caption box seated fully inside the frame (a
-   child of it, 8px in from the top and left borders) instead of the other
-   modules' creased corner tab. It keeps this panel's original 32px type,
-   now italic and uppercased, on a 44px white slip. No z-index: DOM
-   order layers it - after the placemat but before the body, so it paints
-   above the placemat yet BEHIND the hero. */
-.dinner-tab {
-   position: absolute;
-   top: 8px;
-   left: 8px;
-   box-sizing: border-box;
-   height: 44px;
-   display: flex;
-   align-items: center;
-   padding: 0 18px;
-   background: #fff;
-   border: 3px solid #000;
-   border-radius: 2px;
-   font-size: 32px;
-   font-style: italic;
-   text-transform: uppercase;
-}
 
 /* Placemat background - full-bleed inside the panel, under the body, clipped
    (with everything else) by the frame's overflow, which stays the
@@ -40,9 +17,8 @@
 
 /* Body - absolute inset escapes the .module-frame's flex-centering (same trick
    as .countdown-body); later-sibling DOM order paints it above the placemat.
-   The DINNER label sits under this body (the hero may overlap it), so the
-   top padding only tempers that overlap (the label's bottom lands 52px in)
-   rather than fully clearing it. */
+   The 44px top padding keeps the hero from crowding the frame's top border
+   (it matches the height of the label box the panel used to carry). */
 .dinner-body {
    position: absolute;
    inset: 0;

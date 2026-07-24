@@ -1,25 +1,21 @@
 {#- ===========================================================================
-dinner.html - the Dinner module (spec §13). A floating "DINNER" label box, an
-AI image of the meal (a keyed transparent PNG, omitted on a generation miss,
-§7.3) on the placemat background, and the menu name(s).
+dinner.html - the Dinner module (spec §13). An unlabeled panel: an AI image of
+the meal (a keyed transparent PNG, omitted on a generation miss, §7.3) on the
+placemat background, and the menu name(s).
 
 dinner(panel):
 panel a DinnerPanel view model (see app/dinner/view.py). A panel with no name
 renders the mystery card - no meal planned, or the meal-plan fetch failed
 (§13) - whose hand-made art carries its own "Mystery dinner" caption.
 
-The label is a child of the frame, fully inside it (like .panel-label in
-board.css), painted above the placemat but BEHIND the hero - DOM order does
-the layering, so it must stay between the placemat and the body (see
-dinner.css). The placemat lives INSIDE the panel, so the frame's border and
-overflow clip frame it. Layout constants live in static/css/dinner.css and
-must stay in sync with the hero geometry in app/dinner/hero.py.
+The placemat lives INSIDE the panel, so the frame's border and overflow clip
+frame it. Layout constants live in static/css/dinner.css and must stay in
+sync with the hero geometry in app/dinner/hero.py.
 =========================================================================== -#}
 
 {% macro dinner(panel) -%}
 <div class="module-frame">
   <img class="dinner-placemat" src="{{ url_for('static', filename='img/dinner/placemat.png') }}" alt="">
-  <div class="dinner-tab">Dinner</div>
   <div class="dinner-body">
     {%- if panel.name is none %}
     <img class="dinner-mystery" src="{{ url_for('static', filename='img/dinner/mystery.png') }}" alt="Mystery dinner!">

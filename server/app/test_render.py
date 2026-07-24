@@ -929,7 +929,7 @@ def test_render_dinner_mystery_on_unparseable_meal_feed() -> None:
 
 
 def test_render_dinner_generation_failure_keeps_the_name(tmp_path: Path) -> None:
-    # §7.3: a hero miss omits the image; "Dinner" + the menu name remain.
+    # §7.3: a hero miss omits the image; the menu name remains.
     text = (
         _app_with_ics(EMPTY_ICS, tmp_path, _generate_boom, mealplan_ics=MEAL_ICS)
         .test_client()
