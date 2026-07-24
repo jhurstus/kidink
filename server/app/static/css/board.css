@@ -120,13 +120,12 @@ body {
 }
 
 /* The in-panel module label ("TODAY!" / "TOMORROW!"): a plain div with the
-   frame's border treatment (4px black, 2px radius) instead of the other
-   modules' creased corner-tab slip, seated fully inside the frame: 16px below
-   the frame border, uniform with the module bodies' 16px side inset it
-   left-aligns with. 70px tall overall (the corner-tab face's size, keeping
-   the hosts' 98px top-padding math), type matching the .module-tab tabs
-   (comic.css); the weekday-tint background is set inline in the templates.
-   Each host adds its own identifying class (.today-tab / .tomorrow-tab). */
+   frame's border treatment (4px black, 2px radius), seated fully inside the
+   frame: 16px below the frame border, uniform with the module bodies' 16px
+   side inset it left-aligns with. 70px tall overall (keeping the hosts' 98px
+   top-padding math); the weekday-tint background is set inline in the
+   templates. Each host adds its own identifying class (.today-tab /
+   .tomorrow-tab). */
 .content .panel-label {
    position: absolute;
    top: 16px;

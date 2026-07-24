@@ -1,79 +1,9 @@
 /* ============================================================================
    comic.css — shared comic-styled components used across modules:
 
-     1. Creased-corner tab  (.corner-tab, + the .module-tab header size)
-     2. Kid-initials badge  (.kid-badge*, spec §8)
-     3. SFX shout           (.sfx, + whisker speed lines)
+     1. Kid-initials badge  (.kid-badge*, spec §8)
+     2. SFX shout           (.sfx, + whisker speed lines)
    ============================================================================ */
-
-/* ---------------------------------------------------------------------------
-   Creased-corner tab (macros/tab.html) — a paper slip with a folded bottom-right
-   corner, shared by the strip's date box and module header tabs. Flex, not
-   inline flow: the wrapper must shrink-wrap the face exactly. On a line box the
-   inline-level face would leave descender space below it, pushing the
-   bottom-anchored fold outside the face's border.
-   --------------------------------------------------------------------------- */
-.corner-tab {
-  position: relative;
-  display: flex;
-}
-
-/* The visible slip. The clip cuts the bottom-right corner at 45deg (18px legs —
-   keep in sync with .corner-tab-fold's size); the CSS border vanishes along the
-   cut, so the flap's black hypotenuse band redraws the crease line there. */
-.corner-tab-face {
-  height: 48px;
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-  /* Cream unless the instance tints it — the Tomorrow tab sets --tab-bg to
-     its day's weekday colour (board.css palette). */
-  background: var(--tab-bg, #f4efe0);
-  border: 3px solid #000;
-  border-radius: 6px 6px 0 6px;
-  clip-path: polygon(0 0,
-      100% 0,
-      100% calc(100% - 18px),
-      calc(100% - 18px) 100%,
-      0 100%);
-}
-
-/* The turned-back flap, drawn with filled paths (see the macro comment) so its
-   silhouette exactly fills the 18px corner square the face's clip-path cuts
-   away — flush with the box outline, nothing protrudes. */
-.corner-tab-fold {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  display: block;
-  width: 18px;
-  height: 18px;
-}
-
-/* The module header tab ("Dinner" / "Chores" / …) — the corner-tab slip
-   at one shared display size (the face is taller than the strip date box's
-   48px default to carry the bigger type). By default a sibling of the
-   module's frame (which clips its contents), absolutely positioned against
-   the module's layout cell so it pops up and left past the frame's corner;
-   the module body's top padding must clear it (the face bottom lands 59px
-   into the panel: 70px tall, popped 11px up). The Today/Tomorrow labels are
-   plain in-frame divs instead (.panel-label, board.css). */
-.module-tab {
-  position: absolute;
-  top: -11px;
-  left: -8px;
-  z-index: 3;
-  font-size: 42px;
-  font-style: italic;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.module-tab .corner-tab-face {
-  height: 64px;
-  padding: 0 22px;
-}
 
 /* ---------------------------------------------------------------------------
    Kid-initials badge (macros/kids.html, spec §8) — a small superhero shield

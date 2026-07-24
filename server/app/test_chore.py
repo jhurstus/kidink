@@ -100,18 +100,17 @@ def test_equal_interesting_breaks_ties_by_title() -> None:
     assert [row.title for row in panel.rows] == ["Feed cat", "Wash dishes"]
 
 
-def test_three_chores_stay_a_single_block_ranked() -> None:
-    # A column holds three (_AVAILABLE_H // _ROW_H): at or below that, one block
+def test_two_chores_stay_a_single_block_ranked() -> None:
+    # A column holds two (_AVAILABLE_H // _ROW_H): at or below that, one block
     # spanning the panel, ranked by interesting.
     events = [
-        _chore("C low", interesting=100),
+        _chore("B low", interesting=100),
         _chore("A high", interesting=800),
-        _chore("B mid", interesting=400),
     ]
     panel = build_chore(TARGET, events)
 
     assert panel.columns is None
-    assert [row.title for row in panel.rows] == ["A high", "B mid", "C low"]
+    assert [row.title for row in panel.rows] == ["A high", "B low"]
 
 
 def test_assigned_chore_shows_matching_kid_only() -> None:
@@ -132,10 +131,10 @@ def test_icons_resolved_in_one_batch_for_surviving_rows_only() -> None:
     events = [_chore(f"C{i}", interesting=100 - i) for i in range(8)]
     build_chore(TARGET, events, icon_resolver=resolver)
 
-    # 8 chores, two columns of 3: the dropped two never reach the resolver (no
+    # 8 chores, two columns of 2: the dropped four never reach the resolver (no
     # wasted generations), resolved in a single batch.
     assert resolver.calls == 1
-    assert sorted(resolver.items) == [(f"C{i}", None) for i in range(6)]
+    assert sorted(resolver.items) == [(f"C{i}", None) for i in range(4)]
 
 
 def test_resolver_receives_title_and_icon_description() -> None:
@@ -170,25 +169,26 @@ def test_build_is_deterministic_and_seed_is_date_pure() -> None:
 # --- Two-column layout (§14) ------------------------------------------------
 
 
-def test_four_or_more_chores_spill_into_two_columns() -> None:
-    events = [_chore(f"C{i}", interesting=100 - i) for i in range(4)]
+def test_three_or_more_chores_spill_into_two_columns() -> None:
+    events = [_chore(f"C{i}", interesting=100 - i) for i in range(3)]
     panel = build_chore(TARGET, events)
 
     assert panel.rows == []
     assert panel.columns is not None
-    # The top three (by interesting) fill the first column; the fourth spills.
-    assert [r.title for r in panel.columns[0]] == ["C0", "C1", "C2"]
-    assert [r.title for r in panel.columns[1]] == ["C3"]
+    # The top two (by interesting) fill the first column; the third spills.
+    assert [r.title for r in panel.columns[0]] == ["C0", "C1"]
+    assert [r.title for r in panel.columns[1]] == ["C2"]
 
 
 def test_two_columns_cap_at_two_full_columns() -> None:
-    # Eight chores, three per column: the lowest-ranked two are dropped (§4.1).
+    # Eight chores, two per column (a 2x2 grid): the lowest-ranked four are
+    # dropped (§4.1).
     events = [_chore(f"C{i}", interesting=100 - i) for i in range(8)]
     panel = build_chore(TARGET, events)
 
     assert panel.columns is not None
-    assert [r.title for r in panel.columns[0]] == ["C0", "C1", "C2"]
-    assert [r.title for r in panel.columns[1]] == ["C3", "C4", "C5"]
+    assert [r.title for r in panel.columns[0]] == ["C0", "C1"]
+    assert [r.title for r in panel.columns[1]] == ["C2", "C3"]
 
 
 def test_presented_by_kid_then_interesting_then_title() -> None:
@@ -205,21 +205,21 @@ def test_presented_by_kid_then_interesting_then_title() -> None:
     assert panel.columns is not None
     flowed = panel.columns[0] + panel.columns[1]
     assert [r.title for r in flowed] == ["Julia A", "Julia B", "Sam A", "Sam B"]
-    # Julia (kid 0) group fills the first column; Sam's spill into the second.
+    # Julia (kid 0) fills the first column; Sam's fill the second (2x2 grid).
     assert [b.initial for b in panel.columns[0][0].kids] == ["J"]  # Julia A
-    assert [b.initial for b in panel.columns[1][0].kids] == ["S"]  # Sam B
+    assert [b.initial for b in panel.columns[1][0].kids] == ["S"]  # Sam A
 
 
 def test_selection_ranks_by_interesting_across_kids_then_presents_by_kid() -> None:
-    # Eight chores: the cap keeps the top six by interesting regardless of kid
-    # (the two lowest are dropped), while the survivors present grouped by kid.
+    # Eight chores: the cap keeps the top four by interesting regardless of kid
+    # (the four lowest are dropped), while the survivors present grouped by kid.
     events = [
         _chore("J high", kids=["J"], interesting=900),
         _chore("S high", kids=["S"], interesting=800),
         _chore("J mid", kids=["J"], interesting=700),
         _chore("S mid", kids=["S"], interesting=600),
-        _chore("J mid2", kids=["J"], interesting=500),
-        _chore("S mid2", kids=["S"], interesting=400),
+        _chore("J mid2", kids=["J"], interesting=500),  # dropped by the cap
+        _chore("S mid2", kids=["S"], interesting=400),  # dropped by the cap
         _chore("J low", kids=["J"], interesting=100),  # dropped by the cap
         _chore("S low", kids=["S"], interesting=50),  # dropped by the cap
     ]
@@ -230,10 +230,8 @@ def test_selection_ranks_by_interesting_across_kids_then_presents_by_kid() -> No
     assert [r.title for r in flowed] == [
         "J high",
         "J mid",
-        "J mid2",
         "S high",
         "S mid",
-        "S mid2",
     ]
 
 

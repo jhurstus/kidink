@@ -1,8 +1,11 @@
 {#- ===========================================================================
 chore.html — the Chores module (spec §14). Today's chores as an icon + kid
 label + title list, rendered with the shared event_row macro (same as
-Today/Tomorrow). A creased-corner "Chores" tab with a little checkbox glyph
-labels the panel, like Dinner's.
+Today/Tomorrow) over a practice-writing-paper background: light blue ruled
+lines (the chore text sits on them), a light red margin line, and two gray
+hole punches in the left margin. A hand-drawn "CHORES" title (a static PNG,
+black marker on white) sits in the lineless header band, centered in the
+cell right of the margin line.
 
 chore(panel):
 panel a ChorePanel view model (see app/chore.py), with:
@@ -10,32 +13,25 @@ panel a ChorePanel view model (see app/chore.py), with:
 .rows EventRows ranked by interesting then title (single-list mode)
 .columns per-kid EventRow lists, or none (two-column mode, §14)
 
-Layout: a single vertically-centered list by default; two columns (one per kid)
-when the day's chores split cleanly between exactly two kids. Empty state (no
-chores today): a plain panel with centered text and no tab - a placeholder for a
-richer empty card later.
+Layout: a single list right of the margin line for one or two chores; two
+columns - a 2x2 grid when full - for three or four (the cap, §14). Empty
+state (no chores today): centered text over the same blank sheet of paper.
 
-Like Dinner/Tomorrow, the tab is a SIBLING of the panel: the frame clips its
-contents (overflow:hidden), and the tab pokes up-left past the panel's corner
-(absolute against .chore; see chore.css). Layout constants live in
-static/css/chore.css and must stay in sync with the row-budget geometry in
-app/chore.py.
+The paper is a decoration layer under the rows (.chore-paper: ruling + margin
+line + holes, all in chore.css). Layout constants live in static/css/chore.css
+and must stay in sync with the row-budget geometry in app/chore.py.
 =========================================================================== -#}
 {% from "macros/event_row.html" import event_row %}
-{% from "macros/tab.html" import corner_tab %}
 
 {% macro chore(panel) -%}
-{%- if panel.columns or panel.rows %}
-<div class="chore">
-  <div class="module-tab chore-tab">{% call corner_tab() %}
-    <svg class="chore-check" viewBox="0 0 24 24" aria-hidden="true">
-      <rect x="2.5" y="2.5" width="19" height="19" rx="4.5"
-            fill="#fff" stroke="#000" stroke-width="2.5" />
-      <path d="M6.5 12.5 L10.5 16.5 L17.5 8" fill="none" stroke="#000"
-            stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>Chores
-  {% endcall %}</div>
-  <div class="module-frame">
+<div class="module-frame chore-frame">
+  <div class="chore-paper" aria-hidden="true">
+    <div class="chore-ruling"></div>
+    <div class="chore-margin-line"></div>
+    <div class="chore-hole chore-hole-top"></div>
+    <div class="chore-hole chore-hole-bottom"></div>
+  </div>
+  <img class="chore-title" src="{{ url_for('static', filename='img/chores/chores.png') }}" alt="Chores" />
   {%- if panel.columns %}
   <div class="chore-columns">
     {%- for column in panel.columns %}
@@ -44,16 +40,12 @@ app/chore.py.
     </div>
     {%- endfor %}
   </div>
-  {%- else %}
+  {%- elif panel.rows %}
   <div class="chore-rows">
     {%- for row in panel.rows %}{{ event_row(row) }}{% endfor -%}
   </div>
+  {%- else %}
+  <div class="chore-empty">no chores today</div>
   {%- endif %}
-  </div>
 </div>
-{%- else %}
-<div class="module-frame">
-<div class="chore-empty">no chores today</div>
-</div>
-{%- endif %}
 {%- endmacro %}

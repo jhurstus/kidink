@@ -9,9 +9,10 @@ then title (so each kid's chores group together). The row/badge/icon machinery i
 the shared :mod:`app.event_rows`; only the ``Chores`` icon cache namespace differs
 (see :func:`app.images.make_chore_icon_resolver`).
 
-Layout: up to a column's worth of chores (three) fill a single block spanning the
-panel; a fourth or beyond spills the presented list into two columns, the top
-column-full in the first and the rest in the second (§14).
+Layout: up to a column's worth of chores (two) fill a single block spanning the
+panel; a third or beyond spills the presented list into two columns - a 2x2 grid
+when full - the top column-full in the first and the rest in the second, capped
+at four chores total (§14).
 """
 
 from collections.abc import Iterable, Sequence
@@ -30,14 +31,16 @@ from app.event_rows import (
 )
 
 # Row-budget geometry (§4.1), mirroring static/css/chore.css - keep in sync. The
-# top-aligned list fills what remains of the 307px panel (board.css sizes the
-# grid cell) after the top padding (60, clearing the pop-out "Chores" tab and
-# nudging the list down) and the bottom padding (12): 307 - 60 - 12 = 235. This
-# is one column's row capacity: it both caps each column and is the threshold at
+# top-aligned list fills what remains of the ~291px paper (the ~449x299.5 grid
+# cell minus the frame border, board.css) after the 91px top padding seating the
+# first row on the second ruled line: 291 - 91 = 200, plus one 38px row gap
+# since the last row has no trailing blank line: 200 + 38 = 238. This is one
+# column's row capacity (two): it both caps each column and is the threshold at
 # which a single block spills into two columns.
-_AVAILABLE_H = 235
-# One event row: 12px flex gap + 60px icon row (shared with Today/Tomorrow).
-_ROW_H = 72
+_AVAILABLE_H = 238
+# One event row spans two 38px rulings (76px, so a title can wrap to a second
+# line) plus the 38px flex gap - a blank ruling - before the next row.
+_ROW_H = 114
 
 
 @dataclass(frozen=True)

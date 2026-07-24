@@ -1032,9 +1032,10 @@ CHORE_ICS = (
 )
 
 
-def test_render_chore_shows_rows_with_tab_and_icon(tmp_path: Path) -> None:
-    # §14: today's chore renders as an event row under the labeled "Chores" tab
-    # (with its checkbox glyph); the same day's regular event stays out of it.
+def test_render_chore_shows_rows_on_writing_paper(tmp_path: Path) -> None:
+    # §14: today's chore renders as an event row on the practice-writing-paper
+    # background (ruling, margin line, hole punches - no "Chores" label); the
+    # same day's regular event stays out of it.
     text = (
         _app_with_ics(CHORE_ICS, tmp_path, _generate_ok)
         .test_client()
@@ -1042,11 +1043,14 @@ def test_render_chore_shows_rows_with_tab_and_icon(tmp_path: Path) -> None:
         .text
     )
 
-    # Scope to the chore panel (its wrapper up to the next grid cell) so the
+    # Scope to the chore panel (its frame up to the next grid cell) so the
     # same day's regular event, which lives in the Today panel, isn't counted.
-    section = text.split('<div class="chore">')[1].split("grid-cell", 1)[0]
-    assert "chore-tab" in section
-    assert "chore-check" in section  # the checkbox glyph
+    section = text.split("chore-frame")[1].split("grid-cell", 1)[0]
+    assert "chore-paper" in section
+    assert "chore-ruling" in section
+    assert "chore-margin-line" in section
+    assert section.count("chore-hole") >= 2  # the two hole punches
+    assert "img/chores/chores.png" in section  # the hand-drawn CHORES title
     assert "Make bed" in section
     assert '<img class="event-icon"' in section
     assert "Soccer practice" not in section  # regular event excluded (§6.5)
@@ -1073,7 +1077,8 @@ def _chore_event(uid: str, summary: str, hour: int) -> str:
     )
 
 
-# Four chores on the render date: the two-column layout threshold (§14).
+# Four chores on the render date: a full 2x2 grid, past the two-column
+# threshold of three (§14).
 FOUR_CHORE_ICS = (
     "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
     + _chore_event("c1", "Make bed", 8)
@@ -1084,8 +1089,9 @@ FOUR_CHORE_ICS = (
 )
 
 
-def test_render_chore_two_column_when_four_or_more(tmp_path: Path) -> None:
-    # §14: four or more chores spill from a single block into two columns.
+def test_render_chore_two_column_when_three_or_more(tmp_path: Path) -> None:
+    # §14: three or more chores spill from a single block into two columns
+    # (four fill the 2x2 grid).
     text = (
         _app_with_ics(FOUR_CHORE_ICS, tmp_path, _generate_ok)
         .test_client()
@@ -1093,7 +1099,7 @@ def test_render_chore_two_column_when_four_or_more(tmp_path: Path) -> None:
         .text
     )
 
-    section = text.split('<div class="chore">')[1].split("grid-cell", 1)[0]
+    section = text.split("chore-frame")[1].split("grid-cell", 1)[0]
     assert "chore-columns" in section
     assert "chore-column" in section
     assert "chore-rows" not in section  # not the single-block layout
@@ -1101,8 +1107,8 @@ def test_render_chore_two_column_when_four_or_more(tmp_path: Path) -> None:
         assert title in section
 
 
-def test_render_chore_empty_state_is_plain(tmp_path: Path) -> None:
-    # No chores on the date: a plain panel with centered text and no tab (§14
+def test_render_chore_empty_state_is_blank_sheet(tmp_path: Path) -> None:
+    # No chores on the date: centered text over the blank sheet of paper (§14
     # placeholder). EVENT_ICS's lone event is regular, so the chore list is empty.
     text = (
         _app_with_ics(EVENT_ICS, tmp_path, _generate_ok)
@@ -1112,8 +1118,9 @@ def test_render_chore_empty_state_is_plain(tmp_path: Path) -> None:
     )
 
     assert "no chores today" in text
-    assert "chore-tab" not in text
+    assert "chore-paper" in text  # the paper background stays on the empty panel
     assert "chore-rows" not in text
+    assert "chore-columns" not in text
 
 
 def test_render_returns_500_when_fetch_fails() -> None:

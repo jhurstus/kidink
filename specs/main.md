@@ -1003,11 +1003,18 @@ identical to a today/tomorrow list:
 - The `chore:` prefix (case-insensitive, optional space) is stripped before display.
 - Sorted by `interesting`, then title; capped by the same row-budget geometry; **no**
   morning/day/evening buckets.
+- **Layout:** one or two chores stack as a single list; three or four render as a 2x2
+  grid (two columns), the cap. A blank ruled line separates the first and second row
+  of chores.
 - Recurrence works for free via the shared parser (e.g. a daily "make bed").
 - Non-applicable fields (`countdown_eligible`, `time_of_day`) are ignored.
-- **Label:** a creased-corner "Chores" tab in the top-left (like Dinner's), with a small
-  checkbox glyph.
-- **Empty state:** for now a plain panel with centered "no chores today" text and no tab
+- **Background:** a sheet of practice writing paper - thin light blue ruled lines the
+  chore text sits on (the top of the panel is a lineless header band), a thicker light
+  red margin line on the left, and two gray hole punches in the left margin. Titles
+  wrap to at most two lines (one per ruling).
+- **Label:** a hand-drawn "CHORES" title (a static image, black marker on white),
+  centered in the header band right of the margin line.
+- **Empty state:** for now centered "no chores today" text over the blank sheet
   (a placeholder; a richer empty card is planned).
 
 ---

@@ -1,76 +1,123 @@
 /* ============================================================================
-   chore.css - the Chores module (spec §14): the creased-corner "Chores" tab
-   with a checkbox glyph, and the shared calendar-event rows (event_rows.css)
-   for today's chores; or a plain "no chores today" panel when empty. The
-   vertical sizes here (panel padding, tab height, row gap) feed the row-budget
-   geometry in app/chore.py - keep the two in sync.
+   chore.css - the Chores module (spec §14): the shared calendar-event rows
+   (event_rows.css) written onto a sheet of practice writing paper - light
+   blue ruled lines the chore text sits on, a light red margin line, and two
+   gray hole punches. No label; the paper look identifies the panel.
+
+   Ruling geometry (all inside the frame's 4px border; the grid cell is
+   ~449x299.5, so the paper is ~441x291.5):
+     - pitch 38px, 2px blue lines; six lines, the first's bottom at y=84,
+       leaving an ~82px lineless header band at the top (like real practice
+       paper) and ~17px of paper below the last line - half a blank line,
+       just enough to show the last text line's descenders.
+     - each chore row spans two rulings (76px): one text line per ruling,
+       wrapping to the second when the title is long. The title's 38px
+       line-height locks text lines to the ruling pitch, and .chore-rows'
+       top padding seats the first baseline on the SECOND ruling - the first
+       full writing line below the header.
+     - at most two chore rows stack per column, with a 38px gap - one blank
+       ruling - between them: text occupies rulings 2-3 and 5-6, ruling 4
+       stays blank. Up to four chores render as a 2x2 grid (two columns).
+   These sizes feed the row-budget geometry in app/chore.py - keep in sync.
    ============================================================================ */
 
-/* Wrapper filling the grid cell: anchors the pop-out tab (a sibling of the
-   frame, which clips its contents), like .dinner. */
-.chore {
-   position: relative;
-   width: 100%;
-   height: 100%;
+/* ---------------------------------------------------------------------------
+   The paper decoration layer - absolute under the rows, filling the frame.
+   --------------------------------------------------------------------------- */
+.chore-paper {
+   position: absolute;
+   inset: 0;
 }
 
-/* The "Chores" tab is the shared .module-tab slip (comic.css), kept upright at
-   32px on a shorter face like Dinner's, and it only just pokes past the panel's
-   corner - the module grid's 15px gutters keep it clear of neighbors. */
-.chore-tab {
-   top: -6px;
-   left: -6px;
-   font-size: 32px;
-   font-style: normal;
-   font-weight: 400;
-   text-transform: none;
+/* Blue writing lines: 2px stripes at a 38px pitch. The layer starts 46px down
+   so the first stripe's bottom lands at y=84 (46 + one 38px period); six
+   stripes fit, the last at y=272-274, leaving ~17px of paper below it for the
+   last text line's descenders. */
+.chore-ruling {
+   position: absolute;
+   left: 0;
+   right: 0;
+   top: 46px;
+   bottom: 0;
+   background: repeating-linear-gradient(to bottom,
+         transparent 0 36px,
+         #64a8dc 36px 38px);
 }
 
-.chore-tab .corner-tab-face {
-   height: 44px;
-   /* 20px sides: the right keeps the folded corner's crease off the last letter,
-      the left matches it so the label reads evenly. */
-   padding: 0 20px 0 16px;
+/* The margin line: light red, full height, left of the chore list. */
+.chore-margin-line {
+   position: absolute;
+   top: 0;
+   bottom: 0;
+   left: 64px;
+   width: 3px;
+   background: #e07b73;
 }
 
-/* The checkbox glyph sitting left of "Chores" (the face is inline-flex with a
-   10px gap). Sized to the 32px tab type; the ink weight matches the comic
-   outlines. */
-.chore-check {
-   flex: none;
-   display: block;
-   width: 30px;
-   height: 30px;
+/* Hole punches: two gray circles centered in the left margin (x=32) - the
+   top one between the first and second rulings (center y=102), the bottom one
+   between the second-to-last and last (center y=254). */
+.chore-hole {
+   position: absolute;
+   left: 19px;
+   width: 26px;
+   height: 26px;
+   border-radius: 50%;
+   background: #aaaaaa;
 }
+
+.chore-hole-top {
+   top: 89px;
+}
+
+.chore-hole-bottom {
+   top: 241px;
+}
+
+/* The hand-drawn "CHORES" title (black marker on white, so it blends into
+   the paper), aspect-fit and centered in the blank header cell right of the
+   margin line: x=67 to the panel edge, vertically centered in the 82px
+   lineless band above the first ruling. */
+.chore-title {
+   position: absolute;
+   left: 67px;
+   right: 0;
+   top: 13px;
+   height: 56px;
+   /* The img keeps its intrinsic width (scaled to the 56px height); auto
+      side margins split the leftover between left/right, centering it. */
+   margin: 0 auto;
+}
+
+/* ---------------------------------------------------------------------------
+   The chore list - rows sitting on the ruling.
+   --------------------------------------------------------------------------- */
 
 /* The event list. Absolute inset escapes the .module-frame's flex-centering
-   (same trick as .dinner-body). Top-aligned, with a 60px top
-   padding that seats the first row below the "Chores" tab (44px face poked 6px
-   up: its bottom lands 38px into the panel) with a little extra breathing room.
-   The 307px panel gives the list area 307 - 60 - 12 = 235px (_AVAILABLE_H in
-   app/chore.py, three rows). The 12px flex gap is _ROW_H's ingredient (12 + the
-   rows' 60px base). Italic to match the day strip / Tomorrow type. */
+   (same trick as .dinner-body). The 71px left padding starts the icons just
+   right of the margin line (which ends at x=67); the top padding seats the
+   first title baseline on the second ruling - the first full writing line
+   below the header (tuned visually - the title's first-line baseline sits
+   ~28px into its 38px line box, and the glyphs abut the ruling from above
+   rather than crossing it). The 38px flex gap skips one blank ruling between
+   the two row slots. */
 .chore-rows {
    position: absolute;
    inset: 0;
-   padding: 60px 16px 12px;
+   padding: 91px 12px 0 71px;
    display: flex;
    flex-direction: column;
-   gap: 12px;
-   font-style: italic;
+   gap: 38px;
 }
 
-/* Two-column layout (§14): one kid's chores per column, side by side. Same tab
-   clearance and top alignment as the single list; the horizontal padding is
-   trimmed to 12px and the columns share a 12px gap to leave the narrower titles
-   more room (they still ellipsize past their column). */
+/* Two-column layout (§14): one kid's chores per column, side by side, both
+   on the same ruling (identical row geometry keeps their text lines level). */
 .chore-columns {
    position: absolute;
    inset: 0;
-   padding: 60px 12px 12px;
+   padding: 91px 12px 0 71px;
    display: flex;
-   gap: 12px;
-   font-style: italic;
+   gap: 10px;
 }
 
 .chore-column {
@@ -78,15 +125,49 @@
    min-width: 0;
    display: flex;
    flex-direction: column;
-   gap: 12px;
+   gap: 38px;
 }
 
-/* Empty state (§14 placeholder): plain centered text, no tab. Matches the
-   Today/Tomorrow event-row title voice (event_rows.css: upright, light) but
-   larger, centered by board.css's .module-frame flex. */
+/* Each chore row spans two rulings; overriding the shared 60px single-line
+   row (event_rows.css). Top-aligned so the title's line boxes stack from the
+   row's first ruling, with a wider icon-title gap than the shared rows. */
+.chore-frame .event-row {
+   height: 76px;
+   align-items: flex-start;
+   gap: 16px;
+}
+
+/* The 60px icon centers on the ruling that separates the row's two writing
+   lines (row-local center ~30), straddling it like a sticker. */
+.chore-frame .event-row-icon {
+   margin-top: 0;
+}
+
+/* Titles wrap to at most two lines (one per ruling) instead of the shared
+   single-line ellipsis; the 38px line-height locks each line to the ruling
+   pitch. */
+.chore-frame .event-row-title {
+   white-space: normal;
+   line-height: 38px;
+   display: -webkit-box;
+   -webkit-box-orient: vertical;
+   -webkit-line-clamp: 2;
+}
+
+/* Empty state (§14 placeholder): "no chores today" written on the paper -
+   horizontally centered in the writing area (right of the margin line), with
+   its baseline seated on the fourth ruling (the sheet's visual middle) like
+   the chore text. Matches the Today/Tomorrow event-row title voice
+   (event_rows.css: italic, light) but larger. */
 .chore-empty {
+   position: absolute;
+   left: 67px;
+   right: 0;
+   top: 161px;
+   text-align: center;
    font-size: 40px;
    font-style: italic;
    font-weight: 200;
+   line-height: 38px;
    color: #000;
 }
