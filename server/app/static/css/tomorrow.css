@@ -50,21 +50,21 @@
 }
 
 /* The events panel: a Today bucket without its header row (.today-bucket,
-   today.css) — white, 4px black border, 2px radius, and 12px body inset —
-   holding up to four events two across in reading order on the buckets'
-   60px-row / 12px-gap grid. 530px wide: 40px narrower than the buckets'
-   570px, shaving 20px off each 1fr column's text area to clear room for the
-   room art. No explicit height: it shrink-wraps its visual rows (20px of
-   border + padding chrome + 72px per row — _PANEL_CHROME_H/_ROW_H in
-   app/tomorrow.py), and the template omits it entirely on an event-less
-   day. */
+   today.css) — white, 4px black border, 2px radius, 12px vertical inset
+   and the buckets' roomier 20px side inset — holding up to four events two
+   across in reading order on the buckets' 60px-row / 12px-gap grid. 530px
+   wide: 40px narrower than the buckets' 570px, shaving 20px off each 1fr
+   column's text area to clear room for the room art. No explicit height:
+   it shrink-wraps its visual rows (20px of border + padding chrome + 72px
+   per row — _PANEL_CHROME_H/_ROW_H in app/tomorrow.py), and the template
+   omits it entirely on an event-less day. */
 .tomorrow-events {
   position: relative;
   /* above the room art (tier 2, see .tomorrow-room) */
   z-index: 2;
   box-sizing: border-box;
   width: 530px;
-  padding: 12px;
+  padding: 12px 20px;
   background: #fff;
   border: 4px solid #000;
   border-radius: 2px;

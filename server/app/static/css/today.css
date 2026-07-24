@@ -49,7 +49,7 @@
 /* One bucket: a plain white panel with the outer frame's border treatment
    (4px black, 2px radius). The body inside is absolutely positioned, so the
    bucket has no intrinsic height: the template sets an explicit height
-   computed from its row count (64 + 72·rows, borders included — see
+   computed from its row count (76 + 72·rows, borders included — see
    today.html); leftover column space pools below the buckets. */
 .today-bucket {
   flex: none;
@@ -60,35 +60,44 @@
   border-radius: 2px;
 }
 
-/* Inside the bucket's border. The borders + 10px top padding + 34px header +
-   12px bottom padding are _HEADER_BLOCK_H's ingredients in app/today.py. The
-   12px gaps and bottom padding reuse the body's 12px left inset, so the
-   space between rows and under the last icon equals the space left of the
-   icons. */
+/* Inside the bucket's border: the weekday-tinted header band on top, the
+   white event area under it. Spacing lives in the children (the band's
+   fixed height, the grid's 12px padding); together with the borders those
+   are _HEADER_BLOCK_H's ingredients in app/today.py. */
 .today-bucket-body {
   position: absolute;
   inset: 0;
-  padding: 10px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-/* Header type: the strip's .day-name style (400 weight, NorB Pen inherited)
-   at title size, led by the time-of-day glyph. */
+/* The header band: a full-width title bar over the event area, tinted with
+   the weekday's colour (set inline by today.html off the same
+   --weekday-color var as the TODAY! tab) and closed off from the events by
+   a 4px black separator line. 56px tall border-box: 52px of band (the 30px
+   glyph and the label centered in it) plus the separator. Type is the
+   day-name voice at title size (400 weight, NorB Pen and the panel's
+   italic inherited), lightly letterspaced, led by the time-of-day glyph in
+   a fixed 30px slot with the event rows' 10px icon-title gap - every label
+   starts on the same x regardless of the icon's ink extents. */
 .today-bucket-header {
   flex: none;
-  height: 34px;
+  box-sizing: border-box;
+  height: 56px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
-  gap: 0px;
-  font-size: 31px;
+  gap: 10px;
+  border-bottom: 4px solid #000;
+  font-size: 32px;
   font-weight: 400;
+  letter-spacing: 0.02em;
   line-height: 1.2;
   color: #000;
 }
 
 .today-bucket-icon {
+  flex: none;
   display: block;
   width: 30px;
   height: 30px;
@@ -96,13 +105,17 @@
 
 /* The bucket's event grid: two columns filled in reading order (left-right,
    then top-bottom — DOM order is the §10.2 display order), 60px rows at the
-   shared 12px gap pitch. Grid items need min-width:0 so long titles ellipsize
-   (event_rows.css) instead of widening their column. */
+   shared 12px gap pitch. The 12px vertical padding puts the same air
+   between the separator line, the rows, the bucket borders and under the
+   last icon; the sides get a roomier 20px inset. Grid items need
+   min-width:0 so long titles ellipsize (event_rows.css) instead of
+   widening their column. */
 .today-bucket-rows {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-auto-rows: 60px;
   gap: 12px;
+  padding: 12px 20px;
 }
 
 .today-bucket-rows .event-row {
@@ -139,52 +152,80 @@
   height: 250px;
 }
 
-/* The §10.5 speech caption: a bubble floating in the sky clear above the
-   weather kid and the signpost (both their tops sit ~13px over the slot's
-   top edge), roughly centered on the kid's head (head center slot x ~278;
-   a max-width box at left 118 centers exactly, and the min-width keeps
-   narrower boxes from drifting far off). The body reuses the buckets'
-   border treatment; the text shrink-wraps (fit-content, so a one-liner
-   hugs its words and a wrapped caption hugs its longest line - balanced
-   wrapping would equalize the lines but leave the box at max-width,
-   gutters and all). Upright type: the panel's italic reads as motion, the
-   bubble is plain speech. Capped at 320px so the right edge clears the
-   signpost (face at slot x ≥ 467). Only eligible layouts render it
-   (app/today.py caption_eligible): with two single-row buckets ~268px of
-   sky is free, and a worst-case three-line bubble plus tail is ~220px. */
+/* The §10.5 speech caption: an oval bubble floating in the sky clear above
+   the weather kid and the signpost (both their tops sit ~13px over the
+   slot's top edge), centered on the kid's head (head center slot x ~278 =
+   left 78 + half the fixed width). The width is fixed rather than
+   fit-content: the tail below is a pair of SVGs that must agree on where
+   the bubble's center-line is, one anchored to the slot and one to this
+   box, so the box can't shrink-wrap; a short caption just gets a roomier
+   oval. The oval is the box's own border at radius 50%; the generous
+   padding keeps the wrapped lines' corners inside the curve, and balanced
+   wrapping equalizes the lines so the centered block rags to the oval well
+   enough.
+   TODO: rag the text to the true oval with `shape-inside: ellipse()` once
+   browsers ship CSS Shapes Level 2.
+   Comic Sans MS bold, the classic comic-lettering face - a deliberate
+   change of voice from the board's NorB Pen - and upright: the panel's
+   italic reads as motion, the bubble is plain speech. At 400px the right
+   edge (478) does cross the signpost's x-range, but the bubble's bottom
+   rides 50px over the slot's top edge, ~37px above the signpost's tip, so
+   they never meet. Only eligible layouts render it (app/today.py
+   caption_eligible): with two single-row buckets ~244px of sky is free,
+   and a worst-case three-line bubble plus tail is ~205px (even a future
+   four-liner at ~237px still fits). */
 .today-caption {
   position: absolute;
-  left: 118px;
+  left: 78px;
   bottom: 300px;
   /* 50px above the slot's top edge: ~37px over the hat/sign */
   box-sizing: border-box;
-  width: fit-content;
-  min-width: 260px;
-  /* keeps the fixed-x tail mouth inside a short box */
-  max-width: 320px;
-  padding: 8px 16px 10px;
+  width: 400px;
+  padding: 22px 42px 24px;
   background: #fff;
   border: 4px solid #000;
-  border-radius: 2px;
+  border-radius: 50%;
+  font-family: "Comic Sans MS", cursive;
   font-size: 30px;
-  font-weight: 200;
-  /* the event-title/temp-label light weight */
+  font-weight: 700;
   font-style: normal;
-  line-height: 1.15;
+  line-height: 1.11em;
   text-align: center;
+  text-wrap: balance;
 }
 
-/* The tail: an open SVG triangle (see today.html) hung off the bubble's
-   bottom, right of the box's center, its white fill erasing the border
-   across the mouth so only the two stroked sides emerge, angling down-left
-   to land on the kid's head. top: 100% seats the SVG's top edge exactly on
-   the border's top (the abs containing block is the padding box), which is
-   what lets the viewBox clip the strokes flush with it; left 187 puts the
-   tip (SVG x 6) at slot x ~315, on the hat's right side. */
-.today-caption-tail {
+/* The tail: a curved swoosh whose mouth sits 60px right of the bubble's
+   center, tip aimed at the center of the kid's head. Two stacked copies of
+   the SAME svg path (see today.html) weld it seamlessly to the oval:
+   -tail-back comes before the caption in the DOM, so it paints under the
+   bubble - its white fill plus 8px black stroke read as the tail's 4px
+   outline where they emerge below the elliptical border, while the
+   bubble's body hides the stroke's inner half, the mouth-closing top edge,
+   and everything else inboard of the border. The caption's own -tail child
+   then repaints the bare white fill on top, erasing the border across the
+   mouth so it opens into the interior. No coordinate here depends on where
+   the ellipse crosses the mouth, so the weld stays clean whether the
+   caption wraps to two lines or four. The two boxes must cover the same
+   screen rect: the back is slot-anchored (left 288 = caption left 78 +
+   200 half-width + 60 offset - 50 half-box; bottom 250 puts the 70px-tall
+   box's top 16px above the caption's padding-box bottom, which bottom 300
+   plus the 4px border pin 320px over the slot's bottom edge), the front is
+   caption-anchored (same center-line via 50% of the padding box, same top
+   via calc(100% - 16px)). */
+.today-caption-tail,
+.today-caption-tail-back {
   position: absolute;
-  left: 187px;
-  top: 100%;
-  width: 60px;
-  height: 48px;
+  width: 100px;
+  height: 70px;
+}
+
+.today-caption-tail-back {
+  left: 288px;
+  bottom: 250px;
+}
+
+.today-caption-tail {
+  left: calc(50% + 60px);
+  top: calc(100% - 16px);
+  transform: translateX(-50%);
 }

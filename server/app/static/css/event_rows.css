@@ -17,8 +17,7 @@
 }
 
 /* Icon slot: every icon box is a uniform 60px square, so titles align and the
-   boxes sit flush left on the same edge (e.g. under Today's bucket-header
-   glyph). */
+   boxes sit flush left on the same edge down their panel. */
 .event-row-icon {
   flex: none;
   width: 60px;

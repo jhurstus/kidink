@@ -37,11 +37,12 @@ from app.event_rows import (
 # reserved weather slot (250), and the flex gap above it (14):
 # 916 - 98 - 16 - 14 - 250 = 538.
 _AVAILABLE_H = 538
-# Per-visible-bucket overhead: 4px top + 4px bottom bucket border + 10px body
-# top padding + 34px header row + 12px bottom padding + a 12px
-# inter-bucket-gap allowance (over-counted by one gap for k buckets —
-# deliberate slack, left below the buckets).
-_HEADER_BLOCK_H = 76
+# Per-visible-bucket overhead: 4px top + 4px bottom bucket border + 56px
+# header band (52px of weekday-tinted bar + its 4px separator line) + 12px
+# event-grid top padding + 12px bottom padding + a 12px inter-bucket-gap
+# allowance (over-counted by one gap for k buckets — deliberate slack, left
+# below the buckets).
+_HEADER_BLOCK_H = 88
 # One visual row: 12px grid gap + 60px icon row. A row holds two events side
 # by side (§10.2 reading order), so budgets count rows, not events.
 _ROW_H = 72
@@ -104,10 +105,10 @@ def caption_eligible(buckets: Sequence[TodayBucket]) -> bool:
 
     At most two visible buckets, each a single visual row (1-2 events, §10.2
     two-across layout; empty buckets are already dropped, so ``rows`` is never
-    empty). Two single-row buckets use 284px of the 538px bucket area
-    (2·136px + a 12px gap), leaving ~268px of sky above the weather slot
+    empty). Two single-row buckets use 308px of the 538px bucket area
+    (2·148px + a 12px gap), leaving ~244px of sky above the weather slot
     (including the 14px flex gap) - comfortably clearing the worst-case
-    bubble (~180px with its tail). A day with no buckets at all qualifies
+    bubble (~205px with its tail). A day with no buckets at all qualifies
     too (the ``all`` is vacuous).
     """
     return len(buckets) <= 2 and all(len(b.rows) <= 2 for b in buckets)

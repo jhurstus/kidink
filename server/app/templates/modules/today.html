@@ -85,13 +85,14 @@ inside the frame (a child of it) and left-aligned with them. -#}
     {%- for bucket in panel.buckets %}
     {#- Each bucket shrink-wraps its content; the body is absolutely positioned
     inside the bucket's border (today.css), so the height is computed here:
-    4px top border + 10px top pad + 34px header + 12px bottom pad + 4px bottom
-    border + per visual row (two events side by side, reading order) a 12px
-    gap and 60px of icon = 64 + 72·⌈events/2⌉. Keep in sync with today.css and
-    the app/today.py budget constants. -#}
-    <div class="today-bucket today-bucket-{{ bucket.key }}" style="height: {{ 64 + 72 * ((bucket.rows | length + 1) // 2) }}px">
+    4px top border + 56px header band (weekday-tinted bar + its 4px separator
+    line) + 12px event-grid top pad + 12px bottom pad + 4px bottom border +
+    per visual row (two events side by side, reading order) 60px of icon and,
+    past the first, a 12px gap = 76 + 72·⌈events/2⌉. Keep in sync with
+    today.css and the app/today.py budget constants. -#}
+    <div class="today-bucket today-bucket-{{ bucket.key }}" style="height: {{ 76 + 72 * ((bucket.rows | length + 1) // 2) }}px">
       <div class="today-bucket-body">
-        <div class="today-bucket-header">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
+        <div class="today-bucket-header" style="background: var(--weekday-color-{{ panel.weekday }})">{{ bucket_icon(bucket.key) }}{{ bucket.name }}</div>
         <div class="today-bucket-rows">
           {%- for row in bucket.rows %}
           {%- if bucket.sfx and loop.last -%}
@@ -110,20 +111,26 @@ inside the frame (a child of it) and left-aligned with them. -#}
     {#- The §10.5 speech caption, floating in the sky above the slot (only set
     on layouts that leave the room - see caption_eligible in app/today.py; the
     route also suppresses it when the forecast, and so the kid, is missing).
-    The bubble body is a plain div with the buckets' border treatment; its
-    tail is an SVG whose path is deliberately left open: the fill paints the
-    implicitly-closed triangle (erasing the bubble's border along the
-    attachment span - children paint over the parent's border) while the
-    stroke draws only the two slanted sides, tip pointing down-left at the
-    weather kid's head. The sides' endpoints sit above the viewBox (y -8) and
-    the SVG's top edge rides exactly on the border's top (today.css), so the
-    default svg overflow clipping cuts both strokes flush with the border -
-    no stubs poking into the bubble's interior. -#}
+    The bubble body is an oval div (the buckets' border treatment at radius
+    50%); its tail is the same curved-swoosh path drawn twice, sandwiching
+    the bubble (the curved-tail look of the joke panel's generated bubbles).
+    The -back copy paints under the bubble: white fill with an 8px black
+    stroke, whose outer half becomes the tail's 4px outline where it emerges
+    below the oval's border (the bubble body hides the inner half, the
+    stroked mouth-closing top edge, and everything else inboard of the
+    border - including how far the elliptical border rides up at the mouth's
+    off-center x, which varies with the caption's line count). The front
+    copy, a child of the bubble, repaints the bare white fill over the
+    border, opening the mouth into the interior. today.css pins both boxes
+    to the same screen rect. -#}
     {%- if panel.caption %}
+    <svg class="today-caption-tail-back" viewBox="0 0 100 70" aria-hidden="true">
+      <path d="M 36 0 C 38 20, 30 40, 10 62 C 26 52, 50 30, 64 0 Z" fill="#fff" stroke="#000" stroke-width="8" stroke-linejoin="round" />
+    </svg>
     <div class="today-caption">
       {{- panel.caption -}}
-      <svg class="today-caption-tail" viewBox="0 0 60 48" aria-hidden="true">
-        <path d="M 34 -8 L 6 44 L 58 -8" fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" />
+      <svg class="today-caption-tail" viewBox="0 0 100 70" aria-hidden="true">
+        <path d="M 36 0 C 38 20, 30 40, 10 62 C 26 52, 50 30, 64 0 Z" fill="#fff" />
       </svg>
     </div>
     {%- endif %}

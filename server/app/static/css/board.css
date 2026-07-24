@@ -20,13 +20,20 @@
    sparse dots on white, never a solid dark field), while still reading as
    distinct colours (§5.4). */
 .board {
-   --weekday-color-0: #ffc24d; /* Monday — light orange */
-   --weekday-color-1: #ffd633; /* Tuesday — yellow */
-   --weekday-color-2: #a6d024; /* Wednesday — lime */
-   --weekday-color-3: #a6e6b3; /* Thursday — green */
-   --weekday-color-4: #ffbecd; /* Friday — pink */
-   --weekday-color-5: #aad8f7; /* Saturday — light sky */
-   --weekday-color-6: #a3d4f5; /* Sunday — light blue */
+   --weekday-color-0: #ffc24d;
+   /* Monday — light orange */
+   --weekday-color-1: #ffd633;
+   /* Tuesday — yellow */
+   --weekday-color-2: #a6d024;
+   /* Wednesday — lime */
+   --weekday-color-3: #a6e6b3;
+   /* Thursday — green */
+   --weekday-color-4: #ffbecd;
+   /* Friday — pink */
+   --weekday-color-5: #aad8f7;
+   /* Saturday — light sky */
+   --weekday-color-6: #a3d4f5;
+   /* Sunday — light blue */
 }
 
 /* ---------------------------------------------------------------------------
@@ -134,7 +141,7 @@ body {
    height: 70px;
    display: flex;
    align-items: center;
-   padding: 0 22px;
+   padding: 0 29px 0 24px;
    border: 4px solid #000;
    border-radius: 2px;
    font-size: 42px;

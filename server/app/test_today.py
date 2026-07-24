@@ -110,16 +110,15 @@ def test_chores_and_other_days_are_excluded() -> None:
     assert panel.buckets == []
 
 
-def test_worst_case_cap_keeps_four_rows_of_pairs() -> None:
-    # All three buckets visible -> budget is 4 visual rows (§10.1 step 1-2);
-    # rows hold two events each, so eight events fit (Morning 4 + Day 2 +
-    # Evening 2 = 2+1+1 rows) and the least-interesting three are dropped
-    # silently (§4.1).
+def test_worst_case_cap_keeps_three_rows_of_pairs() -> None:
+    # All three buckets visible -> budget is 3 visual rows (§10.1 step 1-2);
+    # rows hold two events each, so six events fit (Morning 2 + Day 2 +
+    # Evening 2 = 1+1+1 rows) and the least-interesting three are dropped
+    # silently (§4.1): with all three headers still visible, capacity stays
+    # 3 rows and no backfill fits.
     events = [
         _event("M1", time_of_day=TimeOfDay.MORNING, interesting=900),
         _event("M2", time_of_day=TimeOfDay.MORNING, interesting=850),
-        _event("M3", time_of_day=TimeOfDay.MORNING, interesting=800),
-        _event("M4", time_of_day=TimeOfDay.MORNING, interesting=750),
         _event("D1", time_of_day=TimeOfDay.DAY, interesting=700),
         _event("D2", time_of_day=TimeOfDay.DAY, interesting=650),
         _event("E1", time_of_day=TimeOfDay.EVENING, interesting=600),
@@ -131,14 +130,15 @@ def test_worst_case_cap_keeps_four_rows_of_pairs() -> None:
     panel = build_today(TARGET, events)
 
     shown = {row.title for bucket in panel.buckets for row in bucket.rows}
-    assert shown == {"M1", "M2", "M3", "M4", "D1", "D2", "E1", "E2"}
+    assert shown == {"M1", "M2", "D1", "D2", "E1", "E2"}
 
 
 def test_odd_buckets_waste_a_half_row() -> None:
-    # Rows never mix buckets: three Morning + three Day events consume four
-    # visual rows (2+2, each with a half-filled last row), exhausting the
-    # worst-case budget — the Evening pair is dropped with its header even
-    # though only six events are shown.
+    # Rows never mix buckets: three Morning + three Day events need four
+    # visual rows (2+2, each with a half-filled last row), so the worst-case
+    # budget of 3 exhausts at D3 and the Evening pair is dropped with its
+    # header even though only six events are shown; freeing that header
+    # lifts capacity to 5 rows and D3 backfills (§10.1 step 4).
     events = [
         _event("M1", time_of_day=TimeOfDay.MORNING, interesting=900),
         _event("M2", time_of_day=TimeOfDay.MORNING, interesting=880),
@@ -157,28 +157,33 @@ def test_odd_buckets_waste_a_half_row() -> None:
 
 
 def test_backfill_fills_visible_buckets_only() -> None:
-    # The top-ranked events fill the four worst-case rows with Morning+Evening
-    # only, so Day never becomes visible: the next-ranked (Day) event is
-    # skipped and later Morning events backfill the freed header row instead
-    # (§10.1 step 4; capacity 5 rows with two visible headers).
+    # The top-ranked events fill the three worst-case rows with
+    # Morning+Evening only, so Day never becomes visible: the next-ranked
+    # (Day) event is skipped and later Morning events backfill the freed
+    # header row instead (§10.1 step 4; capacity 5 rows with two visible
+    # headers).
     events = [
         _event(f"M{i}", time_of_day=TimeOfDay.MORNING, interesting=900 - i, minute=i)
-        for i in range(1, 7)
+        for i in range(1, 5)
     ] + [
         _event("E1", time_of_day=TimeOfDay.EVENING, interesting=700),
         _event("E2", time_of_day=TimeOfDay.EVENING, interesting=690),
         _event("Day skipped", time_of_day=TimeOfDay.DAY, interesting=500),
-        _event("M7 backfilled", time_of_day=TimeOfDay.MORNING, interesting=400),
-        _event("M8 backfilled", time_of_day=TimeOfDay.MORNING, interesting=390),
-        _event("M9 over capacity", time_of_day=TimeOfDay.MORNING, interesting=380),
+        _event("M5 backfilled", time_of_day=TimeOfDay.MORNING, interesting=400),
+        _event("M6 backfilled", time_of_day=TimeOfDay.MORNING, interesting=390),
+        _event("M7 backfilled", time_of_day=TimeOfDay.MORNING, interesting=380),
+        _event("M8 backfilled", time_of_day=TimeOfDay.MORNING, interesting=370),
+        _event("M9 over capacity", time_of_day=TimeOfDay.MORNING, interesting=360),
     ]
     panel = build_today(TARGET, events)
 
     assert [b.key for b in panel.buckets] == ["morning", "evening"]
     shown = {row.title for bucket in panel.buckets for row in bucket.rows}
-    assert shown == {f"M{i}" for i in range(1, 7)} | {
+    assert shown == {f"M{i}" for i in range(1, 5)} | {
         "E1",
         "E2",
+        "M5 backfilled",
+        "M6 backfilled",
         "M7 backfilled",
         "M8 backfilled",
     }
