@@ -80,7 +80,7 @@
    temperature bar and its temp label (both tier 2). */
 .tomorrow-weather-slot .weather-kid {
   position: absolute;
-  left: 7px;
+  left: 2px;
   top: -20px;
   z-index: 3;
   width: 275px;
