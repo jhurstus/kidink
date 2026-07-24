@@ -18,7 +18,8 @@ day_strip(strip):
 strip a DayStrip view model (see app/day_strip.py), with:
 .week list[DayCell] (Mon..Sun); a cell's .icons are its §9.2
 DayIcon picks (.title/.icon_url/.kids)
-.date_label formatted today-panel date, e.g. "June 3, 2026"
+.date_month / .date_rest today-panel date split for styling,
+e.g. "June" / "3, 2026"
 =========================================================================== -#}
 {% from "macros/kids.html" import kid_badges %}
 
@@ -75,7 +76,9 @@ context for both the art and the badge. -#}
           <rect x="14.5" y="23.5" width="3" height="3" />
         </g>
       </svg>
-      {{ strip.date_label }}
+      {#- One span so the icon/text flex gap doesn't split the date; the inner
+      span lets the month name carry its own letter-spacing. -#}
+      <span class="date-label"><span class="date-month">{{ strip.date_month }}</span> {{ strip.date_rest }}</span>
     </div>
     {%- endif %}
   </div>

@@ -173,7 +173,7 @@ def test_render_contains_all_seven_day_names() -> None:
 def test_render_contains_formatted_corner_date() -> None:
     text = _app_with_ics(EMPTY_ICS).test_client().get("/render?date=2026-06-03").text
 
-    assert "June 3, 2026" in text
+    assert '<span class="date-month">June</span> 3, 2026' in text
 
 
 def test_render_today_gets_the_widened_panel() -> None:
@@ -218,7 +218,7 @@ def test_render_default_date_uses_injected_now() -> None:
     app.config["NOW"] = datetime(2026, 6, 23, 18, 0, tzinfo=UTC)
     text = app.test_client().get("/render").text
 
-    assert "June 23, 2026" in text
+    assert '<span class="date-month">June</span> 23, 2026' in text
     assert "day-panel-today" in text
 
 

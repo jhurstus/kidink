@@ -104,7 +104,11 @@ class DayStrip:
     """The complete view model rendered by ``templates/modules/day_strip.html``."""
 
     week: list[DayCell]
-    date_label: str
+    date_month: str
+    """Today-panel date, month-name part, e.g. "June" — the template styles it
+    separately from the day/year."""
+    date_rest: str
+    """Today-panel date, day-and-year part, e.g. "3, 2026"."""
 
 
 def build_day_strip(
@@ -128,9 +132,11 @@ def build_day_strip(
     by_day: dict[date, list[CalendarEvent]] = {}
     for event in events:
         by_day.setdefault(event.local_day, []).append(event)
+    month, rest = _format_date_parts(target)
     return DayStrip(
         week=_build_week_cells(week_of(target), target, by_day, kids, icon_resolver),
-        date_label=_format_date_label(target),
+        date_month=month,
+        date_rest=rest,
     )
 
 
@@ -225,6 +231,8 @@ def _build_week_cells(
     return cells
 
 
-def _format_date_label(target: date) -> str:
-    """Format the today-panel date, e.g. "June 3, 2026" (no leading zero)."""
-    return f"{target:%B} {target.day}, {target.year}"
+def _format_date_parts(target: date) -> tuple[str, str]:
+    """Format the today-panel date as its (month, "day, year") parts — e.g.
+    ("June", "3, 2026"), no leading zero — split so the template can style the
+    month name separately."""
+    return f"{target:%B}", f"{target.day}, {target.year}"

@@ -86,9 +86,11 @@ def test_build_day_strip_week_is_mon_to_sun() -> None:
     ]
 
 
-def test_build_day_strip_date_label_strips_leading_zero() -> None:
-    assert build_day_strip(date(2026, 6, 3)).date_label == "June 3, 2026"
-    assert build_day_strip(date(2026, 12, 25)).date_label == "December 25, 2026"
+def test_build_day_strip_date_parts_strip_leading_zero() -> None:
+    strip = build_day_strip(date(2026, 6, 3))
+    assert (strip.date_month, strip.date_rest) == ("June", "3, 2026")
+    strip = build_day_strip(date(2026, 12, 25))
+    assert (strip.date_month, strip.date_rest) == ("December", "25, 2026")
 
 
 def test_build_day_strip_today_panel_is_wider() -> None:
