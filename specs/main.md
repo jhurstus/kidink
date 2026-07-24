@@ -160,8 +160,8 @@ Image generation is **inline** inside `/render` (steps 3–4; the bugbug variant
 is generated during step 4's placement pass). There is no separate image-collection
 subsystem.
 
-To keep the device-facing `/display` fast and complete, a cron schedule
-(`refresh_cadence`, §18) fires **throwaway prerenders** of the **next date**:
+To keep the device-facing `/display` fast and complete, a cron schedule (a config key
+still to be added, §18) fires **throwaway prerenders** of the **next date**:
 `GET /render?date=<tomorrow>`, discarding the HTML response. No Chromium is needed —
 `/render` alone generates and persists any missing AI images to the durable cache. Its
 only purpose is to warm that cache; the board's actual refresh happens whenever the
@@ -180,7 +180,7 @@ is nearly free, since tomorrow's images are already cached.
 | Language | Python 3.14 |
 | HTTP server | Flask |
 | Templating | Jinja2 → plain HTML + CSS, no JS |
-| CSS authoring | Plain CSS with custom properties; the palette/tones are owned by a central Python class that emits the CSS variables |
+| CSS authoring | Plain CSS with custom properties |
 | Headless render | Playwright (Python) driving Chromium |
 | Calendar parsing | ICS parser + a recurring-ICS expansion library |
 | AI images | OpenAI image API — `gpt-image-2`, configurable per module; transparency is derived in code by background-keying (§7.2) |
@@ -218,8 +218,10 @@ to day, which helps young kids), while content within each panel flexes.
   panel's bottom caption band.
 - **Left column:** the **Today** panel (§10), including its weather subpanel at the
   bottom.
-- **Right column:** **Tomorrow** (§11) at the top, then **Countdown** (§12),
-  **Dinner** (§13), **Chores** (§14), and the **Joke** (§15) panel.
+- **Right column:** **Tomorrow** (§11) spanning the top, then a **2 × 2 grid**
+  filling the rest of the column in reading order: **Countdown** (§12) and
+  **Dinner** (§13) across the first row, **Chores** (§14) and the **Joke** (§15)
+  panel across the second.
 
 The reference mockup is a rough guide to arrangement, not final visuals.
 
@@ -248,17 +250,20 @@ texture rather than a defect.
 ### 5.1 Working palette
 
 The design is built from a locked swatch set: the **6 solids** plus a fixed, **named
-set of halftone blends** (§5.3), all treated as first-class colors. The CSS render maps
-predictably onto what the panel can display.
+set of halftone blends** (§5.3), all treated as first-class colors. Swatches are
+authored in CSS as ordinary flat fills; the device's quantize + dither pass (§5.2)
+is what turns a blend into its two-ink halftone. The CSS render maps predictably
+onto what the panel can display.
 
 ### 5.2 Rendering paths and the single quantization pass
 
 - **Authored areas** (backgrounds, panel fills, text, day cells, the temperature bar —
-  any large color swath or load-bearing color) are drawn directly in CSS as a real dot
-  pattern (e.g. layered radial-gradients of red dots on yellow to make "orange"), with
-  dot size, spacing, and angle under our control via a reusable halftone dot pattern
-  driven by the palette's CSS custom properties (§5.1). They are already near-native
-  colors and survive quantization almost unchanged.
+  any large color swath or load-bearing color) are **flat CSS fills** picked from the
+  §5.3 palette. Hand-authoring the dot pattern in CSS (layered radial-gradients of red
+  dots on yellow to make "orange", with dot size, spacing, and angle under our control)
+  was tried and dropped: the device pass already dithers a flat fill into that same
+  blend, and flat won by eye — so the authored side stays simple and the screen stays
+  consistent across the whole page.
 - **Icons and AI images** are carried in the page as full-color, transparent PNGs
   composited onto their cells.
 
@@ -266,9 +271,9 @@ There is exactly **one** quantization pass, and it is **not** part of normal
 `/display`: the raw full-color screenshot is what `/display` serves, and the six-color
 quantize + dither is **deferred to the device pipeline** (§19). The server performs it
 only to emulate that step for preview, via `?quantize=1`. That single page-wide pass
-dithers the full-color icon/AI regions with an **ordered / clustered-dot screen** (not
-Floyd–Steinberg), so they read as comic halftone and rhyme with the hand-authored CSS
-backgrounds (which are already dithered and pass through largely untouched). This
+dithers everything — flat authored fills and full-color icon/AI regions alike — with an
+**ordered / clustered-dot screen** (not Floyd–Steinberg), so the whole page reads as one
+comic halftone under one screen, at one dot size and angle. This
 choice has since been **validated on the physical panel** by the demo pipeline
 ([eink-demo.md](eink-demo.md)): its ordered mixing-plan dither + edge snapping +
 vibrance boost is the intended basis for this pass, and §5.4 records what it taught
@@ -277,8 +282,10 @@ us about color choice.
 ### 5.3 Canonical halftone swatches
 
 A proposed starting set, expressed as native inks plus an approximate dot
-coverage. **All densities and angles are starting points to tune on the physical
-panel.** E-ink guidance baked into these choices: keep the two inks in a blend
+coverage — i.e. what the quantizer resolves each swatch into, not a pattern we
+draw by hand (§5.2). **All coverages are starting points to tune on the physical
+panel**, and the dot size and angle are the ordered screen's, page-wide.
+E-ink guidance baked into these choices: keep the two inks in a blend
 high in luminance contrast, use coarse, hard-edged dots, and use black sparingly
 (it darkens a blend fast and muddies it). These rules are now backed by
 measurements from the demo pipeline — §5.4 has the full findings and the
@@ -333,9 +340,9 @@ carries the weekday/weekend split.
 The demo push pipeline ([eink-demo.md](eink-demo.md)) made color behavior on the
 real panel measurable. Its quantizer renders every non-ink color as a mix of at
 most **two** inks; that constraint, plus the panel's own ink properties, yields
-the rules below. They matter chiefly for **image assets** — hand-made PNGs (the
-weather icons) and AI images — because authored CSS areas are already
-explicit ink-dot patterns and pass through quantization untouched (verified).
+the rules below. They apply to **every color on the page** — authored CSS fills
+and image assets (hand-made PNGs, AI images) alike — since the one quantization
+pass (§5.2) dithers all of them through the same screen.
 
 - **The two-ink rule.** Every color reduces to ink coverage. A color expressible
   as *ink + white* (tint), *ink + black* (shade), or a §5.3 two-ink blend
@@ -359,10 +366,10 @@ explicit ink-dot patterns and pass through quantization untouched (verified).
   a faint stipple at arm's length (below ~5% the dots are dropped entirely). The
   §5.3 tint recipes (pink 35%, sky 40%, mint 40%) sit safely above the floor.
 - **Near-neutrals render neutral.** Subtle warm/cool casts vanish: a flat cream
-  fill quantizes to white + sparse black — i.e. light gray. Cream that must
-  *read* cream needs the authored yellow-dot halftone of §5.3, never a flat
-  fill. The flip side is protective: grays, paper tones, and text edges never
-  sprout colored speckle.
+  fill quantizes to white + sparse black — i.e. light gray. Anything that must
+  *read* cream has to be authored well past near-neutral, at the §5.3 tint's
+  yellow coverage. The flip side is protective: grays, paper tones, and text
+  edges never sprout colored speckle.
 - **Grays are dependable.** Black+white mixes render smooth and stable at every
   level; the gray ramp is the cleanest gradient the panel can show.
 - **A vibrance boost is part of the pipeline** (luma-preserving, ~1.4×, leaves
@@ -529,7 +536,7 @@ prompt) and the render falls back (§7.3).
 
 - **Small icons** (calendar / chore / strip): a comic **fallback chip**.
 - **Hero images** (countdown, dinner): the image is **omitted**; surrounding text
-  remains (e.g. "Dinner" + the menu name).
+  remains (e.g. the menu name).
 - **Joke** (the panel is *entirely* the generated image): falls back to a comic-styled
   **HTML text** rendering of the joke line in a single bubble (§15).
 
@@ -777,8 +784,24 @@ columns filled left to right, then top to bottom.
 
 ### 10.3 Weather subpanel
 
-At the bottom of the column. Today's weather subpanel, left to right: **condition icon →
-clothing kid → temperature bar** (§ Weather).
+At the bottom of the column, staged as an **outdoor scene** the way Tomorrow's is
+staged as a room (§11). The Today frame is skinned with the day's **condition
+backdrop art** — a hand-made `<condition>_bg.png` per condition bucket, one per
+icon (§ Weather) — scaled to the frame's full interior width and pinned to its
+bottom edge, with flat sky filling the frame above it. Every backdrop shares the
+same geometry, so the pieces placed on it hold for all seven.
+
+The three weather pieces (§ Weather) read left to right in that scene:
+
+- the **condition icon** and the **clothing kid** sit in the subpanel's flow, the
+  kid overlapping the icon;
+- the **temperature bar** leaves the flow and is painted onto the **wooden
+  signpost** in the backdrop art, its floating "feels like" label box hanging off
+  the bar's left side.
+
+When no forecast is available the slot renders empty but keeps its footprint (the
+§10.1 row budget already subtracts it), and the frame falls back to the sunny
+backdrop.
 
 ### 10.4 SFX shout
 
@@ -880,7 +903,9 @@ unusable). Google's own condition icons are ignored.
 ### Condition icon (Today and Tomorrow)
 
 A single shared set of **seven** hand-made icons: **sunny, partly cloudy, cloudy, light
-rain, rain, thunder, snow**. Google's long condition enum is mapped onto these seven,
+rain, rain, thunder, snow**. Each bucket also has a matching hand-made **backdrop**
+(`<condition>_bg`), the scene Today's subpanel is staged in (§10.3); Tomorrow uses
+the icon alone, in its room (§11). Google's long condition enum is mapped onto these seven,
 leaning on `thunderstormProbability` and the precip RAIN/SNOW type for the
 rain/thunder/snow buckets and on cloud cover for sunny/partly/cloudy. The exact
 enum→bucket table is TBD (§20).
@@ -917,7 +942,8 @@ endcaps may reuse the condition icons. The bar needs no hand-made images.
 
 ### Hand-made image inventory
 
-Seven condition icons + eight clothing figures = **15 images**. Being hand-made rather
+Seven condition icons + seven condition backdrops (§10.3) + eight clothing figures =
+**22 images**, plus Tomorrow's room art (`room.png`, §11). Being hand-made rather
 than generated, they are **static assets served by name** (e.g. `sunny`, `kid0_rain`),
 not rows in the image database (§7.6); the files live under `static/img/weather/`.
 Figure names carry the kid's **config-order index** (`kid0`, `kid1`, …), never the
@@ -947,20 +973,19 @@ A counter to the next exciting event, visually the most prominent panel on a typ
 - **Sleeps:** whole calendar nights between the target date and the event day, in the
   configured timezone (an event tomorrow is "1 sleep").
 - On the **event day** the line becomes **"It's today!"** (the zero-state), keeping the
-  description and hero image and dropping the moons; the next day it rolls to the next
-  eligible event.
+  description and hero image; the next day it rolls to the next eligible event.
 - If **no eligible event** is ever found (error/misconfig), the panel renders as a
   **blank card** so its footprint is preserved.
 
 ### Layout
 
-Event description (the event **title**) at the top, then a freshly generated **hero
-image** (§7) — its own cache key, hero size, more-detailed prompt; never the small
-calendar icon upscaled — then "N sleeps to go!". A **moon row** (one small crescent
-asset repeated N times) appears when the sleep count is at or under the number of moons
-that **fit in the available space** — that fitting count *is* the threshold; it is not a
-configured value. On a hero-image miss the image is omitted and description + sleeps +
-moons remain.
+A freshly generated **hero image** (§7) — its own cache key, hero size, more-detailed
+prompt; never the small calendar icon upscaled — is the panel's **full-bleed background
+layer**, cover-fitted to the panel. The text rides on top of it in white **caption
+boxes** (the Today/Tomorrow inner-box border treatment) so it stays readable over the
+art: the event description (the event **title**) in a box at the top, "N sleeps to go!"
+in a box at the bottom, with the hero showing through the slack between them. On a
+hero-image miss the image is omitted and description + sleeps remain.
 
 ### Escalating intensity
 
@@ -968,8 +993,8 @@ The panel gets louder as the event nears, driven by the sleeps value (determinis
 changing **intensity, not footprint**:
 
 - **Configurable tiers** keyed to sleeps, defaulting to: *calm* when far off, *excited*
-  once within the (space-derived) moon range, *hype* at 1 sleep, and the *peak* "It's
-  today!" state.
+  once the event is a few sleeps out, *hype* at 1 sleep, and the *peak* "It's today!"
+  state.
 - Each tier ramps the visual treatment — burst size, motion-line density, star count —
   within the fixed panel size.
 - Copy escalates too: plain **"N sleeps to go!"** for most of the run, an emphatic
@@ -979,14 +1004,15 @@ changing **intensity, not footprint**:
 
 ## 13. Module — Dinner
 
-Shows "Dinner", an AI image of the meal, and the menu name(s).
+An **unlabeled** panel — no "DINNER" title; the placemat and the food read as the
+label. Shows an AI image of the meal on a hand-made placemat background, and the
+menu name(s).
 
 - **Source:** the Anylist meal-plan ICS (§6.1). Anylist is used only for dinner, so the
   meal-plan entries on the target date **are** the dinner — no meal-slot filtering. A
   main plus any side are **joined into one name and one combined image**.
 - **Image:** keyed by the dish name (reused across days), hero-sized, a transparent PNG
-  generated like any other (§7.2); omitted on a generation miss (leaving "Dinner" + the
-  name).
+  generated like any other (§7.2); omitted on a generation miss (leaving the name).
 - **Mystery dinner fallback:** a fixed "question-marks" card titled "Mystery dinner!" is
   shown both when **no dinner is planned** and when the **ICS fetch fails** (the failure
   is logged) — the same friendly visual for either cause.
@@ -1001,8 +1027,12 @@ identical to a today/tomorrow list:
 - Each chore is a row: AI icon (its own `Chores__…` example set and cache keys) + kid
   label(s) + title.
 - The `chore:` prefix (case-insensitive, optional space) is stripped before display.
-- Sorted by `interesting`, then title; capped by the same row-budget geometry; **no**
-  morning/day/evening buckets.
+- **Two orderings**, capped by the same row-budget geometry, with **no**
+  morning/day/evening buckets:
+  - *selection* ranks by `interesting` descending, then kid (assigned-kid indices in
+    config order), then title — so a cap keeps the most interesting chores;
+  - *display* orders by kid, then `interesting` descending, then title — so each kid's
+    chores group together in the rendered list.
 - **Layout:** one or two chores stack as a single list; three or four render as a 2x2
   grid (two columns), the cap. A blank ruled line separates the first and second row
   of chores.
@@ -1024,10 +1054,13 @@ identical to a today/tomorrow list:
 One joke or riddle per day, rendered as a wholly AI-generated comic panel (the text is
 drawn inside the image).
 
-- **Source:** a configurable UTF-8 text file, one joke/riddle per line. Blank lines are
-  ignored and `#`-prefixed lines are comments, so N is the count of real jokes.
-- **Selection:** index = (target date − configurable start date) in whole days, **modulo
-  N**, so the list loops. The debug date arg selects a different joke.
+- **Source:** a `jokes` table in the shared `sqlite.db` (§18), one row per joke, managed
+  on **`/admin/jokes`**: bulk add one per line (blank and `#` lines skipped), per-row
+  edit, and delete. N is the row count. Order is **insertion order** (the row id), which
+  an edit preserves — so editing a joke never shuffles the rotation.
+- **Selection:** index = (target date − `joke_start_date`, §18) in whole days, **modulo
+  N**, so the list loops. The debug date arg selects a different joke. An empty table
+  shows a friendly placeholder.
 - **Image:** the whole line is handed to the prompt; the image is keyed by the joke line
   itself (its `item_description`, §7.1), generated once, and reused each cycle.
 - **Riddles:** the answer is shown alongside the question (there is no interactivity to
@@ -1052,7 +1085,7 @@ image-editing step. Modules stay oblivious to the bugbug.
 It draws from a curated **registry of hiding spots**, each just data:
 
 - an **anchor** (a panel corner, a border seam, the wider gutter between the weekday
-  and weekend blocks of the day strip, the moon row, a speech-bubble tail, …),
+  and weekend blocks of the day strip, a speech-bubble tail, …),
 - a **hiding style** (in front; tucked behind so it peeks from an edge; or straddling a
   panel's `overflow:hidden` boundary so it's half-cut-off),
 - allowed **jitter, rotation, and flip**.
@@ -1110,21 +1143,22 @@ Secrets — the OpenAI key, the Google Maps key, and the private ICS URLs — ar
 `SecretStr`. The same Pydantic validate-and-coerce-to-default approach naturally covers
 the per-event TOML fields in §6.3. The fields:
 
-| Key | Purpose |
-|---|---|
-| `timezone` | Display timezone (e.g. `US/Pacific`); drives date resolution. |
-| `latitude`, `longitude` | Weather location. |
-| `google_maps_api_key` | Weather API auth. |
-| `family_calendar_ics_url` | Google Calendar private ICS (events + chores). |
-| `anylist_mealplan_ics_url` | Anylist meal-plan ICS (dinner). |
-| `openai_api_key` | AI image generation. |
-| `app_storage_path` | **Required** root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, and meal-override §13 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). |
-| `module_model_tiers` | Per-module image-model overrides. |
-| `kids` | Names and initials (label text), pose/figure mapping. |
-| `joke_file_path`, `joke_start_date` | Joke source and base date. |
-| `countdown_tiers` | Escalation cutoffs and treatments. |
-| `refresh_cadence` | **Crontab schedule string** for the warm-up prerenders (§3.6). The device's own refresh happens whenever the ESP32 polls `/display`. |
-| `weekday_backdrop`, `weekend_backdrop` | Global theming backdrops. |
+| Key | Type / default | Purpose |
+|---|---|---|
+| `timezone` | str, `US/Pacific` | Display timezone; drives date resolution (§3.4). Validated against the zoneinfo database at load. |
+| `latitude`, `longitude` | float, downtown SF | Weather location (§ Weather). Defaults let a fresh checkout render plausible weather. |
+| `google_maps_api_key` | `SecretStr`, **required** | Weather API auth (§ Weather). Rides in the request query string, so the URL is a secret too. |
+| `family_calendar_ics_url` | `SecretStr`, **required** | Google Calendar private ICS (events + chores, §6.1). |
+| `anylist_mealplan_ics_url` | `SecretStr`, **required** | Anylist meal-plan ICS (dinner, §6.1, §13). |
+| `openai_api_key` | `SecretStr`, **required** | AI image generation (§7.2). |
+| `app_storage_path` | Path, `.storage` | Root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, and meal-override §13 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). A relative path resolves against `server/`. |
+| `module_model_tiers` | dict[str, str], empty | Per-module image-model overrides, e.g. `{"Calendar": "gpt-image-2"}`; modules absent from the map use the default model. |
+| `kids` | list of `{name, label}`, empty | The children shown on the board (§8), **in display order** — the order fixes each kid's badge color and label position, and indexes their clothing figures (`kid0`, `kid1`, … — § Weather). `label` is the initials; events' `kids` values (§6.4) match either field case-insensitively. |
+| `joke_start_date` | date, `2026-01-01` | Base date for the daily joke index (§15). The jokes themselves live in the DB, not in config. |
+
+**Not yet defined.** Features still unbuilt will add their own keys when they land:
+the warm-up prerenders' crontab schedule (§3.6), the countdown escalation cutoffs
+(§12, currently hardcoded), and the weekday/weekend theming backdrops (§17).
 
 **Location.** The model lives in `server/app/config.py`. Actual values are read from
 `server/config.toml` (gitignored) and/or `KIDINK_`-prefixed environment variables
