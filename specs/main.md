@@ -650,9 +650,9 @@ Usage notes for the §7.1 attachment machinery:
 Events may pertain to one kid or both. Instead of small face icons (the kids look alike
 and tiny faces reproduce poorly), each item shows the **initials** of the kid or kids it
 concerns, taken from the event's `kids` field (§6.4 — named to align with the app
-config's `kids` list, §18). Each initial rides in a small superhero **shield** — a
-Superman-style pentagon filled with that kid's color, the initial in white, a black
-border around the shape — superimposed on the bottom-right corner of the item's icon.
+config's `kids` list, §18). Each initial rides in a small **badge** - a square with
+generously rounded corners, filled with that kid's color, the initial in white, a black
+border around the shape - superimposed on the bottom-right corner of the item's icon.
 A `kids` entry matches a configured kid by that kid's **label (initials) or name,
 case-insensitively**.
 An event with an **empty `kids` field is shared** (counts for both kids).
@@ -720,7 +720,7 @@ the top-right, while the lower triangle's top corner recedes down the right edge
 seam's width. The gutter **knocks through the panel frame** just off both diagonal ends
 so the two read as separate triangle panels sitting side by side, not one panel with a
 divider. The seam is held clear of the day-name caption (which, with its frame, is
-never modified). Kid shields
+never modified). Kid badges
 sit in the outer corners (top-left / bottom-right), inside the panel. The **today
 panel is the exception**: it never splits, always collapsing to a single pick (§9.1).
 

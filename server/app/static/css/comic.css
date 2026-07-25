@@ -6,36 +6,39 @@
    ============================================================================ */
 
 /* ---------------------------------------------------------------------------
-   Kid-initials badge (macros/kids.html, spec §8) — a small superhero shield
-   (a Superman-style pentagon in the kid's color, white initial, 2px black
-   border) superimposed on the bottom-right corner of an event icon, shared by
-   the Today/Tomorrow/Chores rows and the day strip. In the rows the icon (or
-   fallback chip) sits inside a .kid-badge-anchor so the badge anchors to the
-   icon's own corner; the strip re-anchors .kid-badges to its panel containers
-   (day_strip.css).
+   Kid-initials badge (macros/kids.html, spec §8) — a small round-cornered
+   square in the kid's color (white initial, 2px black border) superimposed on
+   the bottom-right corner of an event icon, shared by the Today/Tomorrow/Chores
+   rows and the day strip. In the rows the icon (or fallback chip) sits inside a
+   .kid-badge-anchor so the badge anchors to the icon's own corner; the strip
+   re-anchors .kid-badges to its panel containers (day_strip.css).
    --------------------------------------------------------------------------- */
 .kid-badge-anchor {
   position: relative;
   display: inline-flex;
 }
 
+/* Offsets keep the initial within a pixel of the spot over the icon corner it
+   held when the badge was a pentagon (the shape around it changed, its anchor
+   didn't): 7px inside the icon's right edge, 6px above its bottom edge. The
+   strip overrides both (day_strip.css) to seat badges inside its panels. */
 .kid-badges {
   position: absolute;
-  right: -12px;
-  bottom: -12px;
+  right: -8px;
+  bottom: -9px;
   display: flex;
   align-items: center;
   gap: 2px;
   line-height: 1;
 }
 
-/* One shield: the SVG pentagon fills the box (the box matches the 40:30
-   viewBox aspect — 1px wider each side than the 38x28 shield to hold the white
-   outer border); the initial overlays it. */
+/* One badge: the SVG square fills the box (30px square - 1px larger each side
+   than the 28px black-bordered square, to hold the white outer border); the
+   initial overlays it. */
 .kid-badge {
   position: relative;
   display: block;
-  width: 40px;
+  width: 30px;
   height: 30px;
 }
 
@@ -51,9 +54,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* The pentagon's visual center sits above its box center (the bottom half
-     tapers to the point), so lift the initial to match. */
-  padding-bottom: 7px;
   color: #fff;
   font-size: 18px;
   font-weight: 700;

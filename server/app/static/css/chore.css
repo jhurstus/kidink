@@ -145,6 +145,13 @@
    margin-top: 0;
 }
 
+/* The kid badge (§8, comic.css) hangs 1px lower off the icon here than in the
+   Today/Tomorrow rows - a deliberate nudge for how it reads against the ruled
+   paper. */
+.chore-frame .kid-badges {
+   bottom: -10px;
+}
+
 /* Titles wrap to at most two lines (one per ruling) instead of the shared
    single-line ellipsis; the 38px line-height locks each line to the ruling
    pitch. */

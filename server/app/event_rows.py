@@ -60,7 +60,7 @@ def resolve_icons(
 
 # Per-kid badge color by config position (kid 0, kid 1). Red and blue are the
 # panel's two strongest, most separable ink hues (§5.4); solid ink is fine for
-# the shield fill (§5.3). A curated design choice, not deployment config —
+# the badge fill (§5.3). A curated design choice, not deployment config —
 # promotable to a Settings field later if more kids or custom colors are ever
 # needed.
 KID_COLORS = ["#ff0000", "#0000ff"]

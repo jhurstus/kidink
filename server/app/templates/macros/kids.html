@@ -1,17 +1,16 @@
 {#- ===========================================================================
-kids.html — the kid-initials badge (spec §8): a superhero shield (a Superman-
-style pentagon) filled with the kid's color, carrying their white initial,
-superimposed on the bottom-right corner of an event icon. Shared by the
-Today/Tomorrow/Chores rows and the day strip. In the rows the icon (or
-fallback chip) is wrapped in a .kid-badge-anchor so the badge anchors to the
-icon's own corner; the strip anchors badges to its panel containers instead.
-Both are styled in comic.css (strip offsets in day_strip.css).
+kids.html — the kid-initials badge (spec §8): a round-cornered square filled
+with the kid's color, carrying their white initial, superimposed on the
+bottom-right corner of an event icon. Shared by the Today/Tomorrow/Chores rows
+and the day strip. In the rows the icon (or fallback chip) is wrapped in a
+.kid-badge-anchor so the badge anchors to the icon's own corner; the strip
+anchors badges to its panel containers instead. Both are styled in comic.css
+(strip offsets in day_strip.css).
 
-The shield is an inline SVG polygon: fill + stroke gives a geometrically
-uniform 2px black border in one element (a clip-path pentagon can't — a
-uniform inset is wrong at the acute bottom vertex). The initial is an HTML
-overlay span, not SVG text, so its font rendering matches the rest of the
-board.
+The square is an inline SVG rect: fill + stroke gives a geometrically uniform
+2px black border in one element, and lets the white outer border ride along
+the same rounded path. The initial is an HTML overlay span, not SVG text, so
+its font rendering matches the rest of the board.
 
 kid_badges(kids): kids is a list of KidBadge view models (.initial / .color,
 see app/event_rows.py). Emits nothing for an empty list — an item that applies
@@ -23,14 +22,13 @@ to every configured kid is unlabeled (§8's proper-subset rule).
 <div class="kid-badges">
   {%- for kid in kids -%}
   <span class="kid-badge">
-    {#- The Superman-diamond pentagon: a short flat top whose ends drop away at
-    45 deg notches to the widest points, then taper to the bottom tip. Drawn
-    twice so the black outline carries a 1px white border outside it: the wider
-    white stroke sits behind, the black stroke + coloured fill on top. Points are
-    inset 2 units so the centered 4px/2px strokes stay inside the viewBox. -#}
-    <svg viewBox="0 0 40 30" aria-hidden="true">
-      <polygon points="10,2 30,2 38,10 20,28 2,10" fill="none" stroke="#fff" stroke-width="4" />
-      <polygon points="10,2 30,2 38,10 20,28 2,10" fill="{{ kid.color }}" stroke="#000" stroke-width="2" />
+    {#- The rounded square, drawn twice so the black outline carries a 1px white
+    border outside it: the wider white stroke sits behind, the black stroke +
+    coloured fill on top. The rect is inset 2 units so the centered 4px/2px
+    strokes stay inside the viewBox. -#}
+    <svg viewBox="0 0 30 30" aria-hidden="true">
+      <rect x="2" y="2" width="26" height="26" rx="8" fill="none" stroke="#fff" stroke-width="4" />
+      <rect x="2" y="2" width="26" height="26" rx="8" fill="{{ kid.color }}" stroke="#000" stroke-width="2" />
     </svg>
     <span class="kid-badge-initial">{{ kid.initial }}</span>
   </span>
