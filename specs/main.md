@@ -60,33 +60,50 @@ The ESP32 firmware and the on-device file format are **deferred** (see §19).
 
 - **`/render`** builds the page (HTML + CSS) for a date and returns it as a normal
   `text/html` response. It does **not** write to disk.
-- **`/display`** produces the device-facing image: it makes an **internal request to
-  `/render`**, feeds the returned HTML/CSS to headless Chromium, and serves the
-  resulting PNG with `ETag` / conditional-GET support. It writes **no files to disk** (assets load over HTTP, §3.2). **All query args on
-  `/display` are passed through to the internal `/render` request.**
+- **`/display`** produces the device-facing image: it points headless Chromium at
+  this server's own **`/render`** URL, screenshots the page, runs the six-color
+  quantize + dither pass (§5.2), and serves the **packed 4bpp framebuffer** with
+  `ETag` / conditional-GET support. It writes **no files to disk** (Chromium loads
+  the page and its assets over loopback HTTP, §3.2). **All query args on `/display`
+  are forwarded to the `/render` URL.**
 
-The ESP32 polls `/display`. The served PNG's **`ETag` is a hash of the PNG bytes**,
-so *any* change — including a regenerated AI image — changes the `ETag`. The device
-sends `If-None-Match`; on a match it gets `304 Not Modified` and skips both the
-download and the ~19-second refresh (the main battery win), while continuing to show
-its last image (e-ink is bistable). Computing the `ETag` requires producing the PNG,
-which is acceptable at the polling cadence.
+The ESP32 polls `/display`. The **`ETag` is a hash of the served bytes**, so *any*
+change - including a regenerated AI image - changes the `ETag`. The device sends
+`If-None-Match`; on a match it gets `304 Not Modified` and skips both the download
+and the ~19-second refresh (the main battery win), while continuing to show its last
+image (e-ink is bistable). Computing the `ETag` requires rendering and packing the
+buffer, which is acceptable at the polling cadence.
 
 ### 3.2 The two endpoints in detail
 
 - **`/render` — pipeline steps 1–4** (§3.3). Returns `text/html`. Writes no output
   file; AI image generation still persists images to the durable image cache (§7),
   which is expected. Accepts the debug query args (§3.5). All `<img>` and asset URLs
-  in the returned HTML are **absolute Flask URLs** served by the local image route
-  (§7.6), so Chromium fetches them over loopback rather than from the filesystem.
-- **`/display` — pipeline steps 5–7** (§3.3). Calls `/render` internally (forwarding
-  all query args), loads the returned HTML into Chromium via `set_content` (no disk
-  write — image and asset URLs are Flask routes that Chromium fetches over loopback),
-  captures the PNG, and serves it with the PNG-hash `ETag`.
+  in the returned HTML are **root-relative Flask URLs** served by the local image
+  route (§7.6), so any browser loading the page fetches them from the same server
+  over HTTP rather than from the filesystem.
+- **`/display` — pipeline steps 5–7** (§3.3). Navigates headless Chromium to the
+  absolute loopback `/render` URL - built from the incoming request's own host, all
+  query args forwarded - so Chromium fetches the HTML and every asset over loopback
+  from this same server (no disk writes anywhere); then quantizes, packs, and serves
+  the buffer with the served-bytes `ETag`. Because Chromium calls back into the
+  server while the `/display` request is still in flight, the server must handle
+  **concurrent requests** (a threaded WSGI server - the Flask dev server's default).
 - **Image admin endpoint** (§7.4).
 - **`/admin`** — an index of the admin pages: a plain alphabetized bulleted list of
   links to every parameterless `GET /admin/<page>` route (e.g. `/admin/images`,
   `/admin/weather`), derived from the URL map so new admin pages list themselves.
+
+**Device contract.** The ESP32 firmware is a minimal HTTP/1.1 client: `GET /display`
+with `If-None-Match: "<stored etag>"` (omitted on cold boot / button wake),
+`Accept: application/octet-stream`, `Accept-Encoding: identity`, and
+`Connection: close`; it follows no redirects and speaks no auth or TLS. The server
+answers `200` with `Content-Type: application/octet-stream`, `Content-Length`, the
+`ETag`, and the **960,000-byte buffer** - 1600 × 1200 at 4 bits per pixel, two pixels
+per byte, high nibble = left pixel, each nibble the palette index shifted left by one
+(the Inkplate `drawBitmap3Bit` layout the push demo verified on-panel,
+[eink-demo.md](eink-demo.md)) - or `304 Not Modified` (still carrying the `ETag`) on
+a match.
 
 ### 3.3 Render pipeline stages
 
@@ -101,13 +118,17 @@ which is acceptable at the polling cadence.
 
 **`/display` (steps 5–7):**
 
-5. Load the HTML from `/render` into headless Chromium (Playwright) via `set_content`
-   and capture a **1600 × 1200 PNG** at `deviceScaleFactor: 1`, waiting for all fonts
-   and `<img>` icons (fetched from the Flask image route) to finish loading first.
-6. *(Quantize)* If `?quantize=1`, produce the emulated palette-quantized preview (§5);
-   otherwise serve the raw screenshot. Pre-packing the controller framebuffer is
-   **deferred** (§19).
-7. Serve the PNG with the PNG-hash `ETag` / `304`.
+5. Navigate headless Chromium (Playwright) to the `/render` URL and capture a
+   **1600 × 1200** screenshot, waiting for all fonts and `<img>` icons (fetched from
+   the Flask image route) to finish loading first. The capture runs at
+   `deviceScaleFactor: 2` and is BOX-downscaled to 1600 × 1200 (§7.2, eink-demo §4),
+   feeding the quantizer the same anti-aliased edges the on-panel tests validated.
+6. *(Quantize + pack)* Run the single page-wide six-color quantize + dither pass
+   (§5.2) and pack the palette indices into the 4bpp device buffer (§3.2). The
+   `?raw=1` / `?quantize=1` debug args (§3.5) substitute PNG views of the
+   intermediate stages.
+7. Serve the buffer as `application/octet-stream` with the served-bytes `ETag` /
+   `304`.
 
 ### 3.4 Determinism and the date seed
 
@@ -133,8 +154,11 @@ directly. They are invisible to the ESP32 in normal operation:
 
 - **`?date=YYYY-MM-DD`** — overrides the resolved date, for previewing any day
   (consumed by `/render`).
-- **`?quantize=1`** — serve the emulated palette-quantized preview instead of the raw
-  screenshot (consumed by `/display`, step 6).
+- **`?quantize=1`** — serve the §5.2 quantize pass's output as a viewable PNG instead
+  of the packed device buffer: exactly the pixels the panel will show (consumed by
+  `/display`, step 6).
+- **`?raw=1`** — serve the raw full-color screenshot as a PNG, before the quantize
+  pass; takes precedence over `?quantize=1` (consumed by `/display`, step 6).
 - **`?debug_images=1`** — after the main content, append a list of **every AI image
   included in the render**: each image's id and logical key and a link to the image admin
   endpoint (§7.4, via its `img=` arg) to view and edit that image's prompt (consumed
@@ -251,7 +275,7 @@ texture rather than a defect.
 
 The design is built from a locked swatch set: the **6 solids** plus a fixed, **named
 set of halftone blends** (§5.3), all treated as first-class colors. Swatches are
-authored in CSS as ordinary flat fills; the device's quantize + dither pass (§5.2)
+authored in CSS as ordinary flat fills; the §5.2 quantize + dither pass
 is what turns a blend into its two-ink halftone. The CSS render maps predictably
 onto what the panel can display.
 
@@ -267,17 +291,18 @@ onto what the panel can display.
 - **Icons and AI images** are carried in the page as full-color, transparent PNGs
   composited onto their cells.
 
-There is exactly **one** quantization pass, and it is **not** part of normal
-`/display`: the raw full-color screenshot is what `/display` serves, and the six-color
-quantize + dither is **deferred to the device pipeline** (§19). The server performs it
-only to emulate that step for preview, via `?quantize=1`. That single page-wide pass
+There is exactly **one** quantization pass, and it runs **server-side inside
+`/display`** (§3.3 step 6), on the 2×-supersampled, BOX-downscaled screenshot: the
+eink-demo core's ordered mixing-plan dither + edge snapping + vibrance boost
+(saturate 1.4, ycc metric, edge snap 48, edge gamma 1.5), whose packed output is what
+the device draws; `?quantize=1` serves the same pass as a viewable PNG and `?raw=1`
+the screenshot before it. That single page-wide pass
 dithers everything — flat authored fills and full-color icon/AI regions alike — with an
 **ordered / clustered-dot screen** (not Floyd–Steinberg), so the whole page reads as one
 comic halftone under one screen, at one dot size and angle. This
-choice has since been **validated on the physical panel** by the demo pipeline
-([eink-demo.md](eink-demo.md)): its ordered mixing-plan dither + edge snapping +
-vibrance boost is the intended basis for this pass, and §5.4 records what it taught
-us about color choice.
+choice has been **validated on the physical panel** by the demo pipeline
+([eink-demo.md](eink-demo.md)), and §5.4 records what it taught us about color
+choice.
 
 ### 5.3 Canonical halftone swatches
 
@@ -525,7 +550,7 @@ a non-issue (≈1–2 calls/day), so quality is the priority:
   `width`×`height` is a *logical display size* only: CSS (`max-width`/`max-height`)
   aspect-fits the image into that box at render time, so the browser always
   downscales — never upscales — at any device scale factor (the e-ink path
-  screenshots at 2× device scale, §19/eink-demo, and samples the icon at twice its
+  screenshots at 2× device scale, §3.3/eink-demo, and samples the icon at twice its
   CSS size), and that downscale anti-aliases the hard keyed alpha edge.
 
 The final image is a **transparent PNG** written to `gen_images/<id>.png`, and the record
@@ -1165,20 +1190,36 @@ the warm-up prerenders' crontab schedule (§3.6), the countdown escalation cutof
 (env wins over the file).
 `server/config.example.toml` is the committed template documenting the shape.
 
+### 18.1 Deployment (Raspberry Pi)
+
+The server deploys on the Raspberry Pi 5 (Raspbian, arm64; §2). Bring-up steps:
+
+1. Install **uv**, clone the repo, and run `uv sync` from `server/` (uv provisions
+   the pinned Python).
+2. One-time browser install: `uv run playwright install --with-deps chromium` -
+   Playwright ships an arm64 Chromium build, and `--with-deps` pulls its required
+   system libraries via apt.
+3. Install the board's fonts system-wide so headless Chromium can use them - in
+   particular the locally customized **NorB Pen** (a stock copy reintroduces the
+   day-strip kerning defects) and the other comic display fonts the CSS names.
+4. Create `server/config.toml` from `config.example.toml` with the real secrets
+   (§18; never committed).
+5. Run the server with a **threaded** WSGI server (§3.2) reachable from the LAN,
+   e.g. the dev server with `--host 0.0.0.0` (its threaded default satisfies
+   `/display`'s loopback re-entry); the ESP32 and Chromium both talk to this one
+   process.
+6. Install the warm-up prerender cron (§3.6) once its config key lands (still TBD).
+
 ---
 
 ## 19. Deferred / v2
 
-- **ESP32 firmware:** wake on RTC → connect Wi-Fi → conditional GET on `/display` →
-  draw → deep sleep; retry gracefully and keep showing the last image when the
-  server/Wi-Fi is unreachable.
-- **Final on-device file:** quantize + ordered-dither to the six colors and pre-pack the
-  controller framebuffer in the expected bit layout. (The quantize step is built early
-  for preview via `?quantize=1`; the packing and the choice between serving a PNG vs. a
-  packed buffer depend on the firmware stack, TBD.) A standalone demo of this whole
-  path — screenshot → six-color dither → packed buffer → flash — exists already; see
-  [eink-demo.md](eink-demo.md). Its `app/eink/` palette/dither core is the intended
-  basis for `?quantize=1`.
+- **ESP32 firmware:** wake on RTC → connect Wi-Fi → conditional GET on `/display`
+  (the §3.2 device contract) → stream the buffer into the framebuffer → draw → deep
+  sleep; retry gracefully and keep showing the last image when the server/Wi-Fi is
+  unreachable. The server side of the contract - quantize, ordered dither, and the
+  packed 4bpp buffer - is already built into `/display` (§3.3), on the `app/eink/`
+  core the push demo ([eink-demo.md](eink-demo.md)) validated on-panel.
 - **Seasonal theming** (date-range → theme) and **birthday / special-person mode**, both
   via the theming layer in §17.
 - **Visual polish** explored in review and planned for a later mockup, with no software
@@ -1201,7 +1242,7 @@ the warm-up prerenders' crontab schedule (§3.6), the countdown escalation cutof
 - Final **halftone densities/angles** for the §5.3 swatches, tuned on the physical panel,
   and **calibration of the quantizer's palette targets** (eink-demo §4) to measured
   Spectra ink colors (the vibrance-boost factor will want retuning with it, §5.4).
-- The **firmware stack** (Inkplate Arduino library vs. ESP-IDF/raw), which determines
-  what "a file ready for rendering" is on the wire. The push demo
-  ([eink-demo.md](eink-demo.md)) has meanwhile verified the Inkplate Arduino library's
-  buffer format and dither behavior end-to-end on the device.
+- The **firmware stack** (Inkplate Arduino library vs. ESP-IDF/raw). The wire format
+  is no longer open - `/display` serves the Inkplate Arduino library's 4bpp buffer
+  layout (§3.2), which the push demo ([eink-demo.md](eink-demo.md)) verified
+  end-to-end on the device.

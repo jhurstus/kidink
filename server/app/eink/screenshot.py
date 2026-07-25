@@ -1,5 +1,11 @@
-"""Capture the running dev server's page as a lossless 1600x1200 PNG."""
+"""Capture a page as a lossless 1600x1200 PNG.
 
+`capture_png` is the shared, disk-free core (used by `/display`, §3.3 step 5);
+`capture_screenshot` wraps it for the demo CLI with a preflight reachability
+check and a file write.
+"""
+
+import io
 from pathlib import Path
 
 import httpx
@@ -16,6 +22,56 @@ async () => {
 """
 
 
+class CaptureHTTPError(Exception):
+    """Chromium's navigation to the target URL got a non-200 response."""
+
+    def __init__(self, status: int, url: str) -> None:
+        super().__init__(f"{url} returned {status}")
+        self.status = status
+
+
+def capture_png(
+    url: str,
+    *,
+    width: int = 1600,
+    height: int = 1200,
+    supersample: int = 1,
+    timeout_ms: int = 300_000,
+) -> bytes:
+    """Screenshot `url` and return PNG bytes at exactly width x height.
+
+    With supersample > 1 the page renders at that device scale factor and is
+    BOX-downscaled, which feeds cleaner anti-aliasing ramps to the quantizer
+    than Chromium's native 1x edges. Raises `CaptureHTTPError` when the
+    navigation lands on a non-200 response.
+    """
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page(
+            viewport={"width": width, "height": height},
+            device_scale_factor=supersample,
+        )
+        response = page.goto(url, wait_until="load", timeout=timeout_ms)
+        if response is None or response.status != 200:
+            raise CaptureHTTPError(response.status if response else 502, url)
+        page.evaluate(_WAIT_FOR_ASSETS_JS)
+        png = page.screenshot(type="png")
+        browser.close()
+
+    if supersample > 1:
+        # BOX (area average) gives true per-pixel coverage with no ringing —
+        # Lanczos's negative lobes put halos on glyph edges that quantization
+        # turns into sparkle.
+        with Image.open(io.BytesIO(png)) as img:
+            downscaled = img.convert("RGB").resize(
+                (width, height), Image.Resampling.BOX
+            )
+        out = io.BytesIO()
+        downscaled.save(out, format="PNG")
+        png = out.getvalue()
+    return png
+
+
 def capture_screenshot(
     url: str,
     out_path: Path,
@@ -23,14 +79,9 @@ def capture_screenshot(
     width: int = 1600,
     height: int = 1200,
     supersample: int = 1,
-    timeout_ms: int = 60_000,
+    timeout_ms: int = 300_000,
 ) -> None:
-    """Screenshot `url` to `out_path` at exactly width x height.
-
-    With supersample > 1 the page renders at that device scale factor and is
-    Lanczos-downscaled, which feeds cleaner anti-aliasing ramps to the
-    quantizer than Chromium's native 1x edges.
-    """
+    """Screenshot `url` to `out_path` at exactly width x height (demo CLI)."""
     try:
         response = httpx.get(url, timeout=10)
     except httpx.TransportError as exc:
@@ -52,22 +103,12 @@ def capture_screenshot(
             "is something else (e.g. macOS AirPlay Receiver) on this port?"
         )
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page(
-            viewport={"width": width, "height": height},
-            device_scale_factor=supersample,
+    out_path.write_bytes(
+        capture_png(
+            url,
+            width=width,
+            height=height,
+            supersample=supersample,
+            timeout_ms=timeout_ms,
         )
-        page.goto(url, wait_until="load", timeout=timeout_ms)
-        page.evaluate(_WAIT_FOR_ASSETS_JS)
-        page.screenshot(path=out_path, type="png")
-        browser.close()
-
-    if supersample > 1:
-        # BOX (area average) gives true per-pixel coverage with no ringing —
-        # Lanczos's negative lobes put halos on glyph edges that quantization
-        # turns into sparkle.
-        with Image.open(out_path) as img:
-            img.convert("RGB").resize((width, height), Image.Resampling.BOX).save(
-                out_path
-            )
+    )

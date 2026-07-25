@@ -15,6 +15,8 @@ from app.dinner import (
     make_dinner_hero_resolver,
     stored_override,
 )
+from app.display import display_bp
+from app.eink.screenshot import capture_png
 from app.images import (
     RenderedImage,
     admin_bp,
@@ -85,7 +87,9 @@ def create_app() -> Flask:
     app.config.setdefault("FETCH_FORECAST", fetch_forecast)
     app.config.setdefault("GENERATE_IMAGE_BYTES", generate_image_bytes)
     app.config.setdefault("APP_STORAGE_PATH", settings.app_storage_path)
+    app.config.setdefault("CAPTURE_PNG", capture_png)
 
+    app.register_blueprint(display_bp)
     app.register_blueprint(images_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(weather_admin_bp)
