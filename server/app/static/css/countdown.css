@@ -124,7 +124,7 @@
 
 /* Caption boxes: white plates with the Today/Tomorrow inner-box border
    treatment (4px black, 2px radius) keep the title and copy readable over
-   the hero art. Tight padding on each keeps the plates compact. */
+   the hero art. Roomy padding on each seats the text well inside its plate. */
 .countdown-title,
 .countdown-copy {
   background: #fff;
@@ -132,39 +132,48 @@
   border-radius: 2px;
 }
 
+/* The event title speaks in the Today panel's bucket-header voice
+   (.today-bucket-header in today.css): italic NorB Pen, lightly letterspaced,
+   set in caps - the board's "what this is" label type - but a weight heavier
+   than the headers (NorB Pen Bold Italic, a real cut in the family, not a
+   synthesized one), since this panel is the board's loudest.
+   The caps are a display transform, not the data: the title stays as the
+   calendar wrote it in the hero's alt text and in the record's logical key.
+   Only the weekday-tinted band stays behind; this plate is white like the
+   copy's. */
 .countdown-title {
   flex: none;
   box-sizing: border-box;
   max-width: 100%;
-  /* Tight caption padding; the horizontal room keeps the text off the border
-     and inside the ellipsis clip box. */
-  padding: 2px 12px;
-  font-size: 36px;
+  font-style: italic;
+  /* Generous sides keep the text clear of the border and inside the ellipsis
+     clip box. */
+  padding: 6px 25px;
+  font-size: 32px;
   font-weight: 700;
-  line-height: 1.1;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* At calm the title drops the bold - the plain resting weight; the burst
-   tiers keep it. */
-.countdown-calm .countdown-title {
-  font-weight: 400;
 }
 
 .countdown-copy {
   flex: none;
   box-sizing: border-box;
   max-width: 100%;
-  padding: 2px 12px;
+  padding: 6px 25px;
   font-size: 30px;
   line-height: 1.1;
 }
 
+/* The tier's type bump. The title keeps the header voice all the way up - the
+   escalation is size (with the burst, the spill, and the copy's bold), never a
+   change of face. */
 .countdown-hype .countdown-title,
 .countdown-peak .countdown-title {
-  font-size: 44px;
+  font-size: 40px;
 }
 
 .countdown-hype .countdown-copy,

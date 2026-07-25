@@ -77,14 +77,16 @@
 /* The hand-drawn "CHORES" title (black marker on white, so it blends into
    the paper), aspect-fit and centered in the blank header cell right of the
    margin line: x=67 to the panel edge, vertically centered in the 82px
-   lineless band above the first ruling. */
+   lineless band above the first ruling. The height sets the scale; the top
+   offset holds the art's center on y=41 (the band's midline) as it changes,
+   so resizing the title never moves it. */
 .chore-title {
    position: absolute;
    left: 67px;
    right: 0;
-   top: 13px;
-   height: 56px;
-   /* The img keeps its intrinsic width (scaled to the 56px height); auto
+   top: 18.5px;
+   height: 45px;
+   /* The img keeps its intrinsic width (scaled to the height above); auto
       side margins split the leftover between left/right, centering it. */
    margin: 0 auto;
 }

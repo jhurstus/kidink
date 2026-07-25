@@ -41,19 +41,17 @@
    object-fit: contain;
 }
 
-/* The meal name matches the Today/Tomorrow event-row title type
-   (.event-row-title in event_rows.css: 31px, upright, light) so the board's
-   "calendar entry" voice stays uniform - plus the halo stroke, which rows on
-   their white panels don't need. */
+/* The meal name is the countdown's sleeps caption in every respect
+   (.countdown-copy in countdown.css: same plate, same type, same padding) -
+   the two unlabeled captions sitting over hero art read as one voice. */
 .dinner-name {
    flex: none;
    box-sizing: border-box;
    max-width: 100%;
-   /* Tight caption padding inside the plate. */
-   padding: 2px 8px;
-   font-size: 31px;
-   font-weight: 200;
-   line-height: 1.15;
+   padding: 6px 25px;
+   font-size: 30px;
+   font-weight: 400;
+   line-height: 1.1;
    /* Long combined names ("main & side & side") wrap to at most two lines. */
    display: -webkit-box;
    -webkit-box-orient: vertical;
