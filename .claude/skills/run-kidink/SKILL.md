@@ -107,6 +107,41 @@ cd server && mkdir -p .eink-out/smoke/sketch && uv run python -m app.eink \
   --out-dir .eink-out/smoke --sketch-dir .eink-out/smoke/sketch
 ```
 
+## Flash the real firmware
+
+**Also explicit-request-only**, and a bigger deal than `--flash`: this replaces
+the fixed-image demo sketch with the scheduled client, so the board starts
+waking on its own and fetching `/display`. See `specs/firmware.md`.
+
+```bash
+cd server && uv run python -m app.firmware              # config.h -> compile -> upload
+cd server && uv run python -m app.firmware --no-upload  # compile only, no hardware
+cd server && uv run python -m app.firmware --no-compile # just write config.h
+```
+
+The CLI reads the `device_*` keys from `config.toml` / `KIDINK_DEVICE_*` and
+generates `arduino/kidink/config.h` (gitignored - it holds the Wi-Fi
+passphrase, and so does the built `.bin` under `server/.firmware-out/`).
+`device_wifi_ssid` is the only genuinely required value. Before writing
+anything it prints the fetch URL, the derived POSIX TZ, and the next few wake
+times - check those, since a mistyped schedule is invisible until the board
+fails to wake.
+
+Useful without hardware: `--print-config` (header with secrets redacted),
+`--next-fires 10`, and the `--url` / `--cron` / `--tz` overrides.
+
+To see what the board is doing, read its serial log at 115200:
+
+```bash
+arduino-cli monitor -p /dev/cu.wchusbserial10 -c baudrate=115200
+```
+
+Use the real port (`ls /dev/cu.wchusbserial*` - the digits change across
+reconnects). The board sleeps between wakes, so the port is silent until the
+next one; press the **WAKE button** to force a cycle immediately. Each line is
+`[kidink]`-prefixed and carries its own timings. Full annotated example and how
+to read it: `specs/firmware.md` §10, "Reading the serial log".
+
 ## Test
 
 ```bash
@@ -125,13 +160,23 @@ cd server && ./check.sh                 # format + lint + type check + tests; ru
   driver's auto-reuse only matches servers whose cwd is *this* checkout's
   `server/`, so a 5051 server from another checkout is deliberately ignored.
 - **Flashing the device is explicit-request-only.** `--flash` (or bare
-  `uv run python -m app.eink`) repaints the physical panel. Verifying a
-  change never requires it - use `preview.png` instead.
+  `uv run python -m app.eink` or `python -m app.firmware`) repaints the
+  physical panel. Verifying a change never requires it - use `preview.png`
+  instead.
+- **The two sketches are different jobs.** `arduino/mockup/` bakes one fixed
+  image into flash (`app.eink`); `arduino/kidink/` is the real firmware that
+  wakes on a schedule and fetches (`app.firmware`). Flashing either replaces
+  the other, so pushing a demo image stops the board updating itself until
+  the firmware is reflashed.
 - **arduino-cli requires the sketch folder name to match the `.ino`** - it
   compiles `<dir>/<dir-basename>.ino`, so a copied/renamed sketch dir fails
-  with "main file missing". Real deploys must build `arduino/mockup/`
-  itself; if you need a no-side-effect compile, copy it to a dir *named
-  `mockup`* first.
+  with "main file missing". Real deploys must build `arduino/mockup/` or
+  `arduino/kidink/` itself; if you need a no-side-effect compile, copy it to
+  a dir with the *same basename* first.
+- **The firmware's C++ is covered by pytest.** `cron.cpp` and `httpdate.cpp`
+  are compiled for the host by `app/firmware/test_cron_cpp.py` and
+  `test_httpdate_cpp.py` and checked against the Python reference, so
+  `./check.sh` catches a device-logic regression without hardware.
 - **Bare `uv run python -m app.eink` mutates the repo**: its default
   `--sketch-dir` overwrites `arduino/mockup/mockup.h` (the header last
   flashed to the real device, gitignored but still the device's state) and

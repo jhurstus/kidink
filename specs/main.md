@@ -50,7 +50,10 @@ reflects decisions made during design iteration. Sections marked *Deferred* or
   the Inkplate is a dumb client that wakes on its RTC, fetches a pre-rendered file
   over local Wi-Fi, draws it, and sleeps.
 
-The ESP32 firmware and the on-device file format are **deferred** (see §19).
+The ESP32 firmware and the on-device file format are **built** — see
+[firmware.md](firmware.md). The device wakes on a crontab schedule (or its WAKE
+button), does a conditional GET on `/display`, and paints only when the server
+returns a frame.
 
 ---
 
@@ -1180,10 +1183,25 @@ the per-event TOML fields in §6.3. The fields:
 | `module_model_tiers` | dict[str, str], empty | Per-module image-model overrides, e.g. `{"Calendar": "gpt-image-2"}`; modules absent from the map use the default model. |
 | `kids` | list of `{name, label}`, empty | The children shown on the board (§8), **in display order** — the order fixes each kid's badge color and label position, and indexes their clothing figures (`kid0`, `kid1`, … — § Weather). `label` is the initials; events' `kids` values (§6.4) match either field case-insensitively. |
 | `joke_start_date` | date, `2026-01-01` | Base date for the daily joke index (§15). The jokes themselves live in the DB, not in config. |
+| `device_wifi_ssid` | `SecretStr`, empty | Wi-Fi network the Inkplate joins ([firmware.md](firmware.md) §9). Required by the deploy CLI, not by the server. |
+| `device_wifi_password` | `SecretStr`, empty | Wi-Fi passphrase. Never logged, not even its length. |
+| `device_server_base_url` | str, empty | Origin the device fetches from, e.g. `192.168.1.20:5051`. Required by the deploy CLI: it must be a LAN address the board can reach, so there is no sane default. A bare `host:port` gains `http://`; `https://` is rejected (no TLS stack on the board). |
+| `device_fetch_path` | str, `/display` | Path (and any query) the device requests, so the firmware never hard-codes the endpoint's spelling. |
+| `device_wake_cron` | str, `0 5-21/2 * * *` | Device wake schedule, 5-field crontab, evaluated on-device in local wall-clock time. Validated at load. |
+| `device_wifi_timeout_seconds` | int, `60` | Wi-Fi association deadline; on expiry the device sleeps without painting. |
+| `device_http_timeout_seconds` | int, `300` | Whole-fetch deadline for `/display`. Generous because a cold image cache makes `/render` generate images inline (§3.6). |
+| `device_fallback_sleep_seconds` | int, `900` | Sleep length when the schedule is uncomputable — first boot with the network down, so no `Date` header has ever set the RTC. |
+| `device_repaint_on_button` | bool, `true` | A WAKE press omits `If-None-Match`, so it always repaints instead of getting a silent 304. |
+| `device_posix_tz` | str, empty | Override for the device's POSIX `TZ` string; empty derives it from `timezone`. |
+
+The `device_*` keys are consumed only by `uv run python -m app.firmware`, which
+bakes them into the gitignored `arduino/kidink/config.h`. They all have defaults
+so a checkout that never flashes a board still starts.
 
 **Not yet defined.** Features still unbuilt will add their own keys when they land:
-the warm-up prerenders' crontab schedule (§3.6), the countdown escalation cutoffs
-(§12, currently hardcoded), and the weekday/weekend theming backdrops (§17).
+the warm-up prerenders' crontab schedule (§3.6 — which can reuse
+`app.firmware.cron`), the countdown escalation cutoffs (§12, currently
+hardcoded), and the weekday/weekend theming backdrops (§17).
 
 **Location.** The model lives in `server/app/config.py`. Actual values are read from
 `server/config.toml` (gitignored) and/or `KIDINK_`-prefixed environment variables
@@ -1214,12 +1232,13 @@ The server deploys on the Raspberry Pi 5 (Raspbian, arm64; §2). Bring-up steps:
 
 ## 19. Deferred / v2
 
-- **ESP32 firmware:** wake on RTC → connect Wi-Fi → conditional GET on `/display`
-  (the §3.2 device contract) → stream the buffer into the framebuffer → draw → deep
-  sleep; retry gracefully and keep showing the last image when the server/Wi-Fi is
-  unreachable. The server side of the contract - quantize, ordered dither, and the
-  packed 4bpp buffer - is already built into `/display` (§3.3), on the `app/eink/`
-  core the push demo ([eink-demo.md](eink-demo.md)) validated on-panel.
+- **ESP32 firmware — built**, see [firmware.md](firmware.md). It wakes on the RTC
+  alarm or the WAKE button (which share GPIO18), joins Wi-Fi, does the §3.2
+  conditional GET, blits the packed buffer, and deep sleeps. It does **not**
+  retry: any failure leaves the last image up (the panel is bistable) and waits
+  for the next scheduled wake. Remaining v2 idea: `memcpy` straight into the
+  library's framebuffer, which would need a second, panel-native wire format and
+  is not worth it against a ~19-second refresh (firmware.md §7).
 - **Seasonal theming** (date-range → theme) and **birthday / special-person mode**, both
   via the theming layer in §17.
 - **Visual polish** explored in review and planned for a later mockup, with no software
@@ -1242,7 +1261,7 @@ The server deploys on the Raspberry Pi 5 (Raspbian, arm64; §2). Bring-up steps:
 - Final **halftone densities/angles** for the §5.3 swatches, tuned on the physical panel,
   and **calibration of the quantizer's palette targets** (eink-demo §4) to measured
   Spectra ink colors (the vibrance-boost factor will want retuning with it, §5.4).
-- The **firmware stack** (Inkplate Arduino library vs. ESP-IDF/raw). The wire format
-  is no longer open - `/display` serves the Inkplate Arduino library's 4bpp buffer
-  layout (§3.2), which the push demo ([eink-demo.md](eink-demo.md)) verified
-  end-to-end on the device.
+*(Resolved: the **firmware stack** is the Inkplate Arduino library, 11.1.2 —
+[firmware.md](firmware.md). The wire format is `/display`'s packed 4bpp buffer
+(§3.2), which the push demo ([eink-demo.md](eink-demo.md)) verified end-to-end on
+the device.)*

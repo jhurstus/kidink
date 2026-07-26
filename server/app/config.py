@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -27,6 +27,13 @@ CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
 
 class Kid(BaseModel):
     """One child shown on the board (spec §8, §18)."""
+
+    # Reject unknown keys. TOML folds every bare `key = value` after a `[[kids]]`
+    # header into that table, so a setting appended to the end of config.toml
+    # lands here instead of at the top level. Ignoring it (pydantic's default)
+    # makes that a silent no-op - the value simply never reaches Settings, and
+    # the symptom is a "missing" setting that is visibly present in the file.
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     """Full name; the future pose/figure mapping (§18) will key off this."""
@@ -107,12 +114,79 @@ class Settings(BaseSettings):
     joke list itself lives in the DB (the ``jokes`` table), managed on
     ``/admin/jokes``."""
 
+    # --- Inkplate firmware (specs/firmware.md) -------------------------------
+    # Consumed only by `python -m app.firmware`, which bakes them into the
+    # gitignored arduino/kidink/config.h. All are optional here so the server
+    # still starts on a checkout that never flashes a device; the CLI is what
+    # fails fast on a missing one.
+
+    device_wifi_ssid: SecretStr = SecretStr("")
+    """Wi-Fi network the panel joins. ``SecretStr`` so it cannot leak through a
+    repr or traceback; the CLI requires a non-empty value."""
+
+    device_wifi_password: SecretStr = SecretStr("")
+    """Wi-Fi passphrase. Never logged, not even its length. An open network is
+    the only reason to leave this empty."""
+
+    device_server_base_url: str = ""
+    """Origin the device fetches from, e.g. ``192.168.1.20:5051``. A bare
+    ``host:port`` gains an ``http://`` scheme; ``https://`` is rejected, since the
+    firmware carries no TLS stack. No default: it has to be an address the board
+    can reach over the LAN, and any guess (``localhost``) would be wrong in a way
+    that only shows up as a device that silently never updates."""
+
+    device_fetch_path: str = "/display"
+    """Path (and any query) the device requests. Kept configurable so the
+    firmware never hard-codes the endpoint's spelling."""
+
+    device_wake_cron: str = "0 5-21/2 * * *"
+    """Wake schedule as a 5-field crontab expression, evaluated on-device against
+    local wall-clock time. Validated at load, so a typo fails fast here rather
+    than on a board that has already been sealed to a wall."""
+
+    device_wifi_timeout_seconds: int = Field(default=60, ge=5, le=600)
+    """Deadline for Wi-Fi association. On expiry the device sleeps without
+    painting; there are no retries."""
+
+    device_http_timeout_seconds: int = Field(default=300, ge=5, le=600)
+    """Deadline for the whole ``/display`` fetch. Generous because a cold image
+    cache makes the server screenshot and quantize a fresh board inline (§3.6)."""
+
+    device_fallback_sleep_seconds: int = Field(default=900, ge=60, le=86_400)
+    """Sleep length when the schedule cannot be computed - i.e. the RTC has never
+    been set *and* the fetch that would have carried a ``Date`` header failed."""
+
+    device_repaint_on_button: bool = True
+    """A WAKE press omits ``If-None-Match``, so it always produces a visible
+    refresh instead of a silent 304."""
+
+    device_posix_tz: str = ""
+    """Override for the device's POSIX ``TZ`` string (e.g.
+    ``PST8PDT,M3.2.0,M11.1.0``). Empty derives it from :attr:`timezone`."""
+
     @field_validator("app_storage_path")
     @classmethod
     def _resolve_storage_path(cls, value: Path) -> Path:
         value = value.expanduser()
         if not value.is_absolute():
             value = CONFIG_PATH.parent / value
+        return value
+
+    @field_validator("device_wake_cron")
+    @classmethod
+    def _check_wake_cron(cls, value: str) -> str:
+        # Imported here rather than at module scope: app.firmware pulls in the
+        # header emitter and the deploy CLI, none of which the server needs.
+        from app.firmware.cron import parse_cron
+
+        parse_cron(value)
+        return value
+
+    @field_validator("device_fetch_path")
+    @classmethod
+    def _check_fetch_path(cls, value: str) -> str:
+        if not value.startswith("/"):
+            raise ValueError(f"device_fetch_path must start with '/', got {value!r}")
         return value
 
     @field_validator("timezone")

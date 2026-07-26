@@ -3,6 +3,12 @@
 # Copy to config.toml (gitignored) and adjust. Any value omitted here falls back
 # to the model default in app/config.py; environment variables (KIDINK_*) win
 # over the file.
+#
+# ORDER MATTERS. In TOML, every bare `key = value` after a table header such as
+# `[[kids]]` belongs to *that table*, not to the top level. So keep all plain
+# settings above the [module_model_tiers] and [[kids]] sections at the bottom of
+# this file - a device_* key added after them silently becomes a kid's field.
+# (`Kid` forbids unknown keys, so that mistake now fails loudly at startup.)
 
 # Display timezone (IANA / zoneinfo name, e.g. "US/Pacific", "America/New_York").
 timezone = "US/Pacific"
@@ -48,6 +54,49 @@ app_storage_path = ".storage"
 # managed on the /admin/jokes page.
 joke_start_date = 2026-01-01
 
+# --- Inkplate firmware (specs/firmware.md) ---------------------------------
+# Consumed only by `uv run python -m app.firmware`, which bakes them into the
+# gitignored arduino/kidink/config.h and flashes the board. The server itself
+# ignores them, so a checkout that never touches hardware can leave them alone.
+
+# Wi-Fi network the panel joins. These are SECRETS: keep them only in
+# config.toml (gitignored) or the KIDINK_DEVICE_WIFI_* env vars, never here.
+# The passphrase is never logged by the firmware, not even its length.
+device_wifi_ssid = "REPLACE_ME"
+device_wifi_password = "REPLACE_ME"
+
+# Where the device fetches its picture from. REQUIRED before flashing - there is
+# no default, because it must be an address the board can reach over the LAN.
+# "localhost" is exactly wrong here: it would resolve on the device, to itself.
+# A bare host:port gains an http:// scheme; https:// is rejected, since the
+# firmware carries no TLS stack.
+device_server_base_url = "192.168.1.20:5051"
+device_fetch_path = "/display"
+
+# Wake schedule, 5-field crontab syntax, evaluated on-device against local
+# wall-clock time. The default wakes every two hours from 05:00 to 21:00 - the
+# board is bistable, so it keeps showing the last image in between. Validated at
+# load, and `python -m app.firmware` prints the next few wake times.
+device_wake_cron = "0 5-21/2 * * *"
+
+# Deadlines. A timeout means "sleep without painting and try at the next
+# scheduled wake" - there are no retries. The HTTP budget is generous because a
+# cold image cache makes the server generate images and screenshot inline.
+device_wifi_timeout_seconds = 60
+device_http_timeout_seconds = 300
+
+# Sleep length when the schedule cannot be computed - only on a first boot whose
+# fetch failed, so the device has never seen a server Date header to set its RTC.
+device_fallback_sleep_seconds = 900
+
+# A WAKE button press skips the If-None-Match header, so it always repaints
+# rather than quietly getting a 304 and appearing to do nothing.
+device_repaint_on_button = true
+
+# POSIX TZ string for the device (it has no zoneinfo database). Leave empty to
+# derive it from `timezone` above, e.g. US/Pacific -> "PST8PDT,M3.2.0,M11.1.0".
+device_posix_tz = ""
+
 # Per-module image-model overrides (§18). Modules not listed use the default
 # model (gpt-image-2).
 # [module_model_tiers]
@@ -64,3 +113,4 @@ joke_start_date = 2026-01-01
 # [[kids]]
 # name = "Sam"
 # label = "S"
+

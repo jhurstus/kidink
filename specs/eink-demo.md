@@ -198,8 +198,14 @@ must keep a sparse green stipple (regression tests cover both in
 
 ## 6. Relationship to the real pipeline (deferred)
 
-What carries forward to `/display?quantize=1` and the ESP32 firmware (main
-spec §19): the `app.eink` palette/dither/pack core, the buffer format
-knowledge in §3, and on-panel tuning results from the mode/metric A/Bs. What
-does not: the Arduino-header + arduino-cli flashing flow, which exists only so
-the demo can push pixels before any firmware is written.
+What carried forward to `/display` and the ESP32 firmware
+([firmware.md](firmware.md)): the `app.eink` palette/dither/pack core — `/display`
+serves exactly the §3 buffer this demo packs, and the firmware blits it verbatim
+— plus the on-panel tuning results from the mode/metric A/Bs. What does not: the
+Arduino-header flashing flow, which exists only so the demo can push a *fixed*
+image into flash.
+
+`app/eink/arduino.py` (the arduino-cli command construction and port
+resolution) is now **shared with `app.firmware`** and is no longer demo-only.
+`arduino/mockup/` and this CLI remain the quickest way to put an arbitrary image
+or the test card on the panel without involving the schedule or the network.

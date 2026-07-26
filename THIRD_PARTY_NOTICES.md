@@ -18,9 +18,16 @@ GNU GPL v3 by reference, see <https://www.gnu.org/licenses/gpl-3.0.html>):
   `ImageDitherColorKernels.h` from that library.
 - `arduino/mockup/mockup.ino` — adapted from the library's
   `Inkplate13SPECTRA_Image_Converter` example sketch.
+- `arduino/kidink/kidink.ino` — the board guard and the deep-sleep / RTC-alarm
+  wake sequence are adapted from the library's
+  `Inkplate13SPECTRA_RTC_Alarm_With_Deep_Sleep` and
+  `Inkpate13SPECTRA_Wake_Up_Button` example sketches. The rest of
+  `arduino/kidink/` (`cron`, `httpdate`, `civil`, `fetch`, `log`) is original
+  work under Apache-2.0.
 
-Compiling `arduino/mockup/` links against the Inkplate Arduino library
-itself, which must be installed separately and is not distributed here.
+Compiling `arduino/mockup/` or `arduino/kidink/` links against the Inkplate
+Arduino library itself, which must be installed separately and is not
+distributed here.
 
 The six-ink palette values, panel color codes, and 4bpp buffer layout used
 elsewhere in `server/app/eink/` are hardware-interface facts documented from

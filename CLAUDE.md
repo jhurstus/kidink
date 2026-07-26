@@ -6,7 +6,10 @@ Smart display for kids, targeted for rendering on an Inkplate 13 SPECTRA color e
 
 - `server/` — Python Flask HTTP server; pages are rendered with Jinja2 templates in `server/app/templates/`
 - `specs/` — project specs
-- `arduino/` — Arduino sketches for the Inkplate device; `arduino/mockup/` is flashed by the demo push CLI (`uv run python -m app.eink` from `server/`, see `specs/eink-demo.md`)
+- `arduino/` — Arduino sketches for the Inkplate device:
+  - `arduino/kidink/` — the real firmware (wake → fetch → paint → deep sleep), built and flashed by `uv run python -m app.firmware` from `server/`, which also generates its **gitignored** `config.h`. See `specs/firmware.md`.
+  - `arduino/mockup/` — the demo push CLI's fixed-image sketch (`uv run python -m app.eink`, see `specs/eink-demo.md`)
+  - `arduino/kidink_tests/` — host harnesses for the sketch's pure-C++ units, compiled and run by pytest
 
 ## Conventions & invariants
 

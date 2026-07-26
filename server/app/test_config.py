@@ -145,3 +145,69 @@ def test_joke_start_date_default_and_override() -> None:
     # checkout validates; TOML supplies a real date.
     assert Settings.model_fields["joke_start_date"].default == date(2026, 1, 1)
     assert _settings(joke_start_date="2026-07-15").joke_start_date == date(2026, 7, 15)
+
+
+# --- Inkplate firmware keys (specs/firmware.md) ---------------------------
+
+
+def test_device_defaults() -> None:
+    # All device keys have defaults so a checkout that never flashes a board
+    # still starts; `python -m app.firmware` is what requires the real values.
+    settings = _settings()
+    # No default base URL: it must be a LAN address the board can reach, and a
+    # guess would fail only as a device that quietly stops updating.
+    assert settings.device_server_base_url == ""
+    assert settings.device_fetch_path == "/display"
+    assert settings.device_wake_cron == "0 5-21/2 * * *"
+    assert settings.device_wifi_timeout_seconds == 60
+    assert settings.device_http_timeout_seconds == 300
+    assert settings.device_fallback_sleep_seconds == 900
+    assert settings.device_repaint_on_button is True
+    assert settings.device_posix_tz == ""
+
+
+def test_device_wifi_credentials_are_secret() -> None:
+    # Never leak via repr/str: the passphrase must not reach a log or traceback.
+    settings = _settings(
+        device_wifi_ssid=SecretStr("HomeNetwork"),
+        device_wifi_password=SecretStr("super-secret-passphrase"),
+    )
+    assert "super-secret-passphrase" not in repr(settings)
+    assert "HomeNetwork" not in repr(settings)
+    assert settings.device_wifi_password.get_secret_value() == "super-secret-passphrase"
+
+
+def test_device_wake_cron_validated_at_load() -> None:
+    # A typo must fail here, not on a board already hung on a wall.
+    with pytest.raises(ValidationError):
+        _settings(device_wake_cron="0 99 * * *")
+    with pytest.raises(ValidationError):
+        _settings(device_wake_cron="not a schedule")
+    assert _settings(device_wake_cron="@daily").device_wake_cron == "@daily"
+
+
+def test_device_fetch_path_must_be_absolute() -> None:
+    with pytest.raises(ValidationError):
+        _settings(device_fetch_path="display")
+    assert _settings(device_fetch_path="/display?raw=1").device_fetch_path.endswith(
+        "raw=1"
+    )
+
+
+def test_device_timeouts_are_bounded() -> None:
+    # A zero timeout would make every fetch fail; an unbounded one would let a
+    # stalled server hold the board awake until the battery died.
+    with pytest.raises(ValidationError):
+        _settings(device_wifi_timeout_seconds=0)
+    with pytest.raises(ValidationError):
+        _settings(device_http_timeout_seconds=99_999)
+    assert _settings(device_http_timeout_seconds=120).device_http_timeout_seconds == 120
+
+
+def test_kid_rejects_unknown_keys() -> None:
+    # TOML folds bare `key = value` pairs after a [[kids]] header into that
+    # table, so a setting appended to the end of config.toml silently becomes a
+    # kid field. Forbidding extras turns that into a startup error instead of a
+    # setting that is present in the file but never reaches Settings.
+    with pytest.raises(ValidationError, match="device_wifi_ssid"):
+        _settings(kids=[{"name": "Julia", "label": "J", "device_wifi_ssid": "net"}])
