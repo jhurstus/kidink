@@ -67,8 +67,9 @@ returns a frame.
   this server's own **`/render`** URL, screenshots the page, runs the six-color
   quantize + dither pass (§5.2), and serves the **packed 4bpp framebuffer** with
   `ETag` / conditional-GET support. It writes **no files to disk** (Chromium loads
-  the page and its assets over loopback HTTP, §3.2). **All query args on `/display`
-  are forwarded to the `/render` URL.**
+  the page and its assets over loopback HTTP, §3.2); its only write is the one-row
+  append to the request log below. **All query args on `/display` are forwarded to
+  the `/render` URL.**
 
 The ESP32 polls `/display`. The **`ETag` is a hash of the served bytes**, so *any*
 change - including a regenerated AI image - changes the `ETag`. The device sends
@@ -76,6 +77,14 @@ change - including a regenerated AI image - changes the `ETag`. The device sends
 and the ~19-second refresh (the main battery win), while continuing to show its last
 image (e-ink is bistable). Computing the `ETag` requires rendering and packing the
 buffer, which is acceptable at the polling cadence.
+
+**Request log.** Every `/display` request appends one row - the request's UTC
+arrival timestamp and the HTTP status served - to a `display_requests` table in the
+shared `sqlite.db` (§18), so the polling loop can be monitored from the server
+alone: is the device still polling, how many `304`s vs full downloads, did captures
+start failing. The log is write-only telemetry - it never feeds a render, so
+determinism (§3.4) is untouched - and a failed log write is logged and swallowed
+rather than failing the device-facing response.
 
 ### 3.2 The two endpoints in detail
 
@@ -88,7 +97,8 @@ buffer, which is acceptable at the polling cadence.
 - **`/display` — pipeline steps 5–7** (§3.3). Navigates headless Chromium to the
   absolute loopback `/render` URL - built from the incoming request's own host, all
   query args forwarded - so Chromium fetches the HTML and every asset over loopback
-  from this same server (no disk writes anywhere); then quantizes, packs, and serves
+  from this same server (no disk writes beyond the §3.1 request-log row); then
+  quantizes, packs, and serves
   the buffer with the served-bytes `ETag`. Because Chromium calls back into the
   server while the `/display` request is still in flight, the server must handle
   **concurrent requests** (a threaded WSGI server - the Flask dev server's default).
@@ -1179,7 +1189,7 @@ the per-event TOML fields in §6.3. The fields:
 | `family_calendar_ics_url` | `SecretStr`, **required** | Google Calendar private ICS (events + chores, §6.1). |
 | `anylist_mealplan_ics_url` | `SecretStr`, **required** | Anylist meal-plan ICS (dinner, §6.1, §13). |
 | `openai_api_key` | `SecretStr`, **required** | AI image generation (§7.2). |
-| `app_storage_path` | Path, `.storage` | Root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, and meal-override §13 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). A relative path resolves against `server/`. |
+| `app_storage_path` | Path, `.storage` | Root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, meal-override §13, and `/display` request-log §3.1 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). A relative path resolves against `server/`. |
 | `module_model_tiers` | dict[str, str], empty | Per-module image-model overrides, e.g. `{"Calendar": "gpt-image-2"}`; modules absent from the map use the default model. |
 | `kids` | list of `{name, label}`, empty | The children shown on the board (§8), **in display order** — the order fixes each kid's badge color and label position, and indexes their clothing figures (`kid0`, `kid1`, … — § Weather). `label` is the initials; events' `kids` values (§6.4) match either field case-insensitively. |
 | `joke_start_date` | date, `2026-01-01` | Base date for the daily joke index (§15). The jokes themselves live in the DB, not in config. |

@@ -1,15 +1,50 @@
 """The device-facing `/display` endpoint (§3.1-3.3, steps 5-7)."""
 
 import hashlib
+import sqlite3
+from datetime import UTC, datetime
+from pathlib import Path
 
-from flask import Blueprint, Response, abort, current_app, request
+from flask import Blueprint, Response, abort, current_app, g, request
 from playwright.sync_api import Error as PlaywrightError
 
+from app.display.monitoring import log_request
 from app.display.pipeline import indices_to_png, screenshot_to_indices
 from app.eink.pack import pack_pixels
 from app.eink.screenshot import CaptureHTTPError
 
 display_bp = Blueprint("display", __name__)
+
+
+@display_bp.before_request
+def _stamp_arrival() -> None:
+    """Record the request's UTC arrival time for the monitoring log.
+
+    Stamped up front rather than in the after-hook because a capture can run
+    minutes (cold image cache, §3.6) and the log should hold arrival times.
+    """
+    g.display_requested_at = datetime.now(UTC)
+
+
+@display_bp.after_request
+def _log_display_request(response: Response) -> Response:
+    """Append the request to the monitoring log (app.display.monitoring).
+
+    Runs for every outcome - 200, 304, and the abort() error paths below all
+    pass through here. Logging is telemetry only, so a failure to write it is
+    logged and swallowed rather than breaking the device-facing response.
+    """
+    requested_at = g.get("display_requested_at") or datetime.now(UTC)
+    try:
+        log_request(
+            Path(current_app.config["APP_STORAGE_PATH"]),
+            requested_at,
+            response.status_code,
+        )
+    except sqlite3.Error, OSError:
+        current_app.logger.exception("display request logging failed")
+    return response
+
 
 _WIDTH, _HEIGHT = 1600, 1200
 # 2x + BOX downscale feeds the quantizer the same anti-aliased edges the
