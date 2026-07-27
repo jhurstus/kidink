@@ -103,15 +103,18 @@ class TodayPanel:
 def caption_eligible(buckets: Sequence[TodayBucket]) -> bool:
     """Whether the bucket layout leaves room for the speech bubble (§10.5).
 
-    At most two visible buckets, each a single visual row (1-2 events, §10.2
-    two-across layout; empty buckets are already dropped, so ``rows`` is never
-    empty). Two single-row buckets use 308px of the 538px bucket area
-    (2·148px + a 12px gap), leaving ~244px of sky above the weather slot
-    (including the 14px flex gap) - comfortably clearing the worst-case
-    bubble (~205px with its tail). A day with no buckets at all qualifies
-    too (the ``all`` is vacuous).
+    At most two visual rows in total (§10.2 two-across layout: a row holds
+    two events, so a bucket spans ``ceil(events / 2)`` rows). Empty buckets
+    are already dropped, so every visible bucket has at least one row and
+    the total covers exactly: an event-less day, up to two single-row
+    buckets (1-2 events each), or one bucket of up to two rows (3-4
+    events). The worst case, two single-row buckets, uses 308px of the
+    538px bucket area (2·148px + a 12px gap), leaving ~244px of sky above
+    the weather slot (including the 14px flex gap) - comfortably clearing
+    the worst-case bubble (~205px with its tail); a lone two-row bucket
+    uses only 220px, leaving even more.
     """
-    return len(buckets) <= 2 and all(len(b.rows) <= 2 for b in buckets)
+    return sum((len(b.rows) + 1) // 2 for b in buckets) <= 2
 
 
 def build_today(

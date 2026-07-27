@@ -1183,7 +1183,7 @@ def test_render_joke_is_deterministic_for_a_date(tmp_path: Path) -> None:
     assert 'alt="joke A"' not in first
 
 
-# Three same-bucket events on Wed 2026-06-03: the Day bucket spans two visual
+# Five same-bucket events on Wed 2026-06-03: the Day bucket spans three visual
 # rows (§10.2 two-across), so the layout is caption-ineligible (§10.5).
 BUSY_DAY_ICS = (
     "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//test//EN\n"
@@ -1196,6 +1196,12 @@ BUSY_DAY_ICS = (
     "BEGIN:VEVENT\nUID:d3\nSUMMARY:Piano\n"
     "DTSTART;TZID=America/Los_Angeles:20260603T150000\n"
     "DTEND;TZID=America/Los_Angeles:20260603T153000\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:d4\nSUMMARY:Chess\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T160000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T163000\nEND:VEVENT\n"
+    "BEGIN:VEVENT\nUID:d5\nSUMMARY:Karate\n"
+    "DTSTART;TZID=America/Los_Angeles:20260603T170000\n"
+    "DTEND;TZID=America/Los_Angeles:20260603T173000\nEND:VEVENT\n"
     "END:VCALENDAR\n"
 )
 

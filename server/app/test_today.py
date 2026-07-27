@@ -484,11 +484,20 @@ def test_caption_shows_on_one_and_two_single_row_buckets() -> None:
         assert panel.caption == "Blorp.", shape
 
 
-def test_caption_hides_when_a_bucket_has_two_rows() -> None:
-    # Three events in one bucket span two visual rows (§10.2 two-across).
+def test_caption_shows_on_a_lone_bucket_of_two_rows() -> None:
+    # A single bucket may span two visual rows (3-4 events, §10.2 two-across).
+    for shape in ({TimeOfDay.DAY: 3}, {TimeOfDay.DAY: 4}):
+        panel = build_today(
+            TARGET, _bucket_events(shape), caption_provider=_RecordingCaptionProvider()
+        )
+        assert panel.caption == "Blorp.", shape
+
+
+def test_caption_hides_when_a_lone_bucket_has_three_rows() -> None:
+    # Five events in one bucket span three visual rows (§10.2 two-across).
     provider = _RecordingCaptionProvider()
     panel = build_today(
-        TARGET, _bucket_events({TimeOfDay.DAY: 3}), caption_provider=provider
+        TARGET, _bucket_events({TimeOfDay.DAY: 5}), caption_provider=provider
     )
 
     assert panel.caption is None
@@ -506,7 +515,9 @@ def test_caption_hides_on_three_buckets() -> None:
     assert provider.calls == 0
 
 
-def test_caption_hides_when_any_bucket_is_multi_row() -> None:
+def test_caption_hides_when_two_buckets_share_three_rows() -> None:
+    # A two-row bucket only qualifies alone; next to another bucket the
+    # total is three visual rows.
     provider = _RecordingCaptionProvider()
     events = _bucket_events({TimeOfDay.MORNING: 1, TimeOfDay.DAY: 4})
     panel = build_today(TARGET, events, caption_provider=provider)
@@ -542,5 +553,7 @@ def test_caption_eligible_judges_visual_rows() -> None:
     assert caption_eligible(buckets(1))
     assert caption_eligible(buckets(2))
     assert caption_eligible(buckets(2, 2))
-    assert not caption_eligible(buckets(3))
+    assert caption_eligible(buckets(3))
+    assert caption_eligible(buckets(4))
+    assert not caption_eligible(buckets(5))
     assert not caption_eligible(buckets(1, 3))

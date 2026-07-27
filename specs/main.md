@@ -873,10 +873,11 @@ down-left at the kid.
   skipped), per-row edit (an empty save deletes), delete, and a rotation reset
   (forgetting every date's pin and the pointer). Rotation order is insertion order
   (stable across edits).
-- **Eligibility:** only layouts that leave the bubble room - **at most two visible
-  buckets, each exactly one visual row** (1-2 events, §10.2 two-across). An event-less
-  day qualifies. The bubble is also suppressed when the weather subpanel itself is
-  unavailable (no forecast → no kid to speak).
+- **Eligibility:** only layouts that leave the bubble room - **at most two visual
+  rows in total** across the visible buckets (§10.2 two-across): up to two buckets of
+  one row each (1-2 events apiece), or a single bucket of up to two rows (3-4
+  events). An event-less day qualifies. The bubble is also suppressed when the
+  weather subpanel itself is unavailable (no forecast → no kid to speak).
 - **Selection - a per-date pinned rotation, not §15's date modulo:** captions appear
   only on eligible days, so a date-modulo index would burn lines on the intervening
   bubble-less days. Instead the **first** caption-eligible render of a date - device
