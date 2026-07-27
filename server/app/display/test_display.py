@@ -122,6 +122,14 @@ def test_display_quantize_serves_palette_only_png(tmp_path: Path) -> None:
     assert colors <= {tuple(ink) for ink in palette.PALETTE_RGB.tolist()}  # ... by inks
 
 
+def test_display_format_png_is_quantize_alias(tmp_path: Path) -> None:
+    client = _app_with_capture(_RecordingCapture(_orange_png()), tmp_path).test_client()
+    response = client.get("/display?format=png")
+    assert response.status_code == 200
+    assert response.mimetype == "image/png"
+    assert response.data == client.get("/display?quantize=1").data
+
+
 def test_display_raw_serves_screenshot_unchanged(tmp_path: Path) -> None:
     png = _orange_png()
     client = _app_with_capture(_RecordingCapture(png), tmp_path).test_client()
@@ -133,9 +141,10 @@ def test_display_raw_serves_screenshot_unchanged(tmp_path: Path) -> None:
     assert client.get("/display?raw=1&quantize=1").data == png
 
 
-def test_display_debug_args_require_exact_1(tmp_path: Path) -> None:
+def test_display_debug_args_require_exact_values(tmp_path: Path) -> None:
     client = _app_with_capture(_RecordingCapture(_orange_png()), tmp_path).test_client()
-    for query in ("?quantize=true", "?quantize=0", "?raw=true", "?raw=0"):
+    queries = ("?quantize=true", "?quantize=0", "?raw=true", "?raw=0", "?format=jpeg")
+    for query in queries:
         assert client.get(f"/display{query}").mimetype == "application/octet-stream"
 
 

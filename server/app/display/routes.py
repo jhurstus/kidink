@@ -60,8 +60,9 @@ def display() -> Response:
 
     Chromium navigates to this server's own `/render` URL (every query arg
     forwarded), so the HTML and all its assets load over loopback. `?raw=1`
-    and `?quantize=1` substitute PNG debug views (§3.5). The `ETag` hashes
-    the served bytes; `If-None-Match` gets a `304` (§3.1).
+    and `?quantize=1` (alias `?format=png`) substitute PNG debug views
+    (§3.5). The `ETag` hashes the served bytes; `If-None-Match` gets a
+    `304` (§3.1).
     """
     qs = request.query_string.decode()
     url = f"{request.host_url}render" + (f"?{qs}" if qs else "")
@@ -86,7 +87,7 @@ def display() -> Response:
         body, mimetype = png, "image/png"
     else:
         indices = screenshot_to_indices(png)
-        if request.args.get("quantize") == "1":
+        if request.args.get("quantize") == "1" or request.args.get("format") == "png":
             body, mimetype = indices_to_png(indices), "image/png"
         else:
             body, mimetype = pack_pixels(indices), "application/octet-stream"

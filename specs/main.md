@@ -169,7 +169,8 @@ directly. They are invisible to the ESP32 in normal operation:
   (consumed by `/render`).
 - **`?quantize=1`** — serve the §5.2 quantize pass's output as a viewable PNG instead
   of the packed device buffer: exactly the pixels the panel will show (consumed by
-  `/display`, step 6).
+  `/display`, step 6). **`?format=png`** is an alias, so the browser gets a
+  proper `image/png` instead of an unviewable packed-buffer download.
 - **`?raw=1`** — serve the raw full-color screenshot as a PNG, before the quantize
   pass; takes precedence over `?quantize=1` (consumed by `/display`, step 6).
 - **`?debug_images=1`** — after the main content, append a list of **every AI image
