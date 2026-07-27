@@ -12,7 +12,8 @@ Called as {% call event_row(row) %}...{% endcall %}, the block's content is
 appended after the title inside a zero-width .event-row-trail anchor sitting
 at the end of the title *text* (the title shrink-wraps), so decorations — the
 Today SFX shout (§10.4) — can position relative to where the words end rather
-than to the row's box.
+than to the row's box. When a title wraps to its second line (event_rows.css)
+the box spans the whole column, so the anchor sits at the column's edge.
 =========================================================================== -#}
 {% from "macros/kids.html" import kid_badges %}
 

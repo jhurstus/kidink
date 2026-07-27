@@ -7,13 +7,15 @@
 
 /* Fixed event row (the 72px _ROW_H is this 60px base + the owning module's
    12px flex gap; the modules size their containers from the row count, so
-   rows sit at a constant tight pitch). */
+   rows sit at a constant tight pitch). The 16px icon-title gap keeps a
+   wrapped title's second line clear of the kid badge, which hangs 8px past
+   the icon's right edge (comic.css) at exactly that line's height. */
 .event-row {
   flex: none;
   height: 60px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
 }
 
 /* Icon slot: every icon box is a uniform 60px square, so titles align and the
@@ -51,17 +53,27 @@
    §8 component (.kid-badge* in comic.css, emitted by macros/kids.html). */
 
 /* Title: upright and light, setting the event text apart from the italic
-   headers/labels around it. Shrink-wraps to its text (still ellipsizing when
-   the text outgrows the row) so the .event-row-trail anchor after it sits at
-   the end of the words, not the row's edge. */
+   headers/labels around it. Shrink-wraps to its text so the .event-row-trail
+   anchor after it sits at the end of the words, not the row's edge. A long
+   title wraps to a second line (ellipsizing past that): with the explicit
+   line-height a two-line block is 68px, and the row's align-items: center
+   keeps it centered on the icon, bleeding 4px into the owning module's 12px
+   gap on each side (two facing two-liners still leave 4px clear). One-line
+   titles sit exactly where they always did - the half-leading is symmetric,
+   so an explicit line-height doesn't move a centered single line. A wrapped
+   title's box does span its whole grid column, so its trail anchor sits at
+   the column's edge rather than the text's end. */
 .event-row-title {
   flex: 0 1 auto;
   min-width: 0;
   font-size: 31px;
   font-style: normal;
   font-weight: 200;
+  line-height: 34px;
   color: #000;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -69,7 +81,7 @@
 /* Zero-width anchor for a row's trailing decoration (the event_row macro's
    call block — the Today SFX shout, §10.4): takes no row space itself, spans
    the row's height, and positions its children relative to the point right
-   after the title text (plus the row's 10px flex gap). */
+   after the title text (plus the row's 16px flex gap). */
 .event-row-trail {
   flex: none;
   width: 0;

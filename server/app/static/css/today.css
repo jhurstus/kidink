@@ -78,8 +78,8 @@
    glyph and the label centered in it) plus the separator. Type is the
    day-name voice at title size (400 weight, NorB Pen and the panel's
    italic inherited), lightly letterspaced, led by the time-of-day glyph in
-   a fixed 30px slot with the event rows' 10px icon-title gap - every label
-   starts on the same x regardless of the icon's ink extents. */
+   a fixed 30px slot with a 10px gap - every label starts on the same x
+   regardless of the icon's ink extents. */
 .today-bucket-header {
   flex: none;
   box-sizing: border-box;
@@ -126,7 +126,7 @@
    macros/sfx.html) as the bare word — no whisker lines. Hung inside the last
    row's .event-row-trail anchor (event_rows.css), which sits at the end of
    the event title's text, so the shout tracks the title's length: its left
-   edge 14px past the anchor (24px after the last glyph, with the row's 10px
+   edge 8px past the anchor (24px after the last glyph, with the row's 16px
    gap), left-center on the row's centerline nudged 1px down, extending right
    into the row's empty neighbor cell (the bucket's count is odd whenever sfx
    is set). Small comic tilt (between the countdown corners' -10deg/7deg)
@@ -135,7 +135,7 @@
    regardless of the sfx or title text's length. */
 .today-sfx {
   position: absolute;
-  left: 14px;
+  left: 8px;
   top: calc(50% + 1px);
   transform: translateY(-50%) rotate(-4deg);
   transform-origin: left center;

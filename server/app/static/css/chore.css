@@ -130,13 +130,12 @@
    gap: 38px;
 }
 
-/* Each chore row spans two rulings; overriding the shared 60px single-line
-   row (event_rows.css). Top-aligned so the title's line boxes stack from the
-   row's first ruling, with a wider icon-title gap than the shared rows. */
+/* Each chore row spans two rulings; overriding the shared 60px row
+   (event_rows.css). Top-aligned so the title's line boxes stack from the
+   row's first ruling. */
 .chore-frame .event-row {
    height: 76px;
    align-items: flex-start;
-   gap: 16px;
 }
 
 /* The 60px icon centers on the ruling that separates the row's two writing
@@ -152,15 +151,11 @@
    bottom: -10px;
 }
 
-/* Titles wrap to at most two lines (one per ruling) instead of the shared
-   single-line ellipsis; the 38px line-height locks each line to the ruling
-   pitch. */
+/* Titles wrap to at most two lines like the shared rows (event_rows.css);
+   only the leading differs - the 38px line-height locks each line to the
+   ruling pitch. */
 .chore-frame .event-row-title {
-   white-space: normal;
    line-height: 38px;
-   display: -webkit-box;
-   -webkit-box-orient: vertical;
-   -webkit-line-clamp: 2;
 }
 
 /* Empty state (§14 placeholder): "no chores today" written on the paper -
