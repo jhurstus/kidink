@@ -351,8 +351,8 @@ A healthy cycle:
 ```
 [kidink] wake: RTC alarm
 [kidink] boot 7, battery 4.01V, free psram 7808KB
-[kidink] wifi: joined 'YourSSID' in 2140ms, rssi -58dBm, ip 192.168.86.x
-[kidink] fetch http://192.168.86.200:5051/display
+[kidink] wifi: joined 'YourSSID' in 2140ms, rssi -58dBm, ip 192.168.1.31
+[kidink] fetch http://192.168.1.20:5051/display
 [kidink] body: 960000 bytes in 41200ms
 [kidink] http: 200, painting (~19s refresh)
 [kidink] paint: done, etag "3a36..."
