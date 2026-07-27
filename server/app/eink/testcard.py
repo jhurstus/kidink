@@ -35,7 +35,7 @@ def make_test_card(width: int = 1600, height: int = 1200) -> Image.Image:
     fan_x, fan_y = width // 2 + 40, 40
     fan_w, fan_h = width // 2 - 80, stripe_h - 80
     for i, stroke in enumerate([1, 2, 3, 5, 8]):
-        for frac in range(0, 11):
+        for frac in range(11):
             x1 = fan_x + fan_w * frac // 10
             draw.line(
                 [

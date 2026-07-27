@@ -20,7 +20,7 @@ type HeroResolver = Callable[[str], str | None]
 
 def no_hero(text: str) -> None:
     """Default resolver: no hero - keeps the builder pure by default."""
-    return None
+    return
 
 
 @dataclass(frozen=True)

@@ -42,7 +42,7 @@ type HeroResolver = Callable[[IconItem, bool], str | None]
 
 def no_hero(item: IconItem, excited: bool) -> None:
     """Default resolver: no hero — keeps the builder pure by default."""
-    return None
+    return
 
 
 @dataclass(frozen=True)

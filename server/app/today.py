@@ -61,7 +61,7 @@ its inputs."""
 
 def no_caption() -> None:
     """The default :data:`CaptionProvider`: never a caption, no side effects."""
-    return None
+    return
 
 
 @dataclass(frozen=True)

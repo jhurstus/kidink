@@ -67,7 +67,7 @@ def overrides_for(conn: sqlite3.Connection, days: Sequence[date]) -> dict[date, 
         return {}
     marks = ",".join("?" * len(days))
     rows = conn.execute(
-        f"SELECT day, name FROM meal_overrides WHERE day IN ({marks})",  # noqa: S608
+        f"SELECT day, name FROM meal_overrides WHERE day IN ({marks})",
         [d.isoformat() for d in days],
     ).fetchall()
     return {date.fromisoformat(row["day"]): row["name"] for row in rows}

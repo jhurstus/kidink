@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from itertools import pairwise
 
 import pytest
 
@@ -72,6 +73,5 @@ def test_render_days_is_contiguous_and_ascending() -> None:
     days = render_days(date(2026, 6, 7))
 
     assert all(
-        later - earlier == timedelta(days=1)
-        for earlier, later in zip(days, days[1:], strict=False)
+        later - earlier == timedelta(days=1) for earlier, later in pairwise(days)
     )

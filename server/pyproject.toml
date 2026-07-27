@@ -19,12 +19,14 @@ dependencies = [
 dev = [
     "pytest>=9.0",
     "pytest-socket>=0.8.0",
-    "ruff>=0.15",
+    "ruff>=0.16",
     "ty>=0.0.47",
 ]
 
 [tool.ruff.lint]
-select = [
+# Extend ruff's default rule set rather than replace it; these families include
+# rules the defaults deliberately exclude (e.g. E501, E711/E712, B904, F403).
+extend-select = [
     "E",   # pycodestyle errors
     "F",   # pyflakes
     "I",   # isort (import sorting)
@@ -32,6 +34,11 @@ select = [
     "B",   # flake8-bugbear
     "SIM", # flake8-simplify
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Naive datetimes in tests are deliberate: they are injected-clock values for
+# the local-time display, not wall-clock reads.
+"**/test_*.py" = ["DTZ001"]
 
 [tool.pytest.ini_options]
 testpaths = ["app"]
