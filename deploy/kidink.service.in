@@ -1,0 +1,27 @@
+# kidink server unit - installed to /etc/systemd/system/kidink.service by
+# deploy/bootstrap.sh, which substitutes the @...@ placeholders.
+#
+# Runs the same server ./run.sh runs, minus --debug: Flask's threaded dev server,
+# which /display requires (Chromium re-enters this process over HTTP while the
+# request is still in flight, spec §3.2) and which must stay single-process (the
+# image-generation dedup in app/images/store.py uses in-process locks).
+# Output goes to journald: `journalctl -u kidink -f`.
+
+[Unit]
+Description=kidink board server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@ROOT@/src/server
+# uv needs HOME for its cache, and Playwright looks under ~/.cache/ms-playwright
+# for the browser. systemd does not source a shell, hence the absolute uv path.
+Environment=HOME=@HOME@
+ExecStart=@UV@ run --frozen --no-dev flask --app app run --host 0.0.0.0 --port @PORT@
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

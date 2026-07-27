@@ -170,6 +170,12 @@ activemq-data/
 # under the invoking cwd)
 .playwright-cli/
 
+# kidink deploy target: the host, user, paths and port of one private machine.
+# Every other file under deploy/ is target-agnostic and committed.
+/deploy/target.env
+# templates rendered by deploy/bootstrap.sh before install
+/deploy/.rendered/
+
 # Environments
 .env
 .envrc

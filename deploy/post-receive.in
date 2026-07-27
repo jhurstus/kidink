@@ -1,0 +1,156 @@
+#!/bin/bash
+# kidink push-to-deploy hook - installed to <root>/repo.git/hooks/post-receive by
+# deploy/bootstrap.sh, which substitutes the @...@ placeholders.
+#
+#   git push pi main:deployed              deploy a branch
+#   git push pi <sha>:deployed             deploy a commit
+#   git push --force pi <old-sha>:deployed roll back
+#
+# Only refs/heads/deployed triggers a deploy; anything else pushed here is just
+# stored. Everything printed streams back to the pushing terminal as "remote: ..."
+# and is appended to <root>/deploy.log.
+#
+# On any failure the work tree is checked back out at the last commit that
+# deployed successfully, the service restarted, and refs/heads/deployed rolled
+# back to match - so the tree, the ref, and deployed.sha always agree.
+#
+# Note that `git push` still exits 0: git deliberately ignores a post-receive
+# hook's exit status, since by then the refs are already updated. Read the log
+# below the push - a failure ends in a "DEPLOY FAILED" banner.
+set -euo pipefail
+
+ROOT="@ROOT@"
+UV="@UV@"
+PORT="@PORT@"
+
+SERVICE="kidink"
+DEPLOY_REF="refs/heads/deployed"
+ZERO="0000000000000000000000000000000000000000"
+HEALTH_TIMEOUT=30
+
+REPO="$ROOT/repo.git"
+SRC="$ROOT/src"
+HOOK="$REPO/hooks/post-receive"
+LOG="$ROOT/deploy.log"
+LOCK="$ROOT/.deploy.lock"
+# The commit whose tree is on disk and known good - written only after a deploy
+# fully succeeds, and what a failed deploy rolls back to.
+STATE="$ROOT/deployed.sha"
+
+# git exports these into every hook; they redirect any child git command at the
+# bare repo (and its quarantine), which would corrupt the work-tree checkout.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_PREFIX \
+      GIT_QUARANTINE_PATH GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+
+# Re-exec once: serialize concurrent pushes, and tee the whole run to the log.
+# stdin (git's "<old> <new> <ref>" lines) is inherited untouched, and the exit
+# status stays the hook's own.
+if [ -z "${KIDINK_DEPLOY_INNER:-}" ]; then
+    export KIDINK_DEPLOY_INNER=1
+    exec flock "$LOCK" "$HOOK" "$@" > >(tee -a "$LOG") 2>&1
+fi
+
+say() { printf 'kidink: %s\n' "$*"; }
+subject() { git --git-dir="$REPO" log -1 --format='%h %s' "$1" 2>/dev/null || echo "$1"; }
+
+# fc-match always answers - with DejaVu when the family is missing - so match on
+# the file it resolves to, not on its exit status. The board names exactly these
+# two families (app/static/css/board.css, today.css) and has no @font-face rules.
+check_font() {
+    local family="$1" expect="$2" file
+    file="$(fc-match -f '%{file}' "$family" 2>/dev/null || true)"
+    case "$file" in
+        *"$expect"*) return 0 ;;
+    esac
+    say "FAIL: font '$family' resolves to '${file:-nothing}' - run deploy/sync-fonts.sh"
+    return 1
+}
+
+health() {
+    local i=0 code
+    while [ "$i" -lt "$HEALTH_TIMEOUT" ]; do
+        code="$(curl -fsS -o /dev/null -w '%{http_code}' \
+                    "http://127.0.0.1:$PORT/" 2>/dev/null || true)"
+        [ "$code" = "200" ] && return 0
+        i=$((i + 1))
+        sleep 1
+    done
+    say "FAIL: no 200 from http://127.0.0.1:$PORT/ after ${HEALTH_TIMEOUT}s"
+    return 1
+}
+
+# Put $1 on disk and make it the running server.
+#
+# Every step carries an explicit `|| return 1`: this function is called from an
+# `if`, which disables errexit for everything it runs, so `set -e` would not stop
+# a failing step here.
+release() {
+    say "checking out $(subject "$1")"
+    git -c advice.detachedHead=false \
+        --git-dir="$REPO" --work-tree="$SRC" checkout -f -q "$1" || return 1
+
+    cd "$SRC/server" || return 1
+
+    say "syncing dependencies"
+    "$UV" sync --frozen --no-dev || return 1
+
+    say "ensuring chromium"
+    "$UV" run --frozen --no-dev playwright install chromium || return 1
+
+    say "checking fonts"
+    check_font "NorB Pen" "NorBPen" || return 1
+    check_font "Comic Sans MS" "Comic Sans MS" || return 1
+
+    # Catches an import error or a config validation failure while the old
+    # process is still serving.
+    say "importing the app"
+    "$UV" run --frozen --no-dev python -c 'from app import create_app; create_app()' || return 1
+
+    say "restarting $SERVICE"
+    sudo systemctl restart "$SERVICE" || return 1
+
+    say "waiting for health"
+    health || return 1
+}
+
+while read -r old new ref; do
+    if [ "$ref" != "$DEPLOY_REF" ]; then
+        say "ignoring $ref (only $DEPLOY_REF deploys)"
+        continue
+    fi
+    if [ "$new" = "$ZERO" ]; then
+        say "$DEPLOY_REF deleted - leaving the running server alone"
+        continue
+    fi
+
+    # Roll back to the last commit that deployed *successfully*, not to $old:
+    # git moves refs/heads/deployed to $new before this hook runs, so after one
+    # failed deploy $old is itself the broken commit and a second failure would
+    # "restore" to it.
+    prev="$(cat "$STATE" 2>/dev/null || true)"
+
+    say "deploying $(subject "$new")"
+    if release "$new"; then
+        printf '%s\n' "$new" >"$STATE"
+        say "deployed $(subject "$new") - $(systemctl is-active "$SERVICE")"
+        continue
+    fi
+
+    say "*** DEPLOY FAILED - $(subject "$new") ***"
+    if [ -z "$prev" ] || [ "$prev" = "$new" ]; then
+        say "nothing deployed successfully before this - leaving the tree at $(subject "$new")"
+    else
+        say "restoring $(subject "$prev")"
+        if release "$prev"; then
+            # Roll the ref back too, so the ref, the tree, and deployed.sha all
+            # agree on what is running. (git already advanced it to $new before
+            # this hook ran; nothing here can reject the push itself.)
+            git --git-dir="$REPO" update-ref "$DEPLOY_REF" "$prev"
+            say "restored $(subject "$prev") - nothing changed on this host"
+        else
+            say "RESTORE ALSO FAILED - the server may be down, fix it by hand"
+        fi
+    fi
+    say "*** the push above did NOT deploy ***"
+    exit 1
+done

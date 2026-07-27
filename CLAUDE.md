@@ -10,6 +10,7 @@ Smart display for kids, targeted for rendering on an Inkplate 13 SPECTRA color e
   - `arduino/kidink/` — the real firmware (wake → fetch → paint → deep sleep), built and flashed by `uv run python -m app.firmware` from `server/`, which also generates its **gitignored** `config.h`. See `specs/firmware.md`.
   - `arduino/mockup/` — the demo push CLI's fixed-image sketch (`uv run python -m app.eink`, see `specs/eink-demo.md`)
   - `arduino/kidink_tests/` — host harnesses for the sketch's pure-C++ units, compiled and run by pytest
+- `deploy/` — push-to-deploy the server onto the Raspberry Pi (`git push pi main:deployed`). The target's host/paths live only in a **gitignored** `deploy/target.env`; keep every committed file here target-agnostic. See `deploy/README.md` and `specs/main.md` §18.1.
 
 ## Conventions & invariants
 

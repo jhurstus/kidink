@@ -46,8 +46,8 @@ reflects decisions made during design iteration. Sections marked *Deferred* or
   calibration checkerboard of 10px blocks) at about **3px left, 7px top, 4px right,
   6px bottom**. Treat those edge bands as invisible: no content may rely on them,
   and edge margins should be tuned to look even *after* subtracting them.
-- **Compute split:** a Raspberry Pi 5 (Raspbian) renders everything; the ESP32-S3 on
-  the Inkplate is a dumb client that wakes on its RTC, fetches a pre-rendered file
+- **Compute split:** a Raspberry Pi renders everything; the ESP32-S3 on the
+  Inkplate is a dumb client that wakes on its RTC, fetches a pre-rendered file
   over local Wi-Fi, draws it, and sleeps.
 
 The ESP32 firmware and the on-device file format are **built** — see
@@ -1220,23 +1220,60 @@ hardcoded), and the weekday/weekend theming backdrops (§17).
 
 ### 18.1 Deployment (Raspberry Pi)
 
-The server deploys on the Raspberry Pi 5 (Raspbian, arm64; §2). Bring-up steps:
+The server runs on a Raspberry Pi as a **systemd service**, and
+deploying is a **`git push`**. The tooling lives in `deploy/` - see
+[deploy/README.md](../deploy/README.md) for the commands. Everything that identifies one
+particular machine (host, user, paths, port) sits in a single gitignored
+`deploy/target.env`; nothing else under `deploy/` is target-specific.
 
-1. Install **uv**, clone the repo, and run `uv sync` from `server/` (uv provisions
-   the pinned Python).
-2. One-time browser install: `uv run playwright install --with-deps chromium` -
-   Playwright ships an arm64 Chromium build, and `--with-deps` pulls its required
-   system libraries via apt.
-3. Install the board's fonts system-wide so headless Chromium can use them - in
-   particular the locally customized **NorB Pen** (a stock copy reintroduces the
-   day-strip kerning defects) and the other comic display fonts the CSS names.
-4. Create `server/config.toml` from `config.example.toml` with the real secrets
-   (§18; never committed).
-5. Run the server with a **threaded** WSGI server (§3.2) reachable from the LAN,
-   e.g. the dev server with `--host 0.0.0.0` (its threaded default satisfies
-   `/display`'s loopback re-entry); the ESP32 and Chromium both talk to this one
-   process.
-6. Install the warm-up prerender cron (§3.6) once its config key lands (still TBD).
+**On the target**, four things sit side by side, only one of which a deploy touches:
+
+```
+<root>/repo.git/     bare repo; its post-receive hook is the deploy trigger
+<root>/src/          the checkout - replaced wholesale on every deploy
+<root>/config.toml   real secrets (§18), 0600, symlinked to src/server/config.toml
+<root>/storage/      app_storage_path (§18): sqlite.db, gen_images/, prompt_images/
+```
+
+Config and storage live **outside** the checkout deliberately: they must survive a
+deploy, and storage is meant to back up as one self-contained directory. The symlink
+lands exactly where `app/config.py` looks for `config.toml`, and both it and `.venv` are
+gitignored, so the checkout never disturbs them.
+
+**A deploy** (`git push <remote> <ref>:deployed`) checks the commit out over the existing
+tree, runs `uv sync --frozen --no-dev`, ensures Playwright's Chromium, verifies the
+board's fonts still resolve via `fc-match`, **imports the app** (so a bad commit is caught
+while the old process is still serving), restarts the service, and waits on a health check
+against `/`. On any failure it checks the last **successfully** deployed commit back out,
+restarts, and rolls `refs/heads/deployed` back to match, so the ref, the tree, and
+`<root>/deployed.sha` never disagree about what is running. Deliberate rollback is the
+same mechanism: `git push --force <remote> <good-sha>:deployed`. There are deliberately no
+release directories and no `current` symlink; a single-client home server does not earn
+them.
+
+One consequence of using `post-receive`: **`git push` exits 0 even when the deploy
+fails**, because git updates the refs before the hook runs and documents the hook's exit
+status as unable to change that. A failure is loud in the streamed log rather than in the
+exit code (`*** DEPLOY FAILED ***`). Doing the work in `pre-receive` instead would let a
+push be rejected, but it would have to build out of git's object quarantine - real
+fragility bought for a nicer exit code.
+
+**The service** runs Flask's own server without `--debug`, under `uv run`. Flask's `run`
+command is threaded unconditionally, which is what `/display`'s loopback re-entry needs
+(§3.2), and stays single-process, which the in-process image-generation locks need (§7.2).
+Werkzeug emits `Date` and a real `Content-Length` and never chunks a fixed-length body -
+all three are hard firmware requirements ([firmware.md](firmware.md) §3). Dropping
+`--debug` removes the Werkzeug console from the LAN; `Restart=always` covers a crash, which
+otherwise strands the panel until the next wake since the device never retries. Output
+goes to journald.
+
+**Fonts** are shipped from the development machine by `deploy/sync-fonts.sh`, not committed:
+they are licensed, and the **NorB Pen** copies are locally customized (a stock copy
+reintroduces the day-strip kerning defects). Every deploy re-checks them, since a missing
+family degrades silently to DejaVu rather than failing.
+
+Still to come: the warm-up prerender cron (§3.6) once its config key lands - a systemd
+timer beside the unit.
 
 ---
 
