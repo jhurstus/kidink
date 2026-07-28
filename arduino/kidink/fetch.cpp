@@ -73,6 +73,55 @@ bool kidinkFrameLooksValid(const uint8_t *frame, size_t length)
     return true;
 }
 
+bool kidinkFetchText(const char *url, uint32_t timeoutMs, char *out, size_t outSize)
+{
+    if (!out || outSize == 0)
+        return false;
+    out[0] = '\0';
+
+    WiFiClient client;
+    HTTPClient http;
+    if (!http.begin(client, url))
+    {
+        KIDINK_LOGF("http: malformed URL");
+        return false;
+    }
+
+    const uint32_t socketTimeout =
+        timeoutMs < kSocketTimeoutMs ? timeoutMs : kSocketTimeoutMs;
+    http.setConnectTimeout((int32_t)socketTimeout);
+    http.setTimeout((uint16_t)socketTimeout);
+    http.setReuse(false);
+    http.setUserAgent("kidink-inkplate/1 (esp32s3)");
+    http.addHeader("Accept", "text/plain");
+
+    const int status = http.GET();
+    if (status <= 0)
+    {
+        KIDINK_LOGF("http: transport error %d (%s)", status,
+                    HTTPClient::errorToString(status).c_str());
+        http.end();
+        return false;
+    }
+    if (status != HTTP_CODE_OK)
+    {
+        KIDINK_LOGF("http: unexpected status %d", status);
+        http.end();
+        return false;
+    }
+
+    const String body = http.getString();
+    http.end();
+    if (body.length() == 0 || body.length() >= outSize)
+    {
+        KIDINK_LOGF("body: %u bytes does not fit the %u-byte text buffer",
+                    (unsigned)body.length(), (unsigned)outSize);
+        return false;
+    }
+    strcpy(out, body.c_str());
+    return true;
+}
+
 FetchOutcome kidinkFetch(const char *url, const char *ifNoneMatch, uint8_t *frame,
                          size_t frameBytes, uint32_t timeoutMs)
 {

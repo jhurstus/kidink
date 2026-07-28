@@ -104,6 +104,11 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     print(f"Fetch URL:  {config.fetch_url}")
+    print(
+        f"Clock sync: daily at "
+        f"{config.clock_sync_hour:02d}:{config.clock_sync_minute:02d} "
+        f"from {config.time_url}"
+    )
     print(f"Timezone:   {settings.timezone} -> {config.posix_tz}")
     print(
         f"Timeouts:   wifi {config.wifi_timeout_seconds}s, "

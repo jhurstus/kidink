@@ -86,7 +86,7 @@ start failing. The log is write-only telemetry - it never feeds a render, so
 determinism (§3.4) is untouched - and a failed log write is logged and swallowed
 rather than failing the device-facing response.
 
-### 3.2 The two endpoints in detail
+### 3.2 The endpoints in detail
 
 - **`/render` — pipeline steps 1–4** (§3.3). Returns `text/html`. Writes no output
   file; AI image generation still persists images to the durable image cache (§7),
@@ -102,6 +102,13 @@ rather than failing the device-facing response.
   the buffer with the served-bytes `ETag`. Because Chromium calls back into the
   server while the `/display` request is still in flight, the server must handle
   **concurrent requests** (a threaded WSGI server - the Flask dev server's default).
+- **`/time` — the device's clock-sync source** ([firmware.md](firmware.md) §5).
+  Returns `text/plain`: one `YYYY-MM-DD HH:MM:SS` line, the current time in the
+  configured display timezone, marked `Cache-Control: no-store` (a cached
+  timestamp is a wrong one). Deliberately outside the render pipeline: it is the
+  one endpoint whose *job* is the wall clock, so §3.4 determinism does not apply
+  to its output - though the clock is still injected at the HTTP boundary
+  (`NOW`), so tests stay deterministic.
 - **Image admin endpoint** (§7.4).
 - **`/admin`** — an index of the admin pages: a plain alphabetized bulleted list of
   links to every parameterless `GET /admin/<page>` route (e.g. `/admin/images`,
@@ -1199,7 +1206,9 @@ the per-event TOML fields in §6.3. The fields:
 | `device_wifi_password` | `SecretStr`, empty | Wi-Fi passphrase. Never logged, not even its length. |
 | `device_server_base_url` | str, empty | Origin the device fetches from, e.g. `192.168.1.20:5051`. Required by the deploy CLI: it must be a LAN address the board can reach, so there is no sane default. A bare `host:port` gains `http://`; `https://` is rejected (no TLS stack on the board). |
 | `device_fetch_path` | str, `/display` | Path (and any query) the device requests, so the firmware never hard-codes the endpoint's spelling. |
+| `device_time_path` | str, `/time` | Path of the clock-sync endpoint (§3.2, [firmware.md](firmware.md) §5). |
 | `device_wake_cron` | str, `0 5-21/2 * * *` | Device wake schedule, 5-field crontab, evaluated on-device in local wall-clock time. Validated at load. |
+| `device_clock_sync_time` | str, `03:15` | Local `HH:MM` of the daily clock-sync wake ([firmware.md](firmware.md) §5). Validated at load; the default sits outside the display wake window. |
 | `device_wifi_timeout_seconds` | int, `60` | Wi-Fi association deadline; on expiry the device sleeps without painting. |
 | `device_http_timeout_seconds` | int, `300` | Whole-fetch deadline for `/display`. Generous because a cold image cache makes `/render` generate images inline (§3.6). |
 | `device_fallback_sleep_seconds` | int, `900` | Sleep length when the schedule is uncomputable — first boot with the network down, so no `Date` header has ever set the RTC. |
@@ -1283,7 +1292,8 @@ timer beside the unit.
 
 - **ESP32 firmware — built**, see [firmware.md](firmware.md). It wakes on the RTC
   alarm or the WAKE button (which share GPIO18), joins Wi-Fi, does the §3.2
-  conditional GET, blits the packed buffer, and deep sleeps. It does **not**
+  conditional GET (plus a once-daily `/time` clock sync, firmware.md §5), blits
+  the packed buffer, and deep sleeps. It does **not**
   retry: any failure leaves the last image up (the panel is bistable) and waits
   for the next scheduled wake. Remaining v2 idea: `memcpy` straight into the
   library's framebuffer, which would need a second, panel-native wire format and

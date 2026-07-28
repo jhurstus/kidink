@@ -98,9 +98,27 @@ def test_empty_base_url_rejected() -> None:
 def test_defaults_produce_the_expected_url() -> None:
     config = from_settings(_settings())
     assert config.fetch_url == "http://kidink.local:5051/display"
+    assert config.time_url == "http://kidink.local:5051/time"
     assert config.wake_cron == "0 5-21/2 * * *"
     assert config.posix_tz == "PST8PDT,M3.2.0,M11.1.0"
     assert config.http_timeout_seconds == 300
+
+
+def test_clock_sync_time_resolves_to_hour_and_minute() -> None:
+    config = from_settings(_settings(device_clock_sync_time="04:05"))
+    assert (config.clock_sync_hour, config.clock_sync_minute) == (4, 5)
+    default = from_settings(_settings())
+    assert (default.clock_sync_hour, default.clock_sync_minute) == (3, 15)
+
+
+def test_url_override_still_derives_the_time_url() -> None:
+    """--url names the frame endpoint; the clock-sync endpoint must follow its
+    origin, or a test flash against another server would sync from the wrong
+    (possibly unreachable) one."""
+    config = from_settings(
+        _settings(), url_override="http://other.local:8080/display?date=2026-06-03"
+    )
+    assert config.time_url == "http://other.local:8080/time"
 
 
 def test_missing_base_url_is_actionable() -> None:
@@ -152,7 +170,10 @@ _REQUIRED_DEFINES = [
     "KIDINK_WIFI_SSID",
     "KIDINK_WIFI_PASSWORD",
     "KIDINK_FETCH_URL",
+    "KIDINK_TIME_URL",
     "KIDINK_WAKE_CRON",
+    "KIDINK_CLOCK_SYNC_HOUR",
+    "KIDINK_CLOCK_SYNC_MINUTE",
     "KIDINK_POSIX_TZ",
     "KIDINK_WIFI_TIMEOUT_S",
     "KIDINK_HTTP_TIMEOUT_MS",

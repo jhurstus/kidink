@@ -123,9 +123,9 @@ The CLI reads the `device_*` keys from `config.toml` / `KIDINK_DEVICE_*` and
 generates `arduino/kidink/config.h` (gitignored - it holds the Wi-Fi
 passphrase, and so does the built `.bin` under `server/.firmware-out/`).
 `device_wifi_ssid` is the only genuinely required value. Before writing
-anything it prints the fetch URL, the derived POSIX TZ, and the next few wake
-times - check those, since a mistyped schedule is invisible until the board
-fails to wake.
+anything it prints the fetch URL, the daily clock-sync schedule, the derived
+POSIX TZ, and the next few wake times - check those, since a mistyped schedule
+is invisible until the board fails to wake.
 
 Useful without hardware: `--print-config` (header with secrets redacted),
 `--next-fires 10`, and the `--url` / `--cron` / `--tz` overrides.

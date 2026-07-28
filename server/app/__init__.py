@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from flask import Flask, abort, render_template, request
+from flask import Flask, Response, abort, render_template, request
 
 from app.calendar import CalendarEvent, CalendarFetchError, expand_events, fetch_ics
 from app.captions import captions_admin_bp, make_caption_provider
@@ -113,6 +114,21 @@ def create_app() -> Flask:
             and "GET" in (rule.methods or ())
         )
         return render_template("admin/index.html", pages=pages)
+
+    @app.get("/time")
+    def server_time() -> Response:
+        """The device's clock-sync source (specs/firmware.md §5): the current
+        date and time in the configured display timezone, as one plain-text
+        ``YYYY-MM-DD HH:MM:SS`` line the firmware parses into its RTC. The
+        clock is injected via the ``NOW`` seam like ``/render``'s, and the
+        response is marked uncacheable - a cached timestamp is a wrong one."""
+        now = app.config.get("NOW") or datetime.now(UTC)
+        local = now.astimezone(ZoneInfo(settings.timezone))
+        response = Response(
+            local.strftime("%Y-%m-%d %H:%M:%S") + "\n", mimetype="text/plain"
+        )
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     @app.get("/render")
     def render() -> str:

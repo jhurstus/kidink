@@ -14,6 +14,10 @@ waking from deep sleep restarts the sketch:
 wake → join Wi-Fi → conditional GET /display → paint iff 200 → arm next wake → sleep
 ```
 
+Once a day (§5) a wake is a **clock sync** instead: it GETs `/time` and writes
+the server's local timestamp into the RTC, touching neither the panel nor the
+frame path.
+
 The panel is bistable, so a `304 Not Modified` costs nothing and keeps the last
 image up. Skipping the download *and* the ~19-second refresh is the entire
 battery story.
@@ -25,8 +29,8 @@ scheduled wake.
 Components:
 
 - `arduino/kidink/` - the sketch. `kidink.ino` (state machine), `cron.{h,cpp}`,
-  `httpdate.{h,cpp}`, `civil.h`, `fetch.{h,cpp}`, `log.h`, and the generated,
-  **gitignored** `config.h`.
+  `httpdate.{h,cpp}`, `timesync.{h,cpp}`, `civil.h`, `fetch.{h,cpp}`, `log.h`,
+  and the generated, **gitignored** `config.h`.
 - `server/app/firmware/` - the deploy CLI (`uv run python -m app.firmware` from
   `server/`), which resolves the app settings into `config.h` and drives
   `arduino-cli` through `app.eink.arduino`.
@@ -103,6 +107,22 @@ entirely and the firmware goes straight to scheduling.
 Any other status, a transport error, a length mismatch, a short read, or an
 invalid nibble is a failure: log it, do not paint, sleep until the next wake.
 
+### `GET /time` - the daily clock sync (§5)
+
+```
+GET /time HTTP/1.1
+User-Agent: kidink-inkplate/1 (esp32s3)
+Accept: text/plain
+```
+
+A `200` carries a plain-text body: one `YYYY-MM-DD HH:MM:SS` line (newline
+terminated), the current time **already in the display timezone**, served
+`Cache-Control: no-store`. The firmware parses it (`timesync.cpp`: fixed-width
+fields, real-calendar validation via `civil.h`, year 2020-2099 because the RTC
+stores two-digit years) and writes it into the RTC with `setDate()`/`setTime()`.
+Any other status, a body over ~31 bytes, or a malformed stamp logs and leaves
+the RTC untouched - the next day's sync is the retry.
+
 ## 4. Wake state machine
 
 ```
@@ -116,24 +136,34 @@ POWER-ON or DEEP-SLEEP WAKE
  |  rtc.clearAlarmFlag()
  |  buttonWake  = (cause == EXT0) && !wokeFromAlarm
  |  forceRepaint = buttonWake && KIDINK_REPAINT_ON_BUTTON
+ |  clockSyncWake = persisted sync flag && !buttonWake   <- §5; flag then cleared
  |- clockValid = rtc.isSet()
- |- frame = ps_malloc(960000)                     -- NULL -> failure
- |- kidinkWifiConnect(ssid, pass, wifi timeout)   -- false -> failure
- |- kidinkFetch(url, forceRepaint ? "" : etag, frame, ...)
- |    |- Fresh (200)   -> clearDisplay; image.draw(frame,0,0,1600,1200); display();
- |    |                   store ETag
- |    |- NotModified   -> no paint
- |    +- Failed        -> no paint
- |- if (Date header parsed) { rtc.setEpoch(utc); clockValid = true }
- |- free(frame); WiFi off
+ |
+ |- CLOCK-SYNC WAKE (clockSyncWake, §5): no frame, no paint
+ |    kidinkWifiConnect; GET /time; parseLocalTimestamp
+ |    ok -> rtc.setDate(weekday, d, m, y); rtc.setTime(h, m, s); clockValid = true
+ |    any failure -> RTC untouched; tomorrow's sync is the retry
+ |    WiFi off -> SCHEDULE
+ |
+ |- DISPLAY WAKE (everything else):
+ |    frame = ps_malloc(960000)                   -- NULL -> failure
+ |    kidinkWifiConnect(ssid, pass, wifi timeout) -- false -> failure
+ |    kidinkFetch(url, forceRepaint ? "" : etag, frame, ...)
+ |      |- Fresh (200)   -> clearDisplay; image.draw(frame,0,0,1600,1200); display();
+ |      |                   store ETag
+ |      |- NotModified   -> no paint
+ |      +- Failed        -> no paint
+ |    if (Date header parsed) { rtc.setEpoch(utc); clockValid = true }
+ |    free(frame); WiFi off
  |
  |- SCHEDULE (every path joins here):
- |    if (clockValid && scheduleValid) {
+ |    if (clockValid) {
  |      now = rtc.getEpoch()                      <- ONE read; see §8 quirk 3
- |      next = cronNext(schedule, localtime(now)); mktime(next)
- |      if (next - now < MIN_SLEEP_S) recompute from now + MIN_SLEEP_S
- |      if (next - now > MAX_SLEEP_S) clamp
- |      rtc.setAlarmEpoch(next, RTC_ALARM_MATCH_DHHMMSS)
+ |      cronAt = cronNext(schedule, localtime(now)); mktime  (if scheduleValid)
+ |        with the MIN_SLEEP_S re-fire guard and MAX_SLEEP_S clamp
+ |      syncAt = next KIDINK_CLOCK_SYNC_HOUR:MINUTE local (>= MIN_SLEEP_S away)
+ |      fire at the earlier one (tie -> display); persist the sync flag
+ |      rtc.setAlarmEpoch(fireAt, RTC_ALARM_MATCH_DHHMMSS)
  |    } else sleep for device_fallback_sleep_seconds, timer only
  |- esp_sleep_enable_timer_wakeup(sleep * 1.15 + 300)
  |- esp_sleep_enable_ext0_wakeup(GPIO_NUM_18, 0)
@@ -142,9 +172,11 @@ POWER-ON or DEEP-SLEEP WAKE
 ```
 
 State that survives deep sleep lives in one `RTC_DATA_ATTR` struct: a magic word,
-the boot count, the stored ETag, and a consecutive-failure counter. RTC memory is
-uninitialised garbage on a cold boot and after a reflash, which is what the magic
-word detects.
+the boot count, the stored ETag, a consecutive-failure counter, and the
+next-wake-is-clock-sync flag (§5). RTC memory is uninitialised garbage on a cold
+boot and after a reflash, which is what the magic word detects; the word is
+bumped whenever the struct layout changes, so a block persisted by an older
+firmware cannot validate against a new shape.
 
 ### Clock bootstrap
 
@@ -155,8 +187,8 @@ there no clock at all; then the firmware arms the timer alone at
 `device_fallback_sleep_seconds` (15 minutes) and tries again.
 
 There is no NTP client. The `Date` header is free, accurate to the second, and
-re-syncs the RTC on every successful fetch, which is far more than a wake
-schedule needs.
+re-syncs the RTC on every successful fetch; the daily `/time` sync (§5) is the
+belt to that suspender, bounding drift even across a run of failed fetches.
 
 ## 5. Clock and timezone
 
@@ -173,6 +205,36 @@ The one accepted imprecision: `getEpoch()` uses `mktime` with `tm_isdst = -1`, s
 during the repeated hour of a fall-back transition the epoch can be off by an
 hour, once a year. There is no clean fix with this API, and a wake an hour late
 on one autumn morning is not worth more machinery.
+
+### The daily clock sync
+
+Once a day, at `device_clock_sync_time` (default **03:15** local, outside the
+display wake window), the armed wake is a **clock sync** rather than a display
+fetch: the firmware GETs `/time` (§3) and writes the returned local stamp into
+the RTC via `setDate()`/`setTime()` - a deliberately minimal NTP stand-in. The
+PCF85063A can drift a couple of seconds a day, and Soldered's own guidance is to
+set it about once per day; the opportunistic `Date`-header sync usually does
+that already, so what this wake really buys is a *bound*: the clock is never
+more than a day from its last set, even if every display fetch in between
+failed, and a DST transition is picked up by the next 03:15 sync at the latest.
+
+Mechanics:
+
+- Which kind the next wake is lives in the persisted flag (§4). A **button
+  press during a pending sync is still a repaint** - the sync is simply
+  re-armed at the next scheduling pass, i.e. it slips to tomorrow if today's
+  03:15 has passed. The timer backstop firing instead of the alarm still runs
+  the pending sync.
+- Scheduling always arms the **earlier** of the next cron fire and the next
+  sync instant, so neither schedule can starve the other; on an exact tie the
+  display wake wins, since its `Date` header syncs the clock anyway.
+- The weekday handed to `setDate()` is **computed on-device** from the civil
+  date (`civil.h`, 0 = Sunday), never taken from the wire: the alarm comparator
+  matches the weekday register too (§8 quirks 4 and 6), so a wrong weekday
+  would silently stop scheduled wakes.
+- The timezone question does not arise: `/time` serves wall-clock time already
+  in the display timezone, and the RTC registers hold local wall-clock time
+  (§8 quirk 2). The server did all the zone math.
 
 ## 6. Wake schedule (cron dialect)
 
@@ -259,9 +321,14 @@ Expensive to rediscover; all verified against the library source.
    about a month - hence `MAX_SLEEP_S` and the timer backstop.
 5. **`setAlarmEpoch()` calls `enableAlarm()`, which clears the alarm flag.** Read
    `checkAlarmFlag()` early or the wake cause is lost.
-6. **Never call `rtc.setDate()`.** Its example comment claims "0 for Monday"
-   while `updateTime()`/`getEpoch()` treat `Weekday` as `tm_wday` (0 = Sunday).
-   Set the clock only via `setEpoch()`.
+6. **`rtc.setDate()`'s weekday is a trap.** The library example's comment
+   claims "0 for Monday" while `updateTime()`/`getEpoch()` treat `Weekday` as
+   `tm_wday` (0 = Sunday) - and per quirk 4 the alarm comparator matches the
+   weekday register, so believing the comment stops scheduled wakes outright.
+   The clock-sync path (§5) therefore never trusts a wire value: it computes
+   the weekday from the civil date (`civil.h`, `tm_wday` convention) before
+   calling `setDate()`. `setEpoch()` sidesteps the question entirely and stays
+   the setter everywhere else.
 7. **`initDriver()` calls `setRotation(1)`.** After `begin()` the user-space
    canvas is 1600 × 1200 landscape, so `image.draw(buf, 0, 0, 1600, 1200)` is
    right even though the panel is natively portrait.
@@ -284,7 +351,9 @@ never flashes a board still starts; the CLI is what fails fast.
 | `device_wifi_password` | `""` | Passphrase. `SecretStr`; never logged. |
 | `device_server_base_url` | `""` (required by the CLI) | Origin, e.g. `192.168.1.20:5051`. A bare `host:port` gains `http://`; `https://` is rejected. No default - it has to be an address the *board* can reach, and a wrong guess shows up only as a device that silently never updates. |
 | `device_fetch_path` | `/display` | Path and any query. |
+| `device_time_path` | `/time` | Path of the clock-sync endpoint (§5). With a `--url` override, the time URL follows the override's origin. |
 | `device_wake_cron` | `0 5-21/2 * * *` | Wake schedule; validated at load. |
+| `device_clock_sync_time` | `03:15` | Local `HH:MM` of the daily clock-sync wake (§5); validated at load. The default sits outside the display window. |
 | `device_wifi_timeout_seconds` | `60` | Association deadline. |
 | `device_http_timeout_seconds` | `300` | Whole-fetch deadline. Generous: a cold image cache makes the server generate and screenshot inline. |
 | `device_fallback_sleep_seconds` | `900` | Sleep when the schedule is uncomputable. |
@@ -313,9 +382,9 @@ uv run python -m app.firmware --next-fires 10  # preview the schedule
 ```
 
 Overrides: `--url`, `--cron`, `--tz`, plus `--sketch-dir`, `--out-dir`, `--port`,
-`--fqbn` mirroring `app.eink`. The CLI prints the next few wake times before
-writing anything, which is what catches a mistyped schedule before the board goes
-back on the wall.
+`--fqbn` mirroring `app.eink`. The CLI prints the clock-sync schedule and the
+next few wake times before writing anything, which is what catches a mistyped
+schedule before the board goes back on the wall.
 
 Requires `arduino-cli`, the Soldered board package, and the Inkplate Arduino
 library installed (same prerequisites as `app.eink`). The sketch folder name must
@@ -356,8 +425,20 @@ A healthy cycle:
 [kidink] body: 960000 bytes in 41200ms
 [kidink] http: 200, painting (~19s refresh)
 [kidink] paint: done, etag "3a36..."
-[kidink] schedule: next wake 2026-07-25 14:15 local
+[kidink] schedule: next wake 2026-07-25 14:15 local (display)
 [kidink] sleep: 812s (timer backstop 1233s)
+```
+
+A clock-sync cycle (§5) is shorter - no frame, no paint:
+
+```
+[kidink] wake: RTC alarm
+[kidink] boot 8, battery 4.01V, free psram 7808KB
+[kidink] wifi: joined 'YourSSID' in 2140ms, rssi -58dBm, ip 192.168.1.31
+[kidink] time fetch http://192.168.1.20:5051/time
+[kidink] clock: set to 2026-07-26 03:15:02 local (weekday 0)
+[kidink] schedule: next wake 2026-07-26 04:00 local (display)
+[kidink] sleep: 2698s (timer backstop 3403s)
 ```
 
 The log carries its own timings, so host-side timestamps are rarely needed:
@@ -366,7 +447,7 @@ The log carries its own timings, so host-side timestamps are rarely needed:
 |---|---|
 | `wake:` | `RTC alarm` is the healthy case. `timer backstop` means the alarm did **not** fire and the board is running free - the one thing that produces a *drifting* schedule (§4). |
 | `body: ... in NNNNms` | The whole server round trip plus download. `/display` re-renders and re-quantizes per request, so this is usually the dominant cost of a cycle. |
-| `schedule: next wake` | The absolute stamp the RTC alarm is armed with. Compare it against when the ink actually settles: the gap is cycle latency, **not** clock error, because the alarm is absolute (§4) and therefore does not accumulate. |
+| `schedule: next wake` | The absolute stamp the RTC alarm is armed with, and which kind of wake it is - `(display)` or `(clock sync)` (§5). Compare it against when the ink actually settles: the gap is cycle latency, **not** clock error, because the alarm is absolute (§4) and therefore does not accumulate. |
 | `http:` | `304` means the panel was already current and the ~19 s refresh was skipped - the battery win, not a failure. |
 
 A constant offset between the scheduled minute and the visible repaint is
@@ -391,7 +472,10 @@ tooling, and hermetic enough for `--disable-socket`:
   the device implementation and the reference cannot drift.
 - `test_httpdate_cpp.py` does the same for the `Date` parser, checking against
   epochs computed by Python's own `datetime`.
-- Both skip cleanly when no host `g++` is present.
+- `test_timesync_cpp.py` does the same for the `/time` body parser
+  (`timesync.cpp`), including the computed `tm_wday`-convention weekday that
+  `setDate()` depends on (§8 quirk 6).
+- All skip cleanly when no host `g++` is present.
 
 The remaining Python tests cover the header emitter (escaping, every `#define`,
 secret redaction), the POSIX TZ derivation, the CLI, and the new config keys.

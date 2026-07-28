@@ -158,7 +158,9 @@ def test_device_defaults() -> None:
     # guess would fail only as a device that quietly stops updating.
     assert settings.device_server_base_url == ""
     assert settings.device_fetch_path == "/display"
+    assert settings.device_time_path == "/time"
     assert settings.device_wake_cron == "0 5-21/2 * * *"
+    assert settings.device_clock_sync_time == "03:15"
     assert settings.device_wifi_timeout_seconds == 60
     assert settings.device_http_timeout_seconds == 300
     assert settings.device_fallback_sleep_seconds == 900
@@ -192,6 +194,24 @@ def test_device_fetch_path_must_be_absolute() -> None:
     assert _settings(device_fetch_path="/display?raw=1").device_fetch_path.endswith(
         "raw=1"
     )
+
+
+def test_device_time_path_must_be_absolute() -> None:
+    with pytest.raises(ValidationError, match="device_time_path"):
+        _settings(device_time_path="time")
+
+
+def test_device_clock_sync_time_validated_at_load() -> None:
+    # Like the wake cron: a typo must fail here, not on a board on a wall.
+    with pytest.raises(ValidationError):
+        _settings(device_clock_sync_time="25:00")
+    with pytest.raises(ValidationError):
+        _settings(device_clock_sync_time="0315")
+    with pytest.raises(ValidationError):
+        _settings(device_clock_sync_time="03:15:00")
+    with pytest.raises(ValidationError):
+        _settings(device_clock_sync_time="4:05")  # zero-padded HH:MM only
+    assert _settings(device_clock_sync_time="04:05").device_clock_sync_time == "04:05"
 
 
 def test_device_timeouts_are_bounded() -> None:

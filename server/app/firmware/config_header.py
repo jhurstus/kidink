@@ -9,7 +9,7 @@ trick `app.eink` uses for `mockup.h` - keeps every secret in `config.toml` /
 
 from dataclasses import dataclass
 
-from app.config import Settings
+from app.config import Settings, parse_clock_sync_time
 from app.firmware.cron import parse_cron
 from app.firmware.tz import posix_tz_for
 
@@ -49,7 +49,10 @@ class FirmwareConfig:
     wifi_ssid: str
     wifi_password: str
     fetch_url: str
+    time_url: str
     wake_cron: str
+    clock_sync_hour: int
+    clock_sync_minute: int
     posix_tz: str
     wifi_timeout_seconds: int
     http_timeout_seconds: int
@@ -108,6 +111,13 @@ def normalize_base_url(raw: str) -> str:
     return url
 
 
+def _origin_of(url: str) -> str:
+    """The `http://host[:port]` part of an already-validated http:// URL."""
+    rest = url[len("http://") :]
+    slash = rest.find("/")
+    return "http://" + (rest if slash < 0 else rest[:slash])
+
+
 def from_settings(
     settings: Settings,
     *,
@@ -132,15 +142,26 @@ def from_settings(
         fetch_url = url_override
         if not fetch_url.startswith("http://"):
             raise FirmwareConfigError(f"--url must be http://, got {fetch_url!r}")
+        # The override names the frame endpoint; the clock-sync endpoint lives
+        # on the same server, so derive it from the override's origin.
+        time_url = _origin_of(fetch_url) + settings.device_time_path
     else:
-        path = settings.device_fetch_path
-        fetch_url = normalize_base_url(settings.device_server_base_url) + path
+        base = normalize_base_url(settings.device_server_base_url)
+        fetch_url = base + settings.device_fetch_path
+        time_url = base + settings.device_time_path
 
     cron = cron_override or settings.device_wake_cron
     try:
         parse_cron(cron)
     except ValueError as exc:
         raise FirmwareConfigError(f"device_wake_cron: {exc}") from exc
+
+    # Settings validates this on load; re-parsing here keeps a directly-built
+    # Settings honest too (same belt-and-braces as the cron above).
+    try:
+        sync_hour, sync_minute = parse_clock_sync_time(settings.device_clock_sync_time)
+    except ValueError as exc:
+        raise FirmwareConfigError(str(exc)) from exc
 
     if tz_override:
         posix_tz = tz_override
@@ -159,7 +180,10 @@ def from_settings(
         wifi_ssid=ssid,
         wifi_password=password,
         fetch_url=fetch_url,
+        time_url=time_url,
         wake_cron=cron,
+        clock_sync_hour=sync_hour,
+        clock_sync_minute=sync_minute,
         posix_tz=posix_tz,
         wifi_timeout_seconds=settings.device_wifi_timeout_seconds,
         http_timeout_seconds=settings.device_http_timeout_seconds,
@@ -176,7 +200,10 @@ def emit_config_header(config: FirmwareConfig, *, redact: bool = False) -> str:
         ("KIDINK_WIFI_SSID", c_string_literal(ssid)),
         ("KIDINK_WIFI_PASSWORD", c_string_literal(password)),
         ("KIDINK_FETCH_URL", c_string_literal(config.fetch_url)),
+        ("KIDINK_TIME_URL", c_string_literal(config.time_url)),
         ("KIDINK_WAKE_CRON", c_string_literal(config.wake_cron)),
+        ("KIDINK_CLOCK_SYNC_HOUR", str(config.clock_sync_hour)),
+        ("KIDINK_CLOCK_SYNC_MINUTE", str(config.clock_sync_minute)),
         ("KIDINK_POSIX_TZ", c_string_literal(config.posix_tz)),
         ("KIDINK_WIFI_TIMEOUT_S", str(config.wifi_timeout_seconds)),
         ("KIDINK_HTTP_TIMEOUT_MS", str(config.http_timeout_seconds * 1000)),

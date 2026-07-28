@@ -40,6 +40,13 @@ void kidinkWifiStop();
 FetchOutcome kidinkFetch(const char *url, const char *ifNoneMatch, uint8_t *frame,
                          size_t frameBytes, uint32_t timeoutMs);
 
+// Unconditional GET of a small plain-text body (the `/time` clock-sync stamp).
+// True only on a 200 whose body fit in `out` (always NUL-terminated on
+// success); anything else logs and returns false without touching the RTC's
+// caller. No streaming deadline machinery: the body is a couple dozen bytes,
+// so the per-read socket timeout bounds the exchange.
+bool kidinkFetchText(const char *url, uint32_t timeoutMs, char *out, size_t outSize);
+
 // True when every nibble is an even value <= 0x0A, i.e. a legal palette index
 // shifted left by one (eink-demo §3). Cheap insurance: the panel driver skips
 // out-of-range colours silently, so bad bytes would show as stale pixels rather

@@ -37,6 +37,16 @@ def test_no_compile_writes_the_header(
     assert "http://kidink.local:5051/display" in out
 
 
+def test_clock_sync_schedule_is_printed(
+    sketch_dir: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The sync wake is invisible on the panel, so the preview is the one place
+    a mis-set device_clock_sync_time shows up before the board is on the wall."""
+    main(["--no-compile", "--sketch-dir", str(sketch_dir)])
+    out = capsys.readouterr().out
+    assert "daily at 03:15 from http://kidink.local:5051/time" in out
+
+
 def test_missing_server_url_exits_before_writing(
     sketch_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

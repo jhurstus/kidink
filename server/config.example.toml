@@ -72,12 +72,20 @@ device_wifi_password = "REPLACE_ME"
 # firmware carries no TLS stack.
 device_server_base_url = "192.168.1.20:5051"
 device_fetch_path = "/display"
+device_time_path = "/time"
 
 # Wake schedule, 5-field crontab syntax, evaluated on-device against local
 # wall-clock time. The default wakes every two hours from 05:00 to 21:00 - the
 # board is bistable, so it keeps showing the last image in between. Validated at
 # load, and `python -m app.firmware` prints the next few wake times.
 device_wake_cron = "0 5-21/2 * * *"
+
+# Daily clock-sync wake (HH:MM, 24-hour, local). Once a day the device wakes,
+# fetches device_time_path (the /time endpoint), and writes the returned local
+# timestamp into its RTC - a super-simple NTP stand-in that keeps drift bounded
+# to a day. Keep it outside the display wake window so a sync never displaces a
+# repaint.
+device_clock_sync_time = "03:15"
 
 # Deadlines. A timeout means "sleep without painting and try at the next
 # scheduled wake" - there are no retries. The HTTP budget is generous because a

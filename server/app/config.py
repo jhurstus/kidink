@@ -6,12 +6,20 @@ environment variables, and validated up front — so a bad value fails fast with
 clear error rather than surfacing later as a render bug.
 """
 
+import re
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationInfo,
+    field_validator,
+)
 from pydantic_settings import (
     BaseSettings,
     PydanticBaseSettingsSource,
@@ -23,6 +31,21 @@ from pydantic_settings import (
 # see config.example.toml for its shape. A missing file is fine — the model
 # defaults apply.
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.toml"
+
+
+def parse_clock_sync_time(value: str) -> tuple[int, int]:
+    """Parse ``device_clock_sync_time`` into ``(hour, minute)``.
+
+    Strict zero-padded 24-hour ``HH:MM`` - it is a wall-clock time of day, not
+    an instant, so no timezone applies. Shared by the Settings validator and the
+    firmware header emitter so the two cannot drift. Raises ``ValueError``.
+    """
+    match = re.fullmatch(r"(\d{2}):(\d{2})", value)
+    if match is not None:
+        hour, minute = int(match.group(1)), int(match.group(2))
+        if hour <= 23 and minute <= 59:
+            return hour, minute
+    raise ValueError(f"device_clock_sync_time must be HH:MM (24-hour), got {value!r}")
 
 
 class Kid(BaseModel):
@@ -139,6 +162,16 @@ class Settings(BaseSettings):
     """Path (and any query) the device requests. Kept configurable so the
     firmware never hard-codes the endpoint's spelling."""
 
+    device_time_path: str = "/time"
+    """Path of the clock-sync endpoint: a plain-text ``YYYY-MM-DD HH:MM:SS``
+    stamp in the display timezone that the daily sync wake writes into the RTC
+    (specs/firmware.md §5). Configurable like :attr:`device_fetch_path`."""
+
+    device_clock_sync_time: str = "03:15"
+    """Local wall-clock time (``HH:MM``, 24-hour) of the daily clock-sync wake.
+    The default sits outside the display wake window, so a sync never displaces
+    a repaint."""
+
     device_wake_cron: str = "0 5-21/2 * * *"
     """Wake schedule as a 5-field crontab expression, evaluated on-device against
     local wall-clock time. Validated at load, so a typo fails fast here rather
@@ -182,11 +215,17 @@ class Settings(BaseSettings):
         parse_cron(value)
         return value
 
-    @field_validator("device_fetch_path")
+    @field_validator("device_fetch_path", "device_time_path")
     @classmethod
-    def _check_fetch_path(cls, value: str) -> str:
+    def _check_device_path(cls, value: str, info: ValidationInfo) -> str:
         if not value.startswith("/"):
-            raise ValueError(f"device_fetch_path must start with '/', got {value!r}")
+            raise ValueError(f"{info.field_name} must start with '/', got {value!r}")
+        return value
+
+    @field_validator("device_clock_sync_time")
+    @classmethod
+    def _check_clock_sync_time(cls, value: str) -> str:
+        parse_clock_sync_time(value)
         return value
 
     @field_validator("timezone")
