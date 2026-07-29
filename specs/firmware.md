@@ -42,11 +42,14 @@ image-push/preview tool ([eink-demo.md](eink-demo.md)).
 
 ## 2. Wake sources
 
-**The WAKE button and the PCF85063A's alarm interrupt share GPIO18, both active
-low.** A single `esp_sleep_enable_ext0_wakeup(GPIO_NUM_18, 0)` therefore covers
-both, and they are told apart by the RTC's alarm flag rather than by GPIO. That
-is exactly the desired behavior: a button press does the same thing as a
-scheduled wake.
+**The WAKE button is GPIO18; the PCF85063A's alarm INT is GPIO2.** Both active
+low. The library's SPECTRA example claims the two share GPIO18 - **it is wrong
+for this board** (§8 quirk 11): armed that way, the alarm interrupt lands on an
+unwatched pin, no scheduled wake ever fires, and every cycle silently rides the
+timer backstop ~15-20 minutes late. The firmware therefore arms both sources:
+`ext0` on GPIO18 for the button and `ext1` (`ANY_LOW`, mask `1<<2`) for the
+alarm. The wake causes are distinct (`EXT1` = alarm, `EXT0` = button), and the
+RTC's alarm flag still breaks the tie if a press and an alarm land together.
 
 A **timer wakeup is always armed alongside** the RTC alarm, at `sleep × 1.15 +
 300 s`. It is a backstop against a failed I2C write, a cleared RTC, or a dead
@@ -166,7 +169,8 @@ POWER-ON or DEEP-SLEEP WAKE
  |      rtc.setAlarmEpoch(fireAt, RTC_ALARM_MATCH_DHHMMSS)
  |    } else sleep for device_fallback_sleep_seconds, timer only
  |- esp_sleep_enable_timer_wakeup(sleep * 1.15 + 300)
- |- esp_sleep_enable_ext0_wakeup(GPIO_NUM_18, 0)
+ |- esp_sleep_enable_ext0_wakeup(GPIO_NUM_18, 0)      <- WAKE button
+ |- esp_sleep_enable_ext1_wakeup(1<<2, ANY_LOW)       <- RTC alarm INT (§2)
  |- wait for GPIO18 high (<= 10 s)
  +- esp_deep_sleep_start()
 ```
@@ -338,6 +342,18 @@ Expensive to rediscover; all verified against the library source.
 9. **`waitForBusy()` is an unbounded spin** (§7).
 10. **`Inkplate::begin()` returns `void`** and swallows `initDriver`'s PSRAM
     failure, so a failed allocation surfaces later as a null dereference.
+11. **The RTC alarm INT is GPIO2, not GPIO18.** The SPECTRA
+    `RTC_Alarm_With_Deep_Sleep` example arms ext0 on GPIO18 and claims the INT
+    shares the button pin; on this board the alarm interrupt never moves
+    GPIO18. Found empirically (2026-07-29): with AF and AIE asserted
+    (`CTRL_2 = 0xC0`), GPIO2 is the pin that drops, level-held until the flag
+    clears, and an `ext1 ANY_LOW` wake on it ends a deep sleep on the alarm
+    second. Cross-check: the official jumper doc puts the RTC's CLKOUT on IO2
+    via the (open) JP2 and never mentions the INT at all, so treat IO2's
+    documentation as unreliable and this measurement as the source of truth.
+    Symptom of getting it wrong: every wake is a timer-backstop wake
+    (`sleep × 1.15 + 300 s` late - ~20 min on a 2 h gap) while the clock and
+    alarm registers all look perfect.
 
 ## 9. Configuration
 

@@ -1291,7 +1291,7 @@ timer beside the unit.
 ## 19. Deferred / v2
 
 - **ESP32 firmware — built**, see [firmware.md](firmware.md). It wakes on the RTC
-  alarm or the WAKE button (which share GPIO18), joins Wi-Fi, does the §3.2
+  alarm (INT on GPIO2) or the WAKE button (GPIO18), joins Wi-Fi, does the §3.2
   conditional GET (plus a once-daily `/time` clock sync, firmware.md §5), blits
   the packed buffer, and deep sleeps. It does **not**
   retry: any failure leaves the last image up (the panel is bistable) and waits

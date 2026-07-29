@@ -34,10 +34,16 @@
 #include <WiFi.h>
 #include <time.h>
 
-// The WAKE button and the PCF85063A's alarm interrupt share this pin, both
-// active low - so one ext0 source covers a scheduled wake and a button press
-// alike, and they are told apart by the RTC's alarm flag rather than by GPIO.
+// The WAKE button, active low (ext0).
 #define KIDINK_WAKE_GPIO GPIO_NUM_18
+
+// The PCF85063A's alarm INT, active low and level-held until the alarm flag is
+// cleared (ext1). NOT GPIO18: the library's SPECTRA example claims the INT
+// shares the button pin, but it does not on this board - measured empirically
+// (specs/firmware.md §8 quirk 11), GPIO2 is the pin that follows AF. Arming
+// only GPIO18 means the alarm never wakes the board and every wake rides the
+// timer backstop ~15-20 minutes late.
+#define KIDINK_RTC_INT_GPIO GPIO_NUM_2
 
 Inkplate display;
 
@@ -73,6 +79,7 @@ static void bootDeadlineTask(void *)
     Serial.flush();
     esp_sleep_enable_timer_wakeup((uint64_t)KIDINK_FALLBACK_SLEEP_S * 1000000ULL);
     esp_sleep_enable_ext0_wakeup(KIDINK_WAKE_GPIO, 0);
+    esp_sleep_enable_ext1_wakeup(1ULL << KIDINK_RTC_INT_GPIO, ESP_EXT1_WAKEUP_ANY_LOW);
     esp_deep_sleep_start();
 }
 
@@ -80,7 +87,12 @@ static void logWakeReason(bool wokeFromAlarm)
 {
     switch (esp_sleep_get_wakeup_cause())
     {
+    case ESP_SLEEP_WAKEUP_EXT1:
+        KIDINK_LOGF("wake: RTC alarm");
+        break;
     case ESP_SLEEP_WAKEUP_EXT0:
+        // The alarm flag settles a simultaneous press-and-alarm in the alarm's
+        // favor, so a button race cannot skip a scheduled repaint's ETag reset.
         KIDINK_LOGF("wake: %s", wokeFromAlarm ? "RTC alarm" : "WAKE button");
         break;
     case ESP_SLEEP_WAKEUP_TIMER:
@@ -165,6 +177,10 @@ static void sleepUntil(uint32_t seconds)
     const uint64_t backstop = (uint64_t)seconds * 115 / 100 + 300;
     esp_sleep_enable_timer_wakeup(backstop * 1000000ULL);
     esp_sleep_enable_ext0_wakeup(KIDINK_WAKE_GPIO, 0);
+    // The alarm INT (ext1) is what actually ends a scheduled sleep; the flag
+    // is cleared every boot, so the level-held line is high by the time we
+    // sleep and cannot re-trigger immediately.
+    esp_sleep_enable_ext1_wakeup(1ULL << KIDINK_RTC_INT_GPIO, ESP_EXT1_WAKEUP_ANY_LOW);
 
     // A held WAKE button would re-trigger ext0 the instant we sleep, spinning
     // the board through boot after boot.
