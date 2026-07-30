@@ -31,10 +31,10 @@ class WeatherFetchError(Exception):
 class DayForecast:
     """One day's daytime forecast, reduced to the fields the board uses."""
 
-    feels_like_high_f: float
-    """The day's "feels like" high, °F (the forecast is requested in imperial
+    high_f: float
+    """The day's actual high, °F (the forecast is requested in imperial
     units); drives the outfit cutoffs and the temperature bar. Falls back to
-    the plain high when the API omits a usable feels-like value."""
+    the "feels like" high when the API omits a usable actual value."""
 
     condition_type: str
     """Google's raw condition enum for the daytime, e.g. ``PARTLY_CLOUDY``."""
@@ -97,9 +97,9 @@ def fetch_forecast(
 def _parse_day(entry: object) -> tuple[date, DayForecast] | None:
     """Parse one ``forecastDays`` element, or ``None`` if it is unusable.
 
-    The display date and a Fahrenheit "feels like" high are essential (clothing
-    and the temperature bar hang off it — misread units would dress the kids
-    wrong), though the plain high serves as its fallback; the daytime condition
+    The display date and a Fahrenheit high are essential (clothing and the
+    temperature bar hang off it — misread units would dress the kids wrong),
+    though the "feels like" high serves as its fallback; the daytime condition
     fields default benignly when absent, as they legitimately are for today's
     entry once the daytime window has passed.
     """
@@ -112,16 +112,16 @@ def _parse_day(entry: object) -> tuple[date, DayForecast] | None:
         day = date(display["year"], display["month"], display["day"])
     except TypeError, KeyError, ValueError:
         return None
-    feels_like_high_f = _fahrenheit(fields.get("feelsLikeMaxTemperature"))
-    if feels_like_high_f is None:
-        feels_like_high_f = _fahrenheit(fields.get("maxTemperature"))
-    if feels_like_high_f is None:
+    high_f = _fahrenheit(fields.get("maxTemperature"))
+    if high_f is None:
+        high_f = _fahrenheit(fields.get("feelsLikeMaxTemperature"))
+    if high_f is None:
         return None
     daytime = fields.get("daytimeForecast") or {}
     condition = (daytime.get("weatherCondition") or {}).get("type")
     probability = (daytime.get("precipitation") or {}).get("probability") or {}
     return day, DayForecast(
-        feels_like_high_f=feels_like_high_f,
+        high_f=high_f,
         condition_type=str(condition or ""),
         precip_percent=_as_percent(probability.get("percent")),
         precip_type=str(probability.get("type") or "RAIN"),

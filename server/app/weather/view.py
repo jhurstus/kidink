@@ -6,12 +6,11 @@ one day's :class:`~app.weather.api.DayForecast` to the three UI decisions:
 
 - the seven-bucket **condition icon** (Google's condition enum leaning on the
   thunderstorm probability and precip type, cloud cover as the fallback);
-- the featured kid's **outfit** (rain overrides temperature, then the
-  "feels like" high), with the kid flip-flopped between Today and Tomorrow
-  off the date seed;
-- the **temperature bar** arrow position for the day's "feels like" high —
-  both systems dress and read for what the day feels like, not the dry-bulb
-  high.
+- the featured kid's **outfit** (rain overrides temperature, then the day's
+  high), with the kid flip-flopped between Today and Tomorrow off the date
+  seed;
+- the **temperature bar** arrow position for the day's high — both systems
+  dress and read off the actual (dry-bulb) high.
 
 Everything here is a pure function of the target date and the forecast (§3.4):
 the flip-flop is seeded off the date, never the wall clock.
@@ -83,12 +82,12 @@ _SKY_TYPES: dict[str, Condition] = {
     "CLOUDY": Condition.CLOUDY,
 }
 
-# Outfit cutoffs on the "feels like" high (§ Weather): < 60 °F cold,
+# Outfit cutoffs on the day's high (§ Weather): < 60 °F cold,
 # 60–72 normal, > 72 hot.
 _COLD_BELOW_F = 60
 _HOT_ABOVE_F = 72
 
-# Piecewise-linear anchors mapping the day's "feels like" high onto the bar as
+# Piecewise-linear anchors mapping the day's high onto the bar as
 # a fraction from the TOP (hot end). Interior anchors are the § Weather band boundaries,
 # each sitting at the shared edge of two equal-height fifths; the outer anchors
 # extend the end bands by the same ~8–9 °F pitch so extreme highs keep moving
@@ -108,7 +107,7 @@ class TempBar:
     """The temperature bar's dynamic parts (the bands are template-authored)."""
 
     high_f: int
-    """The day's "feels like" high, rounded for the arrow's label."""
+    """The day's high, rounded for the arrow's label."""
 
     arrow_percent: float
     """Arrow position along the bar: 0 = top (hottest), 100 = bottom."""
@@ -170,8 +169,8 @@ def build_weather(
         outfit=outfit,
         figure=figure_name(kid_index, outfit) if kid_index is not None else None,
         bar=TempBar(
-            high_f=round(day.feels_like_high_f),
-            arrow_percent=round(_arrow_fraction(day.feels_like_high_f) * 100, 1),
+            high_f=round(day.high_f),
+            arrow_percent=round(_arrow_fraction(day.high_f) * 100, 1),
         ),
     )
 
@@ -179,23 +178,23 @@ def build_weather(
 def override_high(day: DayForecast | None, high_f: int | None) -> DayForecast | None:
     """Apply the ``?weather_temp`` debug override (§3.5).
 
-    Replaces the day's "feels like" high — the outfit and temperature bar
-    re-derive from it — and synthesizes a clear, dry day when no forecast is
-    available at all, so the subpanel can be previewed without live weather.
-    ``None`` for ``high_f`` passes ``day`` through untouched.
+    Replaces the day's high — the outfit and temperature bar re-derive from
+    it — and synthesizes a clear, dry day when no forecast is available at
+    all, so the subpanel can be previewed without live weather. ``None`` for
+    ``high_f`` passes ``day`` through untouched.
     """
     if high_f is None:
         return day
     if day is None:
         day = DayForecast(
-            feels_like_high_f=0.0,
+            high_f=0.0,
             condition_type="",
             precip_percent=0,
             precip_type="RAIN",
             thunderstorm_percent=0,
             cloud_cover_percent=0,
         )
-    return replace(day, feels_like_high_f=float(high_f))
+    return replace(day, high_f=float(high_f))
 
 
 def _bucket_condition(day: DayForecast) -> Condition:
@@ -226,12 +225,12 @@ def _bucket_condition(day: DayForecast) -> Condition:
 
 def _select_outfit(day: DayForecast) -> Outfit:
     """Pick the clothing-kid outfit (§ Weather): rain gear at PoP ≥ 25%
-    overrides temperature; otherwise by the day's "feels like" high."""
+    overrides temperature; otherwise by the day's high."""
     if day.precip_percent >= _PRECIP_PERCENT:
         return Outfit.RAIN
-    if day.feels_like_high_f < _COLD_BELOW_F:
+    if day.high_f < _COLD_BELOW_F:
         return Outfit.COLD
-    if day.feels_like_high_f > _HOT_ABOVE_F:
+    if day.high_f > _HOT_ABOVE_F:
         return Outfit.HOT
     return Outfit.NORMAL
 
