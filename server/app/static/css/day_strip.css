@@ -211,17 +211,16 @@
 
 /* The seam: a thin bar laid along the diagonal drawing two 4px black "panel
    border" lines with a 3px white gutter between — the same frame look as the
-   panels themselves. Centre (50%, 50%) and rotation (atan(147/197) = 36.72deg)
-   put it on the corner-to-corner diagonal; torn cells are always this 197x147
-   size now (the today cell never splits, §9.1). The trailing translateY —
-   half the bar height, applied in the rotated frame so it moves perpendicular
-   to the bar — tucks the whole band onto B's side of the diagonal: the bar's
-   top edge lies ON the corner-to-corner line, so A's art fills its full
-   triangle to both diagonal corners (flush with the caption/frame at the
-   top-right) and B's visible top corner sits ~14px down the right edge. The
-   270px length overruns the ~246px diagonal so the seam crosses the frame at
-   both ends (knocking the gutter through it, now just off the corners); the
-   body and panel clip-paths bound the excess. */
+   panels themselves. Centre (50%, 50%) and rotation (atan(147/197) = 36.72deg
+   for the 197x147 normal body) put it on the corner-to-corner diagonal. The
+   trailing translateY — half the bar height, applied in the rotated frame so
+   it moves perpendicular to the bar — tucks the whole band onto B's side of
+   the diagonal: the bar's top edge lies ON the corner-to-corner line, so A's
+   art fills its full triangle to both diagonal corners (flush with the
+   caption/frame at the top-right) and B's visible top corner sits ~14px down
+   the right edge. The 270px length overruns the ~246px diagonal so the seam
+   crosses the frame at both ends (knocking the gutter through it, now just
+   off the corners); the body and panel clip-paths bound the excess. */
 .day-tear-seam {
   position: absolute;
   left: 50%;
@@ -230,6 +229,47 @@
   height: 11px;
   transform: translate(-50%, -50%) rotate(-36.72deg) translateY(5.5px);
   background: linear-gradient(#000 0 4px, #fff 4px 7px, #000 7px 11px);
+}
+
+/* Today's tear cut (spec §9.2): the same ANGLE as the siblings' corner-to-
+   corner diagonal (atan(163/260) = 32.08deg for the 260x163 body), but the
+   today body only shows the 122px-tall window between its two caption bands
+   (163 - 41 date box), so the cut is shifted left to center in THAT window:
+   it meets the day caption's bottom border and the date box's top border
+   32.7px in from the left/right panel borders respectively (equidistant by
+   construction: 130*41/163). Extended to the body box the line runs
+   (0, 87.42%) -> (87.42%, 0); the shared ratio falls out of the similar
+   triangles, so one constant serves both clip paths. */
+.day-panel-today .day-tear-a {
+  clip-path: polygon(0 0, 87.42% 0, 0 87.42%);
+}
+
+.day-panel-today .day-tear-b {
+  clip-path: polygon(87.42% 0, 100% 0, 100% 100%, 0 100%, 0 87.42%);
+}
+
+/* The seam follows that shifted line: anchored on the visible window's
+   center (which the line passes through by construction) and CENTERED on the
+   line rather than tucked to B's side. The base seam's tuck exists so A's art
+   reaches the panel's diagonal corners; today's cut touches no corners, and
+   centering keeps the band's midline on the equidistant intersection points
+   (a tucked band would read ~10px off-center at each caption). The art clips
+   still meet exactly on the line, under the band's middle. The 260px length
+   overruns the window's ~230px span at both ends; the flush body clip
+   (below) cuts the top end square against the day caption's border, and the
+   opaque date box covers the bottom end. Unlike the siblings' seam it stops
+   just before both caption bands and never knocks the white gutter through
+   them or the panel frame; their borders stay uniform. */
+.day-panel-today .day-tear-seam {
+  top: calc((100% - var(--date-caption-h)) / 2);
+  width: 260px;
+  transform: translate(-50%, -50%) rotate(-32.08deg);
+}
+
+/* Keep today's seam inside the body box: no -12px reaches, so no frame
+   knock-through (the caption borders above/below stay unbroken). */
+.day-panel-today .day-body-split {
+  clip-path: inset(0);
 }
 
 /* A triangle's art: centered on its triangle's centroid — upper-left triangle

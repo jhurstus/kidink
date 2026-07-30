@@ -147,7 +147,7 @@ def _rank_key(event: CalendarEvent) -> tuple:
 
 
 def _day_picks(
-    day_events: list[CalendarEvent], kids: Sequence[Kid], *, single: bool = False
+    day_events: list[CalendarEvent], kids: Sequence[Kid]
 ) -> list[CalendarEvent]:
     """The day's shown events per the §9.2 per-kid selection.
 
@@ -156,11 +156,6 @@ def _day_picks(
     their pick is the most-interesting candidate. Kids agreeing on one event
     share a single entry, so the result has 0..len(kids) entries in kid config
     order. With no kids configured the day degrades to one overall pick.
-
-    When ``single`` (the today panel, §9.1, which never splits into a torn
-    two-image cell), the picks collapse to just the one most-interesting
-    candidate — the global top, which is always one of the per-kid picks — so
-    the today cell shows exactly one image, carrying that event's own kid label.
     """
     candidates = [event for event in day_events if not event.is_chore]
     if not candidates:
@@ -175,8 +170,6 @@ def _day_picks(
         top = min(mine, key=_rank_key)
         if not any(top is pick for pick in picks):
             picks.append(top)
-    if single and picks:
-        return [min(picks, key=_rank_key)]
     return picks
 
 
@@ -196,12 +189,7 @@ def _build_week_cells(
     plus the excited flag — set on today's picks only, selecting the today
     panel's amped-up art variant (§9.1).
     """
-    # The today cell never splits into a torn two-image panel (§9.1), so its
-    # picks collapse to the single most-interesting candidate; every other day
-    # keeps the full 0..2 §9.2 selection.
-    picks_by_day = [
-        _day_picks(by_day.get(day, []), kids, single=(day == target)) for day in week
-    ]
+    picks_by_day = [_day_picks(by_day.get(day, []), kids) for day in week]
     icons = icon_resolver(
         [
             (icon_item(event), day == target)

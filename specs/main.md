@@ -737,14 +737,13 @@ prints in a caption band across the bottom of the **today** panel (e.g. "JUNE 3,
   colors, minimal detail.
 - **Today** is the hero panel: **30% wider and taller** than its six siblings,
   with all the extra height popping above their tops — its bottom border stays on
-  the shared bottom line. It **always shows a single image**,
-  never the torn two-image split (§9.2) — a two-pick day collapses to its one
-  most-interesting candidate. That art is swapped for an **"excited" variant**
-  regenerated from the base image via an edit-from-base comic-excitement prompt,
-  exactly like the §12 countdown hero (own `variant = excited` record; a variant
-  miss falls back to the base art). The **date caption band** across the panel
-  bottom shows a calendar glyph plus the full date, on the same background as the
-  day-name caption above.
+  the shared bottom line. It shows the same §9.2 one-or-two-pick selection as any
+  other day, including the torn two-image split. Its art (each pick of a torn
+  day) is swapped for an **"excited" variant** regenerated from the base image
+  via an edit-from-base comic-excitement prompt, exactly like the §12 countdown
+  hero (own `variant = excited` record; a variant miss falls back to the base
+  art). The **date caption band** across the panel bottom shows a calendar glyph
+  plus the full date, on the same background as the day-name caption above.
 - **Past days** in the current week render exactly like upcoming days.
 - An empty day (no events) shows the caption band over a plain white body.
 
@@ -767,8 +766,14 @@ seam's width. The gutter **knocks through the panel frame** just off both diagon
 so the two read as separate triangle panels sitting side by side, not one panel with a
 divider. The seam is held clear of the day-name caption (which, with its frame, is
 never modified). Kid badges
-sit in the outer corners (top-left / bottom-right), inside the panel. The **today
-panel is the exception**: it never splits, always collapsing to a single pick (§9.1).
+sit in the outer corners (top-left / bottom-right), inside the panel. The today
+panel splits like any other day, both picks in their excited variants (§9.1),
+but its cut is adjusted for the date caption band: same angle, shifted left so
+its intersections with the day caption's bottom border and the date box's top
+border sit equidistant from the panel's left/right borders (centered in the art
+window between the two bands). Today's seam stops just before both caption
+bands, with no knock-through of their borders or the panel frame (all of which
+stay uniform), and the lower triangle's badge sits above the date box.
 
 **Candidacy.** An event is a candidate for a kid if it is **shared** (no kid label, so
 it counts for both) or **labeled for that kid**. Events labeled for neither kid are not

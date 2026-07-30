@@ -311,10 +311,10 @@ def test_build_day_strip_requests_excited_art_for_today_only() -> None:
     ]
 
 
-def test_today_collapses_to_a_single_excited_pick() -> None:
-    # §9.1: the today cell never splits into a torn two-image panel — even when
-    # the kids' top events differ, it shows the one most-interesting candidate
-    # (excited), carrying that event's own kid label.
+def test_today_splits_into_two_excited_picks() -> None:
+    # §9.1/§9.2: today keeps the full per-kid selection: differing top events
+    # split it into a torn two-image panel just like any other day, in kid
+    # config order, and BOTH picks are requested excited.
     resolver = _RecordingResolver()
     events = [
         _event("Swim", date(2026, 6, 3), interesting=300, kids=["S"]),
@@ -323,35 +323,12 @@ def test_today_collapses_to_a_single_excited_pick() -> None:
     strip = build_day_strip(date(2026, 6, 3), events, KIDS, resolver)
 
     today = next(c for c in strip.week if c.is_today)
-    assert [i.title for i in today.icons] == ["Swim"]  # the more interesting
-    assert [b.initial for b in today.icons[0].kids] == ["S"]
-    # Only the single winner is resolved, and it is requested excited.
-    assert resolver.requests == [(("Swim", None), True)]
-
-
-def test_today_single_pick_breaks_ties_by_title() -> None:
-    # Tie on interesting -> the title tiebreak picks one deterministically, so
-    # today still shows exactly one image.
-    events = [
-        _event("Swim", date(2026, 6, 3), kids=["S"]),
-        _event("Ballet", date(2026, 6, 3), kids=["J"]),
+    assert [i.title for i in today.icons] == ["Ballet", "Swim"]
+    assert [b.initial for i in today.icons for b in i.kids] == ["J", "S"]
+    assert sorted(resolver.requests) == [
+        (("Ballet", None), True),
+        (("Swim", None), True),
     ]
-    strip = build_day_strip(date(2026, 6, 3), events, KIDS)
-
-    today = next(c for c in strip.week if c.is_today)
-    assert [i.title for i in today.icons] == ["Ballet"]  # ascending title
-
-
-def test_non_today_day_still_splits_into_two_icons() -> None:
-    # The single-image rule is today-only: other days keep the §9.2 two-icon
-    # (torn) behavior. Events on Tuesday, rendered against Wednesday.
-    events = [
-        _event("Swim", date(2026, 6, 2), interesting=300, kids=["S"]),
-        _event("Ballet", date(2026, 6, 2), interesting=200, kids=["J"]),
-    ]
-    strip = build_day_strip(date(2026, 6, 3), events, KIDS)
-
-    assert [i.title for i in strip.week[1].icons] == ["Ballet", "Swim"]
 
 
 def test_recurring_event_resolves_base_and_excited_urls_separately() -> None:
