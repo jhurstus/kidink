@@ -32,16 +32,12 @@
   z-index: 4;
 }
 
-/* Hype/peak spill: an extra scale-up on top of the base 554×366 box —
-   hype ≈ 592×391, peak ≈ 621×410 — painting well over the neighboring
-   panels. */
+/* Hype/peak spill: an extra scale-up on top of the base box, painting well
+   over the neighboring panels. Peak matches hype's size - its escalation
+   beyond hype is the SFX shouts, not more spill. */
 .countdown-hype,
 .countdown-peak {
   transform: scale(1.068);
-}
-
-.countdown-peak {
-  transform: scale(1.121);
 }
 
 /* ---------------------------------------------------------------------------
@@ -122,6 +118,33 @@
   padding: 59px 70px 71px;
 }
 
+/* Excited and hype: the burst (frame, mask, hero) pushes 10px past the panel
+   on every side (hype's scale-up then carries the growth proportionally).
+   The body padding grows to match on the top and sides so the title and the
+   caption widths hold their seats; the shrunken bottom padding drops the
+   copy well below even the edge's 10px ride-down. */
+.countdown-excited .countdown-burst {
+  inset: -10px;
+}
+
+.countdown-excited .countdown-burst .countdown-body {
+  padding: 69px 80px 55px;
+}
+
+/* Hype and peak stretch further than excited's burst: 20px more at the top
+   and 10px more at the bottom; the extra vertical padding pins the copy to
+   the same seat as excited while the title rides 10px of the top edge's
+   climb into the taller opening. */
+.countdown-hype .countdown-burst,
+.countdown-peak .countdown-burst {
+  inset: -30px -10px -20px;
+}
+
+.countdown-hype .countdown-burst .countdown-body,
+.countdown-peak .countdown-burst .countdown-body {
+  padding: 79px 80px 65px;
+}
+
 /* Caption boxes: white plates with the Today/Tomorrow inner-box border
    treatment (4px black, 2px radius) keep the title and copy readable over
    the hero art. Roomy padding on each seats the text well inside its plate. */
@@ -174,6 +197,14 @@
 .countdown-hype .countdown-title,
 .countdown-peak .countdown-title {
   font-size: 40px;
+}
+
+/* At hype/peak the 40px title outgrows the body's opening-width column; let
+   the plate spill symmetrically past it (a centered flex item overflows
+   evenly) so real titles fit unclipped while runaways still ellipsize. */
+.countdown-hype .countdown-title,
+.countdown-peak .countdown-title {
+  max-width: calc(100% + 84px);
 }
 
 .countdown-hype .countdown-copy,
