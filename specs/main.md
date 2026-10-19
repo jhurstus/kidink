@@ -592,7 +592,11 @@ These are rare because the warm-up (§3.6) generates the day's new images ahead 
 
 A separate Flask endpoint to browse and edit the device's images.
 
-- **Default view** (no args): a list of links to every image record (by logical key).
+- **Default view** (no `img`): image records of **one module at a time**, newest first,
+  paginated, each linking to its detail view. A row of module links (with counts)
+  switches modules. Params: **`module`** (default: the newest record's module; unknown
+  → 404), **`per_page`** (25, 50, or 100; default 25), and **`page`** (1-based, clamped
+  into range).
 - **`?img=<id>`:** view a single record in isolation — the current image, its `prompt`,
   and its prompt attachments — with controls to:
   - **edit the prompt** and **regenerate**, viewing the new image side-by-side with the

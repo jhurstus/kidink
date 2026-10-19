@@ -7,6 +7,9 @@ and the detail page carries one small script — a busy overlay while a
 regeneration POST is in flight, which also blocks budget-spending double
 submits.
 
+The list view shows one module's records at a time, newest first and
+paginated, so it stays fast as the image cache grows.
+
 Regeneration is a two-step review flow: a POST generates ``<id>.candidate.png``
 next to the live image, the detail page then shows old and new side by side,
 and a second POST either keeps the candidate (replacing the live PNG) or
@@ -19,6 +22,7 @@ one, attach an existing reference image, or upload a new one into
 """
 
 import io
+import math
 import os
 from pathlib import Path
 
@@ -48,7 +52,9 @@ from app.images.db import (
     get_record,
     list_all_attachments,
     list_image_attachments,
+    list_modules,
     list_records,
+    newest_module,
     open_db,
     update_prompt,
 )
@@ -74,17 +80,17 @@ def _load_record(image_id: int) -> ImageRecord:
     return record
 
 
+# Page sizes offered by the list view; anything else falls back to the default.
+_PER_PAGE_OPTIONS = (25, 50, 100)
+_DEFAULT_PER_PAGE = 25
+
+
 @admin_bp.get("/admin/images")
 def admin_images() -> str:
-    """List every image record, or show one in isolation via ``?img=<id>``."""
+    """List one module's records, or show one in isolation via ``?img=<id>``."""
     image_id = request.args.get("img", type=int)
     if image_id is None:
-        conn = open_db(_storage_root())
-        try:
-            records = list_records(conn)
-        finally:
-            conn.close()
-        return render_template("admin/images_list.html", records=records)
+        return _list_view()
 
     record = _load_record(image_id)
     root = _storage_root()
@@ -106,6 +112,47 @@ def admin_images() -> str:
         ],
         available=[a for a in known if a.id not in attached_ids],
         error=request.args.get("error"),
+    )
+
+
+def _list_view() -> str:
+    """One module's records, newest first, a page at a time (§7.4).
+
+    ``?module=`` defaults to the newest record's module (an unknown one 404s),
+    ``?per_page=`` to 25, and ``?page=`` is clamped into range so a stale link
+    lands on the last page rather than an empty one.
+    """
+    per_page = request.args.get("per_page", type=int)
+    if per_page not in _PER_PAGE_OPTIONS:
+        per_page = _DEFAULT_PER_PAGE
+
+    conn = open_db(_storage_root())
+    try:
+        modules = list_modules(conn)
+        module = request.args.get("module") or newest_module(conn)
+        counts = dict(modules)
+        if module is not None and module not in counts:
+            abort(404)
+        total = counts.get(module, 0) if module is not None else 0
+        page_count = max(1, math.ceil(total / per_page))
+        page = min(max(request.args.get("page", 1, type=int), 1), page_count)
+        records = (
+            list_records(conn, module, limit=per_page, offset=(page - 1) * per_page)
+            if module is not None
+            else []
+        )
+    finally:
+        conn.close()
+    return render_template(
+        "admin/images_list.html",
+        modules=modules,
+        module=module,
+        records=records,
+        total=total,
+        page=page,
+        page_count=page_count,
+        per_page=per_page,
+        per_page_options=_PER_PAGE_OPTIONS,
     )
 
 

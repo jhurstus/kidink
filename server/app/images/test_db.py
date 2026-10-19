@@ -10,7 +10,9 @@ from app.images.db import (
     get_record,
     list_all_attachments,
     list_image_attachments,
+    list_modules,
     list_records,
+    newest_module,
     open_db,
     update_prompt,
 )
@@ -59,7 +61,7 @@ def test_variant_and_size_produce_distinct_rows(tmp_path: Path) -> None:
 def test_find_record_looks_up_without_creating(tmp_path: Path) -> None:
     conn = open_db(tmp_path)
     assert find_record(conn, SPEC) is None
-    assert list_records(conn) == []  # the miss created nothing
+    assert list_modules(conn) == []  # the miss created nothing
 
     created, _ = get_or_create_record(conn, SPEC, "p")
     assert find_record(conn, SPEC) == created
@@ -85,7 +87,38 @@ def test_get_record_and_list_records(tmp_path: Path) -> None:
     created, _ = get_or_create_record(conn, SPEC, "p")
     assert get_record(conn, created.id) == created
     assert get_record(conn, created.id + 999) is None
-    assert list_records(conn) == [created]
+    assert list_records(conn, "Calendar", limit=10, offset=0) == [created]
+    conn.close()
+
+
+def test_list_records_filters_by_module_newest_first_and_pages(
+    tmp_path: Path,
+) -> None:
+    conn = open_db(tmp_path)
+    calendar = [
+        get_or_create_record(conn, ImageSpec("Calendar", f"c{i}", 100, 60), "p")[0]
+        for i in range(5)
+    ]
+    get_or_create_record(conn, ImageSpec("Joke", "j", 400, 300), "p")
+    newest_first = calendar[::-1]
+    assert list_records(conn, "Calendar", limit=10, offset=0) == newest_first
+    assert list_records(conn, "Calendar", limit=2, offset=0) == newest_first[:2]
+    assert list_records(conn, "Calendar", limit=2, offset=4) == newest_first[4:]
+    assert list_records(conn, "Nope", limit=10, offset=0) == []
+    conn.close()
+
+
+def test_list_modules_and_newest_module(tmp_path: Path) -> None:
+    conn = open_db(tmp_path)
+    assert list_modules(conn) == []
+    assert newest_module(conn) is None
+    get_or_create_record(conn, ImageSpec("Joke", "j", 400, 300), "p")
+    get_or_create_record(conn, ImageSpec("Calendar", "a", 100, 60), "p")
+    get_or_create_record(conn, ImageSpec("Calendar", "b", 100, 60), "p")
+    assert list_modules(conn) == [("Calendar", 2), ("Joke", 1)]
+    assert newest_module(conn) == "Calendar"
+    get_or_create_record(conn, ImageSpec("Joke", "k", 400, 300), "p")
+    assert newest_module(conn) == "Joke"
     conn.close()
 
 

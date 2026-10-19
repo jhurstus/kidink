@@ -169,12 +169,32 @@ def get_record(conn: sqlite3.Connection, image_id: int) -> ImageRecord | None:
     return _row_to_record(row) if row is not None else None
 
 
-def list_records(conn: sqlite3.Connection) -> list[ImageRecord]:
-    """All image records, ordered by logical key (for the admin list view, §7.4)."""
+def list_records(
+    conn: sqlite3.Connection, module: str, *, limit: int, offset: int
+) -> list[ImageRecord]:
+    """One page of ``module``'s records, newest first (admin list view, §7.4).
+
+    Ids are assigned in creation order (§7.2), so ``id DESC`` is newest first.
+    """
     rows = conn.execute(
-        "SELECT * FROM images ORDER BY module, item_description, width, height, variant"
+        "SELECT * FROM images WHERE module = ? ORDER BY id DESC LIMIT ? OFFSET ?",
+        (module, limit, offset),
     ).fetchall()
     return [_row_to_record(row) for row in rows]
+
+
+def list_modules(conn: sqlite3.Connection) -> list[tuple[str, int]]:
+    """Every module with at least one record and its record count, by name."""
+    rows = conn.execute(
+        "SELECT module, COUNT(*) FROM images GROUP BY module ORDER BY module"
+    ).fetchall()
+    return [(row[0], row[1]) for row in rows]
+
+
+def newest_module(conn: sqlite3.Connection) -> str | None:
+    """The module of the most recently created record, or ``None`` if empty."""
+    row = conn.execute("SELECT module FROM images ORDER BY id DESC LIMIT 1").fetchone()
+    return row[0] if row is not None else None
 
 
 def update_prompt(conn: sqlite3.Connection, image_id: int, prompt: str) -> None:

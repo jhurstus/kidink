@@ -36,7 +36,7 @@ the no-JS rule (§3.3) binds panel templates, not the admin. -#}
   </style>
 </head>
 <body>
-  <p><a href="{{ url_for('images_admin.admin_images') }}">&larr; all images</a></p>
+  <p><a href="{{ url_for('images_admin.admin_images', module=record.spec.module) }}">&larr; {{ record.spec.module }} images</a></p>
   <h1>Image {{ record.id }}</h1>
   <p>
     {{ record.spec.module }} / {{ record.spec.item_description }}

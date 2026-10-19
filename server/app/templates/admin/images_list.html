@@ -1,5 +1,29 @@
 <!doctype html>
-{#- Admin: all image records by logical key (spec §7.4 default view). -#}
+{#- Admin: one module's image records, newest first, paginated (spec §7.4
+    default view). -#}
+{%- macro list_url(module, page=1, size=none) -%}
+  {{ url_for('images_admin.admin_images', module=module, page=page, per_page=size or per_page) }}
+{%- endmacro -%}
+{%- macro pager() -%}
+  <nav class="pager">
+    {%- if page > 1 %}
+    <a href="{{ list_url(module, 1) }}">&laquo; first</a>
+    <a href="{{ list_url(module, page - 1) }}">&lsaquo; prev</a>
+    {%- else %}
+    <span class="off">&laquo; first</span>
+    <span class="off">&lsaquo; prev</span>
+    {%- endif %}
+    <span class="where">page {{ page }} of {{ page_count }}
+      ({{ total }} image{{ "" if total == 1 else "s" }})</span>
+    {%- if page < page_count %}
+    <a href="{{ list_url(module, page + 1) }}">next &rsaquo;</a>
+    <a href="{{ list_url(module, page_count) }}">last &raquo;</a>
+    {%- else %}
+    <span class="off">next &rsaquo;</span>
+    <span class="off">last &raquo;</span>
+    {%- endif %}
+  </nav>
+{%- endmacro -%}
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -11,27 +35,60 @@
     th, td { border: 1px solid #ccc; padding: 6px 12px; text-align: left; }
     img { display: block; background:
       repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 0 0 / 16px 16px; }
+    .modules { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem;
+      margin: 0 0 1rem; padding: 0; list-style: none; }
+    .current { font-weight: bold; }
+    .pager { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1rem;
+      margin: 1rem 0; }
+    .pager .off { color: #999; }
+    .pager .where { margin: 0 0.5rem; }
+    .per-page { margin: 0 0 1rem; }
   </style>
 </head>
 <body>
   <h1>Image records</h1>
-  {% if not records %}<p>No images generated yet.</p>{% endif %}
+  {% if not modules %}
+  <p>No images generated yet.</p>
+  {% else %}
+  <ul class="modules">
+    {% for name, count in modules %}
+    <li>
+      {%- if name == module -%}
+      <span class="current">{{ name }} ({{ count }})</span>
+      {%- else -%}
+      <a href="{{ list_url(name) }}">{{ name }} ({{ count }})</a>
+      {%- endif -%}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="per-page">Per page:
+    {% for option in per_page_options -%}
+    {%- if option == per_page -%}
+    <span class="current">{{ option }}</span>
+    {%- else -%}
+    <a href="{{ list_url(module, 1, option) }}">{{ option }}</a>
+    {%- endif -%}
+    {{ " · " if not loop.last }}
+    {%- endfor %}
+  </p>
+  {{ pager() }}
   <table>
-    <tr><th>id</th><th>module</th><th>item</th><th>size</th><th>variant</th><th>image</th></tr>
+    <tr><th>id</th><th>item</th><th>size</th><th>variant</th><th>image</th></tr>
     {% for record in records %}
     <tr>
       <td><a href="{{ url_for('images_admin.admin_images', img=record.id) }}">{{ record.id }}</a></td>
-      <td>{{ record.spec.module }}</td>
       <td>{{ record.spec.item_description }}</td>
       <td>{{ record.spec.width }}×{{ record.spec.height }}</td>
       <td>{{ record.spec.variant or "—" }}</td>
       {#- PNGs are stored at native generation resolution; preview at the
-          record's logical display size. -#}
+          record's logical display size. Lazy so off-screen rows cost nothing. -#}
       <td><img src="{{ url_for('images.generated_image', image_id=record.id) }}"
-               alt="{{ record.spec.item_description }}"
+               alt="{{ record.spec.item_description }}" loading="lazy"
                style="max-width: {{ record.spec.width }}px; max-height: {{ record.spec.height }}px"></td>
     </tr>
     {% endfor %}
   </table>
+  {{ pager() }}
+  {% endif %}
 </body>
 </html>

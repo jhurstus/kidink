@@ -1,4 +1,5 @@
 import io
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -71,6 +72,75 @@ def test_list_view_links_each_record(tmp_path: Path) -> None:
     text = _app(tmp_path).test_client().get("/admin/images").text
     assert "Soccer" in text
     assert f"/admin/images?img={image_id}" in text
+
+
+def _seed_specs(tmp_path: Path, module: str, count: int) -> list[int]:
+    conn = open_db(tmp_path)
+    ids = [
+        get_or_create_record(conn, ImageSpec(module, f"{module}-{i}", 100, 60), "p")[
+            0
+        ].id
+        for i in range(count)
+    ]
+    conn.close()
+    return ids
+
+
+def _listed_ids(text: str) -> list[int]:
+    return [int(i) for i in re.findall(r'/admin/images\?img=(\d+)"', text)]
+
+
+def test_list_view_empty_db(tmp_path: Path) -> None:
+    text = _app(tmp_path).test_client().get("/admin/images").text
+    assert "No images generated yet." in text
+
+
+def test_list_view_defaults_to_newest_module_newest_first(tmp_path: Path) -> None:
+    joke_ids = _seed_specs(tmp_path, "Joke", 2)
+    calendar_ids = _seed_specs(tmp_path, "Calendar", 3)
+    text = _app(tmp_path).test_client().get("/admin/images").text
+    assert _listed_ids(text) == calendar_ids[::-1]
+    assert '<span class="current">Calendar (3)</span>' in text
+    assert "/admin/images?module=Joke&amp;page=1&amp;per_page=25" in text
+
+    text = _app(tmp_path).test_client().get("/admin/images?module=Joke").text
+    assert _listed_ids(text) == joke_ids[::-1]
+
+
+def test_list_view_unknown_module_404s(tmp_path: Path) -> None:
+    _seed_specs(tmp_path, "Joke", 1)
+    client = _app(tmp_path).test_client()
+    assert client.get("/admin/images?module=Nope").status_code == 404
+
+
+def test_list_view_paginates(tmp_path: Path) -> None:
+    newest_first = _seed_specs(tmp_path, "Calendar", 60)[::-1]
+    client = _app(tmp_path).test_client()
+
+    text = client.get("/admin/images?module=Calendar").text
+    assert _listed_ids(text) == newest_first[:25]  # default page size
+    assert "page 1 of 3" in text
+    assert "/admin/images?module=Calendar&amp;page=2&amp;per_page=25" in text
+
+    text = client.get("/admin/images?module=Calendar&page=2&per_page=50").text
+    assert _listed_ids(text) == newest_first[50:]
+    assert "page 2 of 2" in text
+
+    # A stale page past the end clamps to the last page, never an empty one.
+    text = client.get("/admin/images?module=Calendar&page=99&per_page=25").text
+    assert _listed_ids(text) == newest_first[50:]
+    assert "page 3 of 3" in text
+
+    # An unoffered page size falls back to the default.
+    text = client.get("/admin/images?module=Calendar&per_page=7&page=0").text
+    assert _listed_ids(text) == newest_first[:25]
+    assert '<span class="current">25</span>' in text
+
+
+def test_detail_view_links_back_to_its_module(tmp_path: Path) -> None:
+    image_id = _seed_record(tmp_path)
+    text = _app(tmp_path).test_client().get(f"/admin/images?img={image_id}").text
+    assert '/admin/images?module=Calendar">&larr; Calendar images' in text
 
 
 def test_detail_view_shows_prompt_and_image(tmp_path: Path) -> None:
