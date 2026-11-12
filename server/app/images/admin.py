@@ -43,6 +43,7 @@ from werkzeug.wrappers.response import Response as WerkzeugResponse
 
 from app.config import get_settings
 from app.images.attachments import attachment_file_path, normalize_attachment_path
+from app.images.crop import EmptyImageError
 from app.images.db import (
     ImageRecord,
     attach_to_image,
@@ -59,7 +60,6 @@ from app.images.db import (
     update_prompt,
 )
 from app.images.generate import DEFAULT_IMAGE_MODEL, ImageGenerationError
-from app.images.keying import KeyingError
 from app.images.store import candidate_path, image_path, regenerate_candidate
 
 admin_bp = Blueprint("images_admin", __name__)
@@ -200,7 +200,7 @@ def admin_regenerate(image_id: int) -> WerkzeugResponse:
             api_key=settings.openai_api_key,
             model=model,
         )
-    except (ImageGenerationError, KeyingError, ValueError, OSError) as exc:
+    except (ImageGenerationError, EmptyImageError, ValueError, OSError) as exc:
         return _back_to(image_id, error=f"regeneration failed: {type(exc).__name__}")
     return _back_to(image_id)
 

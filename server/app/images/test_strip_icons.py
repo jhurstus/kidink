@@ -51,12 +51,12 @@ def test_prompt_carries_the_key_instructions() -> None:
     assert "cropped away" in prompt
 
 
-def test_prompt_has_no_chroma_key_background() -> None:
-    # Strip art is opaque (module "DayStrip" is unkeyed, §9.1): the calendar
-    # template's green-key tail must not carry over.
+def test_prompt_has_no_transparent_background_tail() -> None:
+    # Strip art is opaque (module "DayStrip" is opaque, §9.1): the calendar
+    # template's isolated-subject transparent-background tail must not carry
+    # over.
     prompt = strip_icon_prompt("Soccer")
-    assert "#00FF00" not in prompt
-    assert "chroma" not in prompt.lower()
+    assert "transparent" not in prompt.lower()
 
 
 def test_excited_prompt_is_a_comic_excitement_edit() -> None:
@@ -84,6 +84,7 @@ class _Generator:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:

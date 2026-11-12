@@ -28,14 +28,16 @@ _MAX_ASPECT = 3
 
 # Records store small logical display sizes (e.g. 60×60); generation happens
 # up to this many times larger (hero-sized records clamp to the API bounds
-# instead). Keying runs at that full resolution and the PNG is stored at it
-# too, so the browser always downscales — never upscales — when CSS sizes it
+# instead). The crop runs at that full resolution and the PNG is stored at
+# it too, so the browser always downscales — never upscales — when CSS sizes it
 # to the logical box, at any device scale factor (§7.2).
 _GEN_SCALE = 16
 
 type GenerateImageBytes = Callable[..., bytes]
-"""The generation seam: ``(api_key, *, prompt, size, model, base_png=None,
-reference_images=()) -> PNG bytes``. A non-``None`` ``base_png`` switches from
+"""The generation seam: ``(api_key, *, prompt, size, model, transparent,
+base_png=None, reference_images=()) -> PNG bytes``. ``transparent`` picks the
+API's transparent or opaque background (the store's per-module policy, §7.2).
+A non-``None`` ``base_png`` switches from
 text-to-image to an image *edit* of those PNG bytes (the §12 excited hero
 variant); ``reference_images`` are the prompt attachments (§7.2) — PNG, JPEG,
 or WebP bytes — passed as additional input images the prompt can cite as
@@ -86,10 +88,15 @@ def generate_image_bytes(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
     """Generate one image via the OpenAI API and return the raw PNG bytes.
+
+    ``transparent`` requests a transparent background (an isolated subject
+    with real alpha); otherwise the background is explicitly opaque, so the
+    full-bleed modules never get the API's ``auto`` choice.
 
     With ``base_png`` set, the API *edits* those PNG bytes per ``prompt``
     (the §12 excited hero) instead of generating from scratch.
@@ -101,10 +108,9 @@ def generate_image_bytes(
     image; references follow in order, and their upload names number by
     position across all inputs including the base, matching the
     "reference image N" ordinals the prompt may cite (see
-    :func:`app.images.attachments.resolve_prompt_attachments`). The result
-    may still have a solid key-color
-    background; whether to run it through
-    :func:`app.images.keying.key_and_crop` is the store's per-module policy.
+    :func:`app.images.attachments.resolve_prompt_attachments`). Whether a
+    transparent result is cropped (:func:`app.images.crop.crop_to_visible`)
+    is the store's per-module policy.
     Raises :class:`ImageGenerationError` on any SDK/decode failure.
     """
     from openai import OpenAI  # deferred: the SDK is never needed under test
@@ -123,14 +129,23 @@ def generate_image_bytes(
         inputs.append((f"reference-{n}.{extension}", io.BytesIO(data), mimetype))
     try:
         images = OpenAI(api_key=api_key.get_secret_value()).images
+        background = "transparent" if transparent else "opaque"
         if not inputs:
-            result = images.generate(model=model, prompt=prompt, size=size)
+            result = images.generate(
+                model=model,
+                prompt=prompt,
+                size=size,
+                background=background,
+                output_format="png",
+            )
         else:
             result = images.edit(
                 model=model,
                 image=inputs,
                 prompt=prompt,
                 size=size,
+                background=background,
+                output_format="png",
             )
         data = result.data or []
         if not data or not data[0].b64_json:

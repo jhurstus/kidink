@@ -18,17 +18,17 @@ from app.dinner.hero import (
 from app.images import ImageGenerationError, RenderedImage
 
 
-def _keyable_png() -> bytes:
-    """A red rectangle on a pure-green key background - keys cleanly (§7.2)."""
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    pixels[40:440, 40:760] = (220, 40, 40)
+def _transparent_png() -> bytes:
+    """A red rectangle on a transparent background - crops cleanly (§7.2)."""
+    pixels = np.zeros((480, 800, 4), np.uint8)
+    pixels[40:440, 40:760] = (220, 40, 40, 255)
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    Image.fromarray(pixels, "RGBA").save(out, format="PNG")
     return out.getvalue()
 
 
 class _Generator:
-    """Fake seam recording calls; returns keyable bytes (Dinner is keyed)."""
+    """Fake seam recording calls; returns transparent bytes (Dinner is cropped)."""
 
     def __init__(self, *, fail: bool = False) -> None:
         self.fail = fail
@@ -41,13 +41,14 @@ class _Generator:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         self.prompts.append(prompt)
         if self.fail:
             raise ImageGenerationError("image generation failed: Boom")
-        return _keyable_png()
+        return _transparent_png()
 
 
 def _app(tmp_path: Path, generate: _Generator) -> Flask:
@@ -67,19 +68,20 @@ def _resolve(
         return make_dinner_hero_resolver(collected)(name)
 
 
-def test_hero_prompt_carries_name_palette_and_chroma_key() -> None:
-    # Dinner is a keyed module (§13): the prompt keeps the calendar-icon
-    # template's e-ink palette table, purple/brown warning, and green key.
+def test_hero_prompt_carries_name_palette_and_transparent_tail() -> None:
+    # Dinner is a transparent module (§13): the prompt keeps the calendar-icon
+    # template's e-ink palette table, purple/brown warning, and isolated-subject
+    # transparent-background tail.
     prompt = dinner_hero_prompt("Tacos & Rice")
     assert "“Tacos & Rice”" in prompt
     assert "no text" in prompt
     assert "Periwinkle" in prompt
     assert "purple and brown" in prompt
-    assert "#00FF00" in prompt
+    assert "isolated on a fully transparent background" in prompt
     assert "one combined dinner scene" in prompt
 
 
-def test_resolver_generates_and_collects_the_keyed_hero(tmp_path: Path) -> None:
+def test_resolver_generates_and_collects_the_hero(tmp_path: Path) -> None:
     generate = _Generator()
     collected: list[RenderedImage] = []
 
@@ -107,9 +109,9 @@ def test_resolver_reuses_a_warm_image_without_regenerating(tmp_path: Path) -> No
     assert len(generate.prompts) == 1  # second resolve hit the cache
 
 
-def test_resolver_stores_a_transparent_keyed_png(tmp_path: Path) -> None:
-    # Guard against "Dinner" drifting into store.py's _UNKEYED_MODULES: the
-    # stored PNG must be the keyed/cropped RGBA, not the raw green-bg bytes.
+def test_resolver_stores_a_transparent_cropped_png(tmp_path: Path) -> None:
+    # Guard against "Dinner" drifting into store.py's _OPAQUE_MODULES: the
+    # stored PNG must be the cropped RGBA, not the raw generation bytes.
     _resolve(tmp_path, generate := _Generator(), [])
 
     stored = Image.open(tmp_path / "gen_images" / "1.png")

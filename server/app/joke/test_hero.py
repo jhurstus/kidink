@@ -20,14 +20,14 @@ JOKE = "What do you call a bear with no teeth? A gummy bear!"
 
 
 def _solid_png() -> bytes:
-    """A plain blue PNG - the joke is unkeyed, so it is stored verbatim."""
+    """A plain blue PNG - the joke is opaque, so it is stored verbatim."""
     out = io.BytesIO()
     Image.new("RGB", (800, 480), (40, 90, 200)).save(out, format="PNG")
     return out.getvalue()
 
 
 class _Generator:
-    """Fake seam recording calls; returns a plain (non-key) PNG."""
+    """Fake seam recording calls; returns a plain opaque PNG."""
 
     def __init__(self, *, fail: bool = False) -> None:
         self.fail = fail
@@ -41,6 +41,7 @@ class _Generator:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
@@ -67,12 +68,12 @@ def _resolve(
         return make_joke_hero_resolver(collected)(text)
 
 
-def test_hero_prompt_draws_the_text_and_omits_the_chroma_key() -> None:
-    # The joke is drawn inside the image (§15) on a solid background - unkeyed,
-    # so no #00FF00 green-key tail - but keeps the e-ink palette table.
+def test_hero_prompt_draws_the_text_and_omits_the_transparent_tail() -> None:
+    # The joke is drawn inside the image (§15) on a solid background - opaque,
+    # so no transparent-background tail - but keeps the e-ink palette table.
     prompt = joke_hero_prompt(JOKE)
     assert JOKE in prompt
-    assert "#00FF00" not in prompt
+    assert "transparent" not in prompt.lower()
     assert "Periwinkle" in prompt  # palette table retained
     assert "purple and brown" in prompt
     assert "full bleed" in prompt
@@ -107,9 +108,9 @@ def test_resolver_reuses_a_warm_image_without_regenerating(tmp_path: Path) -> No
     assert len(generate.prompts) == 1  # second resolve hit the cache
 
 
-def test_resolver_stores_the_unkeyed_bytes_verbatim(tmp_path: Path) -> None:
-    # Guard against "Joke" drifting out of store.py's _UNKEYED_MODULES: the
-    # stored PNG must be the raw generation bytes, not a keyed/cropped RGBA.
+def test_resolver_stores_the_opaque_bytes_verbatim(tmp_path: Path) -> None:
+    # Guard against "Joke" drifting out of store.py's _OPAQUE_MODULES: the
+    # stored PNG must be the raw generation bytes, not a cropped RGBA.
     generate = _Generator()
     _resolve(tmp_path, generate, [])
 

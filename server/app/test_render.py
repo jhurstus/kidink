@@ -82,12 +82,12 @@ class _EveryDayForecast(dict):
         return _FAKE_DAY
 
 
-def _keyable_png() -> bytes:
-    """A red rectangle on a pure-green key background — keys cleanly (§7.2)."""
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    pixels[40:440, 40:760] = (220, 40, 40)
+def _transparent_png() -> bytes:
+    """A red rectangle on a transparent background - crops cleanly (§7.2)."""
+    pixels = np.zeros((480, 800, 4), np.uint8)
+    pixels[40:440, 40:760] = (220, 40, 40, 255)
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    Image.fromarray(pixels, "RGBA").save(out, format="PNG")
     return out.getvalue()
 
 
@@ -97,10 +97,11 @@ def _generate_ok(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
-    return _keyable_png()
+    return _transparent_png()
 
 
 def _generate_boom(
@@ -109,6 +110,7 @@ def _generate_boom(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -121,6 +123,7 @@ def _generate_unexpected(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -258,11 +261,12 @@ def test_render_generates_once_across_renders(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append(prompt)
-        return _keyable_png()
+        return _transparent_png()
 
     client = _app_with_ics(EVENT_ICS, tmp_path, generate).test_client()
     client.get("/render?date=2026-06-03")
@@ -280,10 +284,10 @@ def test_render_serves_generated_icon_bytes(tmp_path: Path) -> None:
     assert response.status_code == 200
     assert response.mimetype == "image/png"
     image = Image.open(io.BytesIO(response.data))
-    # The strip's DayStrip module is unkeyed (§9.1): the fake generation's
-    # 800×480 PNG is stored verbatim — no alpha, no crop, and the record's
-    # logical 200×200 box never bounds the stored PNG.
-    assert image.mode == "RGB"
+    # The strip's DayStrip module is opaque (§9.1): the fake generation's
+    # 800×480 PNG is stored verbatim — no crop, and the record's logical
+    # 200×200 box never bounds the stored PNG.
+    assert response.data == _transparent_png()
     assert (image.width, image.height) == (800, 480)
 
 
@@ -765,11 +769,12 @@ def test_render_countdown_hype_tier_edits_the_hero(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append(base_png)
-        return _keyable_png()
+        return _transparent_png()
 
     text = _countdown_render(tmp_path, "2026-06-19", generate)
 
@@ -839,9 +844,9 @@ def test_render_countdown_blank_card_without_eligible_events(tmp_path: Path) -> 
     assert "countdown-body" not in text
 
 
-def test_render_countdown_hero_bytes_are_unkeyed(tmp_path: Path) -> None:
+def test_render_countdown_hero_bytes_are_verbatim(tmp_path: Path) -> None:
     # §12: the hero is displayed as-is — the served PNG must be byte-identical
-    # to the generation output (no chroma keying, no crop). This also guards
+    # to the generation output (no crop). This also guards
     # the "Countdown" module-string agreement between store.py and hero.py.
     # On 2026-06-03 the event is outside the strip week, so the hero is the
     # render's only generated image (id 1).
@@ -850,7 +855,7 @@ def test_render_countdown_hero_bytes_are_unkeyed(tmp_path: Path) -> None:
 
     response = client.get("/images/generated/1")
     assert response.status_code == 200
-    assert response.data == _keyable_png()
+    assert response.data == _transparent_png()
 
 
 def test_render_countdown_edit_failure_falls_back_to_base_hero(tmp_path: Path) -> None:
@@ -862,12 +867,13 @@ def test_render_countdown_edit_failure_falls_back_to_base_hero(tmp_path: Path) -
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         if base_png is not None:
             raise ImageGenerationError("image generation failed: Boom")
-        return _keyable_png()
+        return _transparent_png()
 
     text = _countdown_render(tmp_path, "2026-06-19", generate)
 
@@ -942,10 +948,10 @@ def test_render_dinner_generation_failure_keeps_the_name(tmp_path: Path) -> None
     assert "Mystery dinner!" not in text
 
 
-def test_render_dinner_hero_is_keyed_transparent(tmp_path: Path) -> None:
-    # §13: the dinner hero is a keyed transparent PNG - the served bytes must
-    # be the keyed/cropped RGBA, not the raw green-background generation
-    # (guards the "Dinner" module string against _UNKEYED_MODULES drift).
+def test_render_dinner_hero_is_cropped_transparent(tmp_path: Path) -> None:
+    # §13: the dinner hero is a cropped transparent PNG - the served bytes must
+    # be the cropped RGBA, not the raw generation (guards the "Dinner" module
+    # string against _OPAQUE_MODULES drift).
     client = _app_with_ics(
         EMPTY_ICS, tmp_path, _generate_ok, mealplan_ics=MEAL_ICS
     ).test_client()
@@ -953,7 +959,7 @@ def test_render_dinner_hero_is_keyed_transparent(tmp_path: Path) -> None:
 
     response = client.get("/images/generated/1")
     assert response.status_code == 200
-    assert response.data != _keyable_png()
+    assert response.data != _transparent_png()
     assert Image.open(io.BytesIO(response.data)).mode == "RGBA"
 
 
@@ -968,11 +974,12 @@ def test_render_dinner_reuses_the_image_across_days(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append(prompt)
-        return _keyable_png()
+        return _transparent_png()
 
     client = _app_with_ics(
         EMPTY_ICS, tmp_path, generate, mealplan_ics=MEAL_ICS
@@ -998,11 +1005,12 @@ def test_render_dinner_override_wins_end_to_end(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append(prompt)
-        return _keyable_png()
+        return _transparent_png()
 
     text = (
         _app_with_ics(EMPTY_ICS, tmp_path, generate, mealplan_ics=MEAL_ICS)
@@ -1150,7 +1158,7 @@ def test_render_joke_falls_back_when_the_store_is_empty() -> None:
 
 def test_render_joke_shows_the_days_hero_image(tmp_path: Path) -> None:
     # Seed three jokes; with the default start date 2026-01-01, day offset 153
-    # (to 2026-06-03) mod 3 == 0 selects the first joke, and its unkeyed hero is
+    # (to 2026-06-03) mod 3 == 0 selects the first joke, and its opaque hero is
     # the only image generated on this event-less board (id 1).
     conn = open_jokes_db(tmp_path)
     add_jokes(conn, ["joke A", "joke B", "joke C"])

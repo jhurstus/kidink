@@ -204,3 +204,80 @@ def test_attachment_junction_cascades_on_image_delete(tmp_path: Path) -> None:
     # The attachment itself survives (it may be shared across records).
     assert conn.execute("SELECT COUNT(*) FROM prompt_attachments").fetchone()[0] == 1
     conn.close()
+
+
+_OLD_ICON_TAIL = (
+    "Finally, put the icon on a pure green (i.e. #00FF00) background.  This will "
+    "allow me to chroma-key out the background later."
+)
+_NEW_TAIL = (
+    "Finally, draw only the subject itself, isolated on a fully transparent "
+    "background: no scenery, backdrop, ground, frame, or background color."
+)
+
+
+def _v0_db_with_prompts(root: Path, prompts: list[str]) -> None:
+    """A pre-migration (user_version 0) database holding ``prompts``."""
+    conn = open_db(root)
+    for n, prompt in enumerate(prompts):
+        spec = ImageSpec(module="Calendar", item_description=f"i{n}", width=1, height=1)
+        get_or_create_record(conn, spec, prompt)
+    conn.execute("PRAGMA user_version = 0")
+    conn.commit()
+    conn.close()
+
+
+def test_migration_swaps_green_key_tails_for_the_transparent_tail(
+    tmp_path: Path,
+) -> None:
+    # v1 (§7.2): every stored green-key tail variant - icon, illustration, and
+    # the old "put the icon a pure green" typo - becomes the isolated-subject
+    # transparent tail; other prompts are untouched.
+    _v0_db_with_prompts(
+        tmp_path,
+        [
+            f"Draw soccer.\n\n{_OLD_ICON_TAIL}",
+            (
+                "Draw tacos.\n\nFinally, put the illustration on a pure green (i.e. "
+                "#00FF00) background.  This \nwill allow me to chroma-key out the "
+                "background later."
+            ),
+            (
+                "Draw swim.\n\nFinally, put the icon a pure green (i.e. #00FF00) "
+                "background.  This will allow me to chroma-key out the background "
+                "later."
+            ),
+            "An admin-edited prompt with no tail.",
+        ],
+    )
+
+    conn = open_db(tmp_path)
+    prompts = [r.prompt for r in list_records(conn, "Calendar", limit=10, offset=0)]
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    conn.close()
+
+    assert sorted(prompts) == sorted(
+        [
+            f"Draw soccer.\n\n{_NEW_TAIL}",
+            f"Draw tacos.\n\n{_NEW_TAIL}",
+            f"Draw swim.\n\n{_NEW_TAIL}",
+            "An admin-edited prompt with no tail.",
+        ]
+    )
+    assert version == 1
+
+
+def test_migration_runs_once(tmp_path: Path) -> None:
+    # Once at v1, a prompt an admin deliberately set back to the old tail is
+    # left alone - the migration never re-applies.
+    _v0_db_with_prompts(tmp_path, ["Draw soccer."])
+    conn = open_db(tmp_path)
+    record = list_records(conn, "Calendar", limit=10, offset=0)[0]
+    update_prompt(conn, record.id, f"Draw soccer.\n\n{_OLD_ICON_TAIL}")
+    conn.close()
+
+    conn = open_db(tmp_path)
+    assert list_records(conn, "Calendar", limit=10, offset=0)[0].prompt.endswith(
+        _OLD_ICON_TAIL
+    )
+    conn.close()

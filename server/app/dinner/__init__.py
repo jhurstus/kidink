@@ -5,7 +5,7 @@ Public API:
 - :func:`build_dinner` / :class:`DinnerPanel` - the pure view model rendered
   by ``templates/modules/dinner.html``.
 - :func:`make_dinner_hero_resolver` / :data:`HeroResolver` /
-  :func:`dinner_image_spec` - the hero-image unit on the §7 pipeline (keyed
+  :func:`dinner_image_spec` - the hero-image unit on the §7 pipeline (cropped
   transparent PNG, logical key = the combined meal name).
 - :func:`stored_override` - the per-date meal-name override read by the
   render route (managed on ``/admin/meals``, :mod:`app.dinner.admin`).

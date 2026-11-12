@@ -34,20 +34,20 @@ def test_prompt_without_description_has_no_empty_paragraph() -> None:
 
 def test_prompt_carries_the_key_instructions() -> None:
     # The load-bearing pieces of the user-authored template: display size,
-    # e-ink palette guidance, and the chroma-key background.
+    # e-ink palette guidance, and the isolated-subject transparent background.
     prompt = calendar_icon_prompt("Soccer")
     assert "60px wide by 60px tall" in prompt
-    assert "#00FF00" in prompt
+    assert "isolated on a fully transparent background" in prompt
     assert "Avoid purple and brown hues" in prompt
     assert "| Periwinkle | 35% red 65% blue |" in prompt
 
 
-def _keyable_png() -> bytes:
-    """A red square on a pure-green background — keys cleanly."""
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 480, 1))
-    pixels[40:440, 40:440] = (220, 40, 40)
+def _transparent_png() -> bytes:
+    """A red rectangle on a transparent background - crops cleanly (§7.2)."""
+    pixels = np.zeros((480, 480, 4), np.uint8)
+    pixels[40:440, 40:440] = (220, 40, 40, 255)
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    Image.fromarray(pixels, "RGBA").save(out, format="PNG")
     return out.getvalue()
 
 
@@ -64,11 +64,12 @@ class _Generator:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         self.prompts.append(prompt)
-        return _keyable_png()
+        return _transparent_png()
 
 
 def _resolve(

@@ -106,8 +106,8 @@ should strive to only use the following colors:
 
 Avoid purple and brown hues.  They do not render well.
 
-Finally, put the icon on a pure green (i.e. #00FF00) background.  This will allow \
-me to chroma-key out the background later.\
+Finally, draw only the subject itself, isolated on a fully transparent \
+background: no scenery, backdrop, ground, frame, or background color.\
 """
 
 

@@ -11,7 +11,7 @@
    height: 100%;
 }
 
-/* Hero — the unkeyed joke image (§7.2/§15), full-bleed inside the panel and
+/* Hero — the opaque joke image (§7.2/§15), full-bleed inside the panel and
    clipped by the frame's overflow, which stays the panel's outline.
    object-fit: cover fills the cell; the generation aspect matches HERO_W/HERO_H
    (app/joke/hero.py), so the crop is negligible. */

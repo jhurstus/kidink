@@ -32,12 +32,12 @@ KEY_VALUE = "sk-test-not-a-real-key"
 API_KEY = SecretStr(KEY_VALUE)
 
 
-def keyable_png() -> bytes:
-    """A red rectangle on a pure-green background — keys cleanly."""
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    pixels[40:440, 40:760] = (220, 40, 40)
+def transparent_png() -> bytes:
+    """A red rectangle on a transparent background - crops cleanly (§7.2)."""
+    pixels = np.zeros((480, 800, 4), np.uint8)
+    pixels[40:440, 40:760] = (220, 40, 40, 255)
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    Image.fromarray(pixels, "RGBA").save(out, format="PNG")
     return out.getvalue()
 
 
@@ -47,6 +47,7 @@ class CountingGenerator:
     def __init__(self, result: bytes | Exception) -> None:
         self.result = result
         self.prompts: list[str] = []
+        self.transparents: list[bool] = []
         self.base_pngs: list[bytes | None] = []
         self.reference_images: list[tuple[bytes, ...]] = []
 
@@ -57,10 +58,12 @@ class CountingGenerator:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         self.prompts.append(prompt)
+        self.transparents.append(transparent)
         self.base_pngs.append(base_png)
         self.reference_images.append(tuple(reference_images))
         if isinstance(self.result, Exception):
@@ -82,7 +85,7 @@ def _ensure(
 
 
 def test_generates_once_then_serves_from_disk(tmp_path: Path) -> None:
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     first = _ensure(tmp_path, generator)
     second = _ensure(tmp_path, generator)
     assert first == second and first is not None
@@ -103,11 +106,12 @@ def test_generation_uses_requested_size_and_model(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         calls.append((size, model))
-        return keyable_png()
+        return transparent_png()
 
     ensure_image(
         SPEC,
@@ -136,13 +140,18 @@ def test_failure_returns_none_keeps_row_and_logs(tmp_path: Path) -> None:
     assert KEY_VALUE not in log  # secrets never reach the failure log
 
 
-def test_unkeyable_generation_is_a_failure(tmp_path: Path) -> None:
-    # An all-green image keys to nothing — treated like a generation failure.
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
+def _empty_png() -> bytes:
+    """A fully transparent PNG - nothing visible to crop to."""
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
-    assert _ensure(tmp_path, CountingGenerator(out.getvalue())) is None
-    assert "KeyingError" in (tmp_path / "gen_failures.log").read_text()
+    Image.fromarray(np.zeros((480, 800, 4), np.uint8), "RGBA").save(out, format="PNG")
+    return out.getvalue()
+
+
+def test_empty_generation_is_a_failure(tmp_path: Path) -> None:
+    # A fully transparent image has nothing to crop to — treated like a
+    # generation failure.
+    assert _ensure(tmp_path, CountingGenerator(_empty_png())) is None
+    assert "EmptyImageError" in (tmp_path / "gen_failures.log").read_text()
 
 
 def _spec(item: str) -> ImageSpec:
@@ -165,7 +174,7 @@ def test_ensure_images_assigns_ids_serially_in_request_order(tmp_path: Path) -> 
     # Records are created before any (parallel) generation runs, so a cold
     # batch's id assignment is deterministic (§3.4) regardless of which
     # generation finishes first.
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     ids = _ensure_batch(
         tmp_path, [(_spec(f"item {i}"), f"p{i}") for i in range(3)], generator
     )
@@ -182,12 +191,13 @@ def test_ensure_images_failure_hits_only_its_own_item(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         if prompt == "boom":
             raise ImageGenerationError("image generation failed: Boom")
-        return keyable_png()
+        return transparent_png()
 
     good, bad = _ensure_batch(
         tmp_path, [(_spec("ok"), "fine"), (_spec("broken"), "boom")], generate
@@ -200,7 +210,7 @@ def test_ensure_images_failure_hits_only_its_own_item(tmp_path: Path) -> None:
 
 
 def test_ensure_images_duplicate_key_generates_once(tmp_path: Path) -> None:
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     first, second = _ensure_batch(
         tmp_path, [(_spec("Soccer"), "p"), (_spec("Soccer"), "p")], generator
     )
@@ -223,13 +233,14 @@ def test_concurrent_ensure_of_same_record_generates_once(tmp_path: Path) -> None
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         prompts.append(prompt)
         entered.set()
         assert release.wait(timeout=10)
-        return keyable_png()
+        return transparent_png()
 
     results: list[int | None] = []
 
@@ -262,11 +273,12 @@ def test_ensure_images_generates_concurrently(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         barrier.wait(timeout=10)
-        return keyable_png()
+        return transparent_png()
 
     ids = _ensure_batch(
         tmp_path, [(_spec("first"), "p1"), (_spec("second"), "p2")], generate
@@ -275,7 +287,7 @@ def test_ensure_images_generates_concurrently(tmp_path: Path) -> None:
     assert ids == [1, 2]
 
 
-UNKEYED_SPEC = ImageSpec(
+OPAQUE_SPEC = ImageSpec(
     module="Countdown", item_description="camping trip", width=460, height=150
 )
 EDIT_SPEC = ImageSpec(
@@ -300,15 +312,24 @@ def _ensure_spec(
     )
 
 
-def test_unkeyed_module_stores_raw_bytes_verbatim(tmp_path: Path) -> None:
-    # The Countdown hero policy: no chroma keying, no crop — an all-green PNG
-    # that would raise KeyingError elsewhere is stored byte-identical.
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
-    raw = out.getvalue()
+def test_transparency_is_requested_per_module(tmp_path: Path) -> None:
+    # §7.2: icon-like modules ask the API for a transparent background; the
+    # full-bleed modules ask for an opaque one.
+    transparent = CountingGenerator(transparent_png())
+    _ensure_spec(tmp_path, SPEC, transparent)
+    opaque = CountingGenerator(transparent_png())
+    _ensure_spec(tmp_path, OPAQUE_SPEC, opaque)
 
-    image_id = _ensure_spec(tmp_path, UNKEYED_SPEC, CountingGenerator(raw))
+    assert transparent.transparents == [True]
+    assert opaque.transparents == [False]
+
+
+def test_opaque_module_stores_raw_bytes_verbatim(tmp_path: Path) -> None:
+    # The Countdown hero policy: no crop — a fully transparent PNG that would
+    # raise EmptyImageError elsewhere is stored byte-identical.
+    raw = _empty_png()
+
+    image_id = _ensure_spec(tmp_path, OPAQUE_SPEC, CountingGenerator(raw))
 
     assert image_id is not None
     assert image_path(tmp_path, image_id).read_bytes() == raw
@@ -318,7 +339,7 @@ def test_edit_variant_passes_stored_base_bytes(tmp_path: Path) -> None:
     # The excited hero is an *edit* of its base record's PNG: the base must be
     # handed to the seam verbatim, and the plain generation must not carry one.
     generator = CountingGenerator(b"base png bytes")
-    base_id = _ensure_spec(tmp_path, UNKEYED_SPEC, generator)
+    base_id = _ensure_spec(tmp_path, OPAQUE_SPEC, generator)
     assert base_id is not None
 
     variant_generator = CountingGenerator(b"excited png bytes")
@@ -352,14 +373,11 @@ DAY_STRIP_EDIT_SPEC = ImageSpec(
 )
 
 
-def test_day_strip_module_is_unkeyed(tmp_path: Path) -> None:
+def test_day_strip_module_is_opaque(tmp_path: Path) -> None:
     # The DayStrip policy matches Countdown's: full-bleed opaque art (§9.1),
-    # stored verbatim — an all-green PNG that would raise KeyingError elsewhere
-    # survives byte-identical.
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
-    raw = out.getvalue()
+    # stored verbatim — a fully transparent PNG that would raise
+    # EmptyImageError elsewhere survives byte-identical.
+    raw = _empty_png()
 
     image_id = _ensure_spec(tmp_path, DAY_STRIP_SPEC, CountingGenerator(raw))
 
@@ -391,13 +409,13 @@ def test_regeneration_uses_stored_prompt(tmp_path: Path) -> None:
     update_prompt(conn, record.id, "edited by admin")
     conn.close()
 
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     assert _ensure(tmp_path, generator, prompt="seed to ignore") == record.id
     assert generator.prompts == ["edited by admin"]
 
 
 def test_regenerate_candidate_writes_candidate_only(tmp_path: Path) -> None:
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     image_id = _ensure(tmp_path, generator)
     assert image_id is not None
     live_bytes = image_path(tmp_path, image_id).read_bytes()
@@ -450,7 +468,7 @@ def test_junction_attachments_reach_the_seam_in_order(tmp_path: Path) -> None:
     attach_to_image(conn, record.id, get_or_create_attachment(conn, "styles/b.png").id)
     conn.close()
 
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     assert _ensure(tmp_path, generator) == record.id
     assert generator.reference_images == [(_ref_png(b"a"), _ref_png(b"b"))]
     assert generator.prompts == ["match the house style"]  # no tokens: untouched
@@ -461,7 +479,7 @@ def test_prompt_token_attaches_and_rewrites(tmp_path: Path) -> None:
     # icon_description or an admin edit) both attaches the image and reads as
     # an ordinal reference in the outgoing prompt.
     _write_prompt_image(tmp_path, "styles/dog.png", _ref_png(b"dog"))
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
 
     result = _ensure(tmp_path, generator, prompt="A dog like {{styles/dog.png}}.")
 
@@ -471,7 +489,7 @@ def test_prompt_token_attaches_and_rewrites(tmp_path: Path) -> None:
 
 
 def test_missing_token_file_generates_without_it(tmp_path: Path) -> None:
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
 
     result = _ensure(tmp_path, generator, prompt="Like {{styles/ghost.png}}, bold.")
 
@@ -483,7 +501,7 @@ def test_missing_token_file_generates_without_it(tmp_path: Path) -> None:
 def test_new_record_is_seeded_with_module_defaults(tmp_path: Path) -> None:
     _write_prompt_image(tmp_path, "defaults/calendar/style1.png", _ref_png(b"style1"))
     _write_prompt_image(tmp_path, "defaults/calendar/style2.png", _ref_png(b"style2"))
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
 
     image_id = _ensure(tmp_path, generator)
 
@@ -499,7 +517,7 @@ def test_detached_default_is_not_reseeded(tmp_path: Path) -> None:
     # Seeding is first-creation-only: once an admin detaches a default, later
     # regenerations of the same record must not resurrect it.
     _write_prompt_image(tmp_path, "defaults/calendar/style.png", _ref_png(b"style"))
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     image_id = _ensure(tmp_path, generator)
     assert image_id is not None and generator.reference_images == [
         (_ref_png(b"style"),)
@@ -521,7 +539,7 @@ def test_edit_variant_combines_base_and_references(tmp_path: Path) -> None:
     # attached reference image" ambiguous).
     _write_prompt_image(tmp_path, "defaults/countdown/style.png", _ref_png(b"style"))
     base_generator = CountingGenerator(b"base png bytes")
-    assert _ensure_spec(tmp_path, UNKEYED_SPEC, base_generator) is not None
+    assert _ensure_spec(tmp_path, OPAQUE_SPEC, base_generator) is not None
 
     variant_generator = CountingGenerator(b"excited png bytes")
     variant_id = ensure_image(
@@ -546,7 +564,7 @@ def test_regenerate_candidate_passes_attachments(tmp_path: Path) -> None:
     # regenerate_candidate shares _generate_to, so attachments flow through
     # the admin regeneration path too.
     _write_prompt_image(tmp_path, "styles/a.png", _ref_png(b"a"))
-    generator = CountingGenerator(keyable_png())
+    generator = CountingGenerator(transparent_png())
     image_id = _ensure(tmp_path, generator)
     assert image_id is not None
 

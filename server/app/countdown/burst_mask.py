@@ -23,8 +23,6 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from app.images.keying import _edge_connected_key_mask
-
 _IMG_DIR = Path(__file__).resolve().parent.parent / "static" / "img" / "countdown"
 FRAME_PATH = _IMG_DIR / "countdown_burst.png"
 MASK_PATH = _IMG_DIR / "countdown_burst_mask.png"
@@ -35,6 +33,29 @@ MASK_PATH = _IMG_DIR / "countdown_burst_mask.png"
 _WHITE_TOLERANCE = 60.0
 
 
+def _edge_connected_white(rgb: np.ndarray) -> np.ndarray:
+    """Boolean (H, W) mask of near-white pixels 4-connected to the image border.
+
+    Grown from the border by iterative frontier dilation (vectorized shifts)
+    until fixpoint.
+    """
+    distance = np.linalg.norm(rgb.astype(np.float32) - 255.0, axis=-1)
+    candidates = distance < _WHITE_TOLERANCE
+    reached = np.zeros_like(candidates)
+    for edge in (np.s_[0, :], np.s_[-1, :], np.s_[:, 0], np.s_[:, -1]):
+        reached[edge] = candidates[edge]
+    while True:
+        grown = reached.copy()
+        grown[1:, :] |= reached[:-1, :]
+        grown[:-1, :] |= reached[1:, :]
+        grown[:, 1:] |= reached[:, :-1]
+        grown[:, :-1] |= reached[:, 1:]
+        grown &= candidates
+        if (grown == reached).all():
+            return reached
+        reached = grown
+
+
 def derive_mask() -> float:
     """Write ``MASK_PATH``; return the opaque (inside-the-outline) fraction."""
     pixels = np.asarray(Image.open(FRAME_PATH).convert("RGBA"))
@@ -42,7 +63,7 @@ def derive_mask() -> float:
     # Transparent pixels (the center hole) must never read as exterior white,
     # whatever RGB they carry under their zero alpha.
     rgb[pixels[..., 3] < 128] = 0
-    exterior = _edge_connected_key_mask(rgb, (255, 255, 255), _WHITE_TOLERANCE)
+    exterior = _edge_connected_white(rgb)
 
     mask = np.zeros_like(pixels)
     mask[..., 3] = np.where(exterior, 0, 255)

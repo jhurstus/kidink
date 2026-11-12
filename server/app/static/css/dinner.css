@@ -1,6 +1,6 @@
 /* ============================================================================
    dinner.css - the Dinner module (spec §13): the placemat background, the
-   meal's keyed transparent hero image, and the menu name(s); or the mystery
+   meal's cropped transparent hero image, and the menu name(s); or the mystery
    card when no meal is known. The panel carries no label.
    ============================================================================ */
 
@@ -30,7 +30,7 @@
    text-align: center;
 }
 
-/* Hero - the keyed transparent meal PNG, aspect-fit into the middle band
+/* Hero - the cropped transparent meal PNG, aspect-fit into the middle band
    (contain: never cropped, never upscaled past its logical box). That band
    is the logical display size - keep in sync with HERO_W/HERO_H in
    app/dinner/hero.py. */

@@ -1,10 +1,10 @@
 """Dinner-module image unit: hero sizing, prompt, and the hero resolver.
 
 The per-module logic of spec §7.5 for the §13 dinner hero. Unlike the
-countdown hero (shown as-is on white), the dinner hero is a normal keyed
-image: the prompt asks for the pure-green key background and the store
-chroma-keys it to a transparent PNG (§7.2) - so "Dinner" must stay out of
-``_UNKEYED_MODULES`` in :mod:`app.images.store`. The logical key is the
+countdown hero (shown as-is on white), the dinner hero is a normal
+transparent image: the prompt asks for an isolated subject and the store
+requests a transparent background and crops it (§7.2) - so "Dinner" must stay
+out of ``_OPAQUE_MODULES`` in :mod:`app.images.store`. The logical key is the
 combined meal name (§7.1), so a dish repeating across days reuses its image.
 """
 
@@ -26,8 +26,9 @@ HERO_W = 400
 HERO_H = 190
 
 # The user-authored hero prompt: the calendar-icon template reworked for the
-# dinner scene - same palette table and green-key tail (keyed module), with
-# the combined-dish instruction replacing the icon-simplicity guidance.
+# dinner scene - same palette table and isolated-subject tail (transparent
+# module), with the combined-dish instruction replacing the icon-simplicity
+# guidance.
 _HERO_PROMPT_TEMPLATE = """\
 Create an illustration of “{name}”, tonight’s dinner, for the Dinner panel of \
 a children’s calendar.  The illustration should be in the style of comic book, \
@@ -71,8 +72,8 @@ palette.  You should strive to only use the following colors:
 
 Avoid purple and brown hues.  They do not render well.
 
-Finally, put the illustration on a pure green (i.e. #00FF00) background.  This \
-will allow me to chroma-key out the background later.\
+Finally, draw only the subject itself, isolated on a fully transparent \
+background: no scenery, backdrop, ground, frame, or background color.\
 """
 
 

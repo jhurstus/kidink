@@ -12,6 +12,7 @@ directory), many-to-many with ``images`` through ``image_prompt_attachments``.
 Attached images are passed to the generation API as reference inputs (§7.2).
 """
 
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -81,12 +82,54 @@ class PromptAttachment:
     path: str
 
 
+# Data migrations, applied in order and tracked by ``PRAGMA user_version``
+# (the schema itself stays idempotent CREATE IF NOT EXISTS DDL).
+#
+# v1: transparent modules moved from chroma-keying a #00FF00 background to the
+# API's native transparent background (§7.2). Stored prompts are what admin
+# regeneration reuses, so their green-key tail is swapped for the
+# isolated-subject tail - dropping it alone would let the model paint a full
+# scene behind the subject. Frozen copies of both tails: this migration must
+# keep meaning the same thing even if the live prompt templates change.
+_GREEN_KEY_TAIL = re.compile(
+    r"Finally, put the (?:icon|illustration) (?:on )?a pure green "
+    r"\(i\.e\. #00FF00\) background\.\s+This\s+will\s+allow\s+me\s+to\s+"
+    r"chroma-key\s+out\s+the\s+background\s+later\."
+)
+_ISOLATED_SUBJECT_TAIL = (
+    "Finally, draw only the subject itself, isolated on a fully transparent "
+    "background: no scenery, backdrop, ground, frame, or background color."
+)
+_DB_VERSION = 1
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Bring a database up to ``_DB_VERSION`` (no-op when already current)."""
+    if conn.execute("PRAGMA user_version").fetchone()[0] >= _DB_VERSION:
+        return
+    with conn:
+        conn.execute("BEGIN IMMEDIATE")
+        # Re-check under the write lock: a concurrent opener may have won.
+        if conn.execute("PRAGMA user_version").fetchone()[0] >= _DB_VERSION:
+            return
+        rows = conn.execute(
+            "SELECT id, prompt FROM images WHERE prompt LIKE '%#00FF00%'"
+        ).fetchall()
+        for image_id, prompt in rows:
+            migrated = _GREEN_KEY_TAIL.sub(_ISOLATED_SUBJECT_TAIL, prompt)
+            if migrated != prompt:
+                conn.execute(
+                    "UPDATE images SET prompt = ? WHERE id = ?", (migrated, image_id)
+                )
+        conn.execute(f"PRAGMA user_version = {_DB_VERSION}")
+
+
 def open_db(storage_root: Path) -> sqlite3.Connection:
     """Open (creating as needed) ``sqlite.db`` under ``storage_root``.
 
-    Creates the storage root, applies pragmas, and runs the idempotent schema
-    DDL. Callers own the connection and should close it promptly (one short-lived
-    connection per operation).
+    Creates the storage root, applies pragmas, runs the idempotent schema DDL,
+    and applies any pending data migrations. Callers own the connection and
+    should close it promptly (one short-lived connection per operation).
     """
     storage_root.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(storage_root / "sqlite.db")
@@ -95,6 +138,7 @@ def open_db(storage_root: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA busy_timeout = 5000")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(_SCHEMA)
+    _migrate(conn)
     return conn
 
 

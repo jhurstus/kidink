@@ -24,11 +24,12 @@ from app.images.store import candidate_path, image_path
 SPEC = ImageSpec(module="Calendar", item_description="Soccer", width=100, height=60)
 
 
-def _keyable_png() -> bytes:
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    pixels[40:440, 40:760] = (220, 40, 40)
+def _transparent_png() -> bytes:
+    """A red rectangle on a transparent background - crops cleanly (§7.2)."""
+    pixels = np.zeros((480, 800, 4), np.uint8)
+    pixels[40:440, 40:760] = (220, 40, 40, 255)
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    Image.fromarray(pixels, "RGBA").save(out, format="PNG")
     return out.getvalue()
 
 
@@ -48,10 +49,11 @@ def _app(tmp_path: Path, generate: object = None) -> Flask:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
-        return _keyable_png()
+        return _transparent_png()
 
     app.config["GENERATE_IMAGE_BYTES"] = generate or default_generate
     return app
@@ -178,11 +180,12 @@ def test_regenerate_persists_prompt_and_writes_candidate(tmp_path: Path) -> None
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         prompts.append(prompt)
-        return _keyable_png()
+        return _transparent_png()
 
     client = _app(tmp_path, generate).test_client()
     response = client.post(
@@ -213,6 +216,7 @@ def test_regenerate_failure_reports_error_without_candidate(tmp_path: Path) -> N
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:

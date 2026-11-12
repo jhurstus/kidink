@@ -228,8 +228,8 @@ is nearly free, since tomorrow's images are already cached.
 | CSS authoring | Plain CSS with custom properties |
 | Headless render | Playwright (Python) driving Chromium |
 | Calendar parsing | ICS parser + a recurring-ICS expansion library |
-| AI images | OpenAI image API — `gpt-image-2.6-sunburst`, configurable per module; transparency is derived in code by background-keying (§7.2) |
-| Image processing | Pillow + NumPy — background-keying to alpha (§7.2) and the quantize-preview pass (§5.2) |
+| AI images | OpenAI image API — `gpt-image-2.6-sunburst`, configurable per module; transparent backgrounds come from the API's native transparency (§7.2) |
+| Image processing | Pillow + NumPy — alpha cleanup and crop-to-visible (§7.2) and the quantize-preview pass (§5.2) |
 | Weather | Google Maps Platform Weather API (daily forecast) |
 | App config | Pydantic (`pydantic-settings`) model, validated at startup (§18) |
 
@@ -555,28 +555,29 @@ a non-issue (≈1–2 calls/day), so quality is the priority:
   comic style (keep to ~2–3). The effective set is the union of the record's attached
   images and any `{{...}}` token references in its prompt, resolved at generation time
   (§7.7); the outgoing prompt cites them as "reference image N".
-- **Transparency (background-keying).** Transparency is derived in code rather than
-  requested from the API (the pipeline predates native transparency: `gpt-image-2` had
-  **no transparent-background mode**), so the prompt asks for the subject
-  on a **flat, solid key-color background** distinct from the subject's palette, and the
-  alpha is then derived **in code** (Pillow + NumPy): starting from the image edges,
-  background-connected pixels matching the key color (within a tolerance) are flood-filled
-  to transparent, and the key is de-spilled at the subject's rim. Removing only
-  *edge-connected* background — rather than every key-colored pixel — keeps a same-colored
-  region *inside* the subject opaque. The board's bold, hard-edged, flat art (§5.2) keys
-  cleanly; soft/wispy edges would not.
+- **Transparency (per module).** Icon-like modules (Calendar, Chores, Dinner) request
+  the API's native **transparent background**; the full-bleed modules (Countdown, Joke,
+  DayStrip) request an explicitly **opaque** one, never the API's `auto`. The transparent
+  background alone is not enough: without being told otherwise the model paints a full
+  scene (sky, ground) as an opaque rectangle and leaves only the padding transparent, so
+  transparent-module prompts end by asking for **only the subject, isolated** — no
+  scenery, backdrop, ground, frame, or background color. The returned alpha is slightly
+  noisy at both ends (faint backdrop specks up to ~alpha 10, a subject at 253–254), so
+  near-0 and near-255 alpha are **snapped clean** (in code, Pillow + NumPy) — stray specks
+  would otherwise widen the crop and could dither into dots on the panel.
 - **Size:** generated at a supported large size matching the record's aspect ratio
-  (16× its `width`×`height`). Keying runs at that full resolution; the result is then
+  (16× its `width`×`height`). A transparent result is then
   **cropped to its visible pixels** (fully transparent borders are snapped away) and
   **stored at that native resolution** — no server-side downscale. The record's
   `width`×`height` is a *logical display size* only: CSS (`max-width`/`max-height`)
   aspect-fits the image into that box at render time, so the browser always
   downscales — never upscales — at any device scale factor (the e-ink path
   screenshots at 2× device scale, §3.3/eink-demo, and samples the icon at twice its
-  CSS size), and that downscale anti-aliases the hard keyed alpha edge.
+  CSS size).
 
-The final image is a **transparent PNG** written to `gen_images/<id>.png`, and the record
-is saved. Failures (generation or keying) are **logged to disk** (with the item and the
+The final image is a PNG (transparent for the icon-like modules) written to
+`gen_images/<id>.png`, and the record is saved. Failures (generation, or a transparent
+result with nothing visible) are **logged to disk** (with the item and the
 prompt) and the render falls back (§7.3).
 
 ### 7.3 Fallbacks on a missing/failed image
@@ -737,7 +738,7 @@ prints in a caption band across the bottom of the **today** panel (e.g. "JUNE 3,
   §5.3); the wider weekday/weekend gutter carries that split instead.
 - The day's art (§9.2) fills the panel body **edge to edge**, cover-cropped by the
   panel: a full-bleed **opaque** scene (no §7.2 transparency treatment — the strip's
-  own image module `DayStrip` is unkeyed) generated at a logical 200×200 under a
+  own image module `DayStrip` is opaque) generated at a logical 200×200 under a
   full-bleed prompt: bold flat fills, thick black outlines, pure saturated primary
   colors, minimal detail.
 - **Today** is the hero panel: **30% wider and taller** than its six siblings,

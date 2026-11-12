@@ -32,12 +32,11 @@ def test_hero_prompt_without_description_has_no_empty_paragraph() -> None:
     assert "\n\n\n" not in countdown_hero_prompt("camping trip")
 
 
-def test_hero_prompt_drops_the_palette_and_chroma_key_guidance() -> None:
+def test_hero_prompt_drops_the_palette_and_transparent_guidance() -> None:
     # The calendar-icon template's e-ink palette table, purple/brown warning,
-    # and green-key background must not carry over (§12: shown as-is).
+    # and transparent-background tail must not carry over (§12: shown as-is).
     prompt = countdown_hero_prompt("camping trip")
-    assert "#00FF00" not in prompt
-    assert "chroma" not in prompt.lower()
+    assert "transparent" not in prompt.lower()
     assert "purple" not in prompt.lower()
     assert "Periwinkle" not in prompt
     assert "palette" not in prompt.lower()
@@ -67,6 +66,7 @@ class _Generator:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:

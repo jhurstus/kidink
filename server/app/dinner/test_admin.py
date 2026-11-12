@@ -34,12 +34,12 @@ MEAL_ICS = (
 )
 
 
-def _keyable_png() -> bytes:
-    """A red rectangle on a pure-green key background - keys cleanly (§7.2)."""
-    pixels = np.tile(np.array((0, 255, 0), np.uint8), (480, 800, 1))
-    pixels[40:440, 40:760] = (220, 40, 40)
+def _transparent_png() -> bytes:
+    """A red rectangle on a transparent background - crops cleanly (§7.2)."""
+    pixels = np.zeros((480, 800, 4), np.uint8)
+    pixels[40:440, 40:760] = (220, 40, 40, 255)
     out = io.BytesIO()
-    Image.fromarray(pixels, "RGB").save(out, format="PNG")
+    Image.fromarray(pixels, "RGBA").save(out, format="PNG")
     return out.getvalue()
 
 
@@ -49,6 +49,7 @@ def _generate_unexpected(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -61,10 +62,11 @@ def _generate_ok(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
-    return _keyable_png()
+    return _transparent_png()
 
 
 def _generate_boom(
@@ -73,6 +75,7 @@ def _generate_boom(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -184,11 +187,12 @@ def test_generate_respects_the_override(tmp_path: Path) -> None:
         prompt: str,
         size: str,
         model: str,
+        transparent: bool = True,
         base_png: bytes | None = None,
         reference_images: Sequence[bytes] = (),
     ) -> bytes:
         prompts.append(prompt)
-        return _keyable_png()
+        return _transparent_png()
 
     _app(tmp_path, generate).test_client().post("/admin/meals/2026-06-03/generate")
 

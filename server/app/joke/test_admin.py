@@ -30,6 +30,7 @@ def _generate_unexpected(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -42,6 +43,7 @@ def _generate_ok(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -54,6 +56,7 @@ def _generate_boom(
     prompt: str,
     size: str,
     model: str,
+    transparent: bool = True,
     base_png: bytes | None = None,
     reference_images: Sequence[bytes] = (),
 ) -> bytes:
@@ -178,7 +181,7 @@ def test_generate_creates_the_record_and_redirects_to_it(tmp_path: Path) -> None
 
     assert response.status_code == 302
     assert response.headers["Location"].endswith("/admin/images?img=1")
-    # Unkeyed: the raw generation bytes are stored verbatim (RGB, not keyed RGBA).
+    # Opaque: the raw generation bytes are stored verbatim (RGB, not cropped RGBA).
     assert (tmp_path / "gen_images" / "1.png").exists()
     assert Image.open(tmp_path / "gen_images" / "1.png").mode == "RGB"
 

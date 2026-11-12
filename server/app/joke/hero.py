@@ -2,9 +2,10 @@
 
 The per-module logic of spec §7.5 for the §15 joke panel. The whole panel *is*
 the generated image, with the joke/riddle text drawn inside it - so, unlike the
-dinner hero (a keyed subject with the name as separate HTML), the joke hero is
-displayed as-is on a solid background: "Joke" is in ``_UNKEYED_MODULES`` in
-:mod:`app.images.store` (no chroma key, no crop), like the §12 countdown hero.
+dinner hero (a transparent subject with the name as separate HTML), the joke
+hero is displayed as-is on a solid background: "Joke" is in
+``_OPAQUE_MODULES`` in :mod:`app.images.store` (opaque, no crop), like the §12
+countdown hero.
 The logical key is the joke line itself (§7.1, §15), so the image is generated
 once and reused each time the daily index cycles back to that joke.
 """
@@ -17,8 +18,8 @@ from app.images.generate import DEFAULT_IMAGE_MODEL
 from app.joke.view import HeroResolver
 
 # Keep in sync with the per-module policy in app/images/store.py: this module
-# string opts the hero out of keying (_UNKEYED_MODULES) - the joke is drawn on
-# a solid background and shown as-is, not chroma-keyed to transparency.
+# string makes the hero opaque (_OPAQUE_MODULES) - the joke is drawn on a
+# solid background and shown as-is, not made transparent.
 JOKE_MODULE = "Joke"
 
 # Logical display box (px): the joke grid cell. The hero fills the whole panel
@@ -32,8 +33,8 @@ HERO_H = 307
 # The hero prompt: the dinner template reworked for the joke panel. Unlike
 # dinner it (a) asks for the joke text to be lettered *inside* the image, (b)
 # asks for a full-bleed scene with no internal frame (the comic border is added
-# by CSS), and (c) ends on a solid background with no #00FF00 green-key tail -
-# the joke is an unkeyed module, displayed as-is.
+# by CSS), and (c) ends on a solid background with no transparent-background
+# tail - the joke is an opaque module, displayed as-is.
 _HERO_PROMPT_TEMPLATE = """\
 Create a single comic-book panel for the Joke panel of a children’s calendar \
 that tells this joke: “{joke}”.  Draw a fun scene illustrating the joke, and \

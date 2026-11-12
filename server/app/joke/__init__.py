@@ -6,7 +6,7 @@ Public API:
   ``templates/modules/joke.html`` (the day's joke picked by the §15 modulo
   index).
 - :func:`make_joke_hero_resolver` / :data:`HeroResolver` /
-  :func:`joke_image_spec` - the hero-image unit on the §7 pipeline (unkeyed,
+  :func:`joke_image_spec` - the hero-image unit on the §7 pipeline (opaque,
   displayed as-is; logical key = the joke line, with its text drawn inside).
 - :func:`stored_jokes` - the curated joke list read by the render route
   (managed on ``/admin/jokes``, :mod:`app.joke.admin`).
