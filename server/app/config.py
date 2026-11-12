@@ -124,8 +124,9 @@ class Settings(BaseSettings):
     at config load."""
 
     module_model_tiers: dict[str, str] = Field(default_factory=dict)
-    """Per-module image-model overrides (§18), e.g. ``{"Calendar": "gpt-image-2"}``.
-    Modules absent from the map use the default model."""
+    """Per-module image-model overrides (§18), e.g.
+    ``{"Calendar": "gpt-image-2.6-flare"}``. Modules absent from the map use the
+    default model."""
 
     kids: list[Kid] = Field(default_factory=list)
     """The children shown on the board (§8, §18), in display order — the order

@@ -228,7 +228,7 @@ is nearly free, since tomorrow's images are already cached.
 | CSS authoring | Plain CSS with custom properties |
 | Headless render | Playwright (Python) driving Chromium |
 | Calendar parsing | ICS parser + a recurring-ICS expansion library |
-| AI images | OpenAI image API — `gpt-image-2`, configurable per module; transparency is derived in code by background-keying (§7.2) |
+| AI images | OpenAI image API — `gpt-image-2.6-sunburst`, configurable per module; transparency is derived in code by background-keying (§7.2) |
 | Image processing | Pillow + NumPy — background-keying to alpha (§7.2) and the quantize-preview pass (§5.2) |
 | Weather | Google Maps Platform Weather API (daily forecast) |
 | App config | Pydantic (`pydantic-settings`) model, validated at startup (§18) |
@@ -548,15 +548,16 @@ Missing images are generated via the OpenAI image API, **inline** during `/rende
 a cold day costs roughly one generation of wall-clock, not one per image. Cost is
 a non-issue (≈1–2 calls/day), so quality is the priority:
 
-- **Model:** `gpt-image-2`, configurable per module.
+- **Model:** `gpt-image-2.6-sunburst`, configurable per module.
 - **Prompt:** the record's **`prompt`** column (§7.1, §7.5).
 - **Style references:** the record's **prompt attachments** (§7.1) — typically the owning
   module's shared style examples — are passed as reference inputs so new images match the
   comic style (keep to ~2–3). The effective set is the union of the record's attached
   images and any `{{...}}` token references in its prompt, resolved at generation time
   (§7.7); the outgoing prompt cites them as "reference image N".
-- **Transparency (background-keying).** `gpt-image-2` has **no transparent-background
-  mode** (a `background:"transparent"` request errors), so the prompt asks for the subject
+- **Transparency (background-keying).** Transparency is derived in code rather than
+  requested from the API (the pipeline predates native transparency: `gpt-image-2` had
+  **no transparent-background mode**), so the prompt asks for the subject
   on a **flat, solid key-color background** distinct from the subject's palette, and the
   alpha is then derived **in code** (Pillow + NumPy): starting from the image edges,
   background-connected pixels matching the key color (within a tolerance) are flood-filled
@@ -1208,7 +1209,7 @@ the per-event TOML fields in §6.3. The fields:
 | `anylist_mealplan_ics_url` | `SecretStr`, **required** | Anylist meal-plan ICS (dinner, §6.1, §13). |
 | `openai_api_key` | `SecretStr`, **required** | AI image generation (§7.2). |
 | `app_storage_path` | Path, `.storage` | Root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, meal-override §13, and `/display` request-log §3.1 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). A relative path resolves against `server/`. |
-| `module_model_tiers` | dict[str, str], empty | Per-module image-model overrides, e.g. `{"Calendar": "gpt-image-2"}`; modules absent from the map use the default model. |
+| `module_model_tiers` | dict[str, str], empty | Per-module image-model overrides, e.g. `{"Calendar": "gpt-image-2.6-flare"}`; modules absent from the map use the default model. |
 | `kids` | list of `{name, label}`, empty | The children shown on the board (§8), **in display order** — the order fixes each kid's badge color and label position, and indexes their clothing figures (`kid0`, `kid1`, … — § Weather). `label` is the initials; events' `kids` values (§6.4) match either field case-insensitively. |
 | `joke_start_date` | date, `2026-01-01` | Base date for the daily joke index (§15). The jokes themselves live in the DB, not in config. |
 | `device_wifi_ssid` | `SecretStr`, empty | Wi-Fi network the Inkplate joins ([firmware.md](firmware.md) §9). Required by the deploy CLI, not by the server. |

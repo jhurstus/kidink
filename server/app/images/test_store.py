@@ -77,7 +77,7 @@ def _ensure(
         storage_root=tmp_path,
         generate=generate,
         api_key=API_KEY,
-        model="gpt-image-2",
+        model="gpt-image-2.6-sunburst",
     )
 
 
@@ -157,7 +157,7 @@ def _ensure_batch(
         storage_root=tmp_path,
         generate=generate,
         api_key=API_KEY,
-        model="gpt-image-2",
+        model="gpt-image-2.6-sunburst",
     )
 
 
@@ -296,7 +296,7 @@ def _ensure_spec(
         storage_root=tmp_path,
         generate=generate,
         api_key=API_KEY,
-        model="gpt-image-2",
+        model="gpt-image-2.6-sunburst",
     )
 
 
@@ -410,7 +410,7 @@ def test_regenerate_candidate_writes_candidate_only(tmp_path: Path) -> None:
         storage_root=tmp_path,
         generate=generator,
         api_key=API_KEY,
-        model="gpt-image-2",
+        model="gpt-image-2.6-sunburst",
     )
     assert candidate_path(tmp_path, image_id).exists()
     assert image_path(tmp_path, image_id).read_bytes() == live_bytes  # live untouched
@@ -426,7 +426,7 @@ def test_regenerate_candidate_failure_propagates(tmp_path: Path) -> None:
             storage_root=tmp_path,
             generate=CountingGenerator(ImageGenerationError("boom")),
             api_key=API_KEY,
-            model="gpt-image-2",
+            model="gpt-image-2.6-sunburst",
         )
 
 
@@ -530,7 +530,7 @@ def test_edit_variant_combines_base_and_references(tmp_path: Path) -> None:
         storage_root=tmp_path,
         generate=variant_generator,
         api_key=API_KEY,
-        model="gpt-image-2",
+        model="gpt-image-2.6-sunburst",
     )
 
     assert variant_id is not None
@@ -560,6 +560,6 @@ def test_regenerate_candidate_passes_attachments(tmp_path: Path) -> None:
         storage_root=tmp_path,
         generate=generator,
         api_key=API_KEY,
-        model="gpt-image-2",
+        model="gpt-image-2.6-sunburst",
     )
     assert generator.reference_images == [(), (_ref_png(b"a"),)]

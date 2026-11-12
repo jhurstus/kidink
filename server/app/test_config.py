@@ -133,10 +133,10 @@ def test_kid_label_is_required() -> None:
 def test_module_model_tiers_defaults_empty() -> None:
     assert _settings().module_model_tiers == {}
     assert (
-        _settings(module_model_tiers={"Calendar": "gpt-image-2"}).module_model_tiers[
-            "Calendar"
-        ]
-        == "gpt-image-2"
+        _settings(
+            module_model_tiers={"Calendar": "gpt-image-2.6-flare"}
+        ).module_model_tiers["Calendar"]
+        == "gpt-image-2.6-flare"
     )
 
 

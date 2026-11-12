@@ -106,9 +106,9 @@ device_repaint_on_button = true
 device_posix_tz = ""
 
 # Per-module image-model overrides (§18). Modules not listed use the default
-# model (gpt-image-2).
+# model (gpt-image-2.6-sunburst).
 # [module_model_tiers]
-# Calendar = "gpt-image-2"
+# Calendar = "gpt-image-2.6-flare"
 
 # Kids shown on the board (§8, §18): full name plus the short label (initials)
 # rendered next to their events. Events' `kids` values (event-description TOML,

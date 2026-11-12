@@ -18,9 +18,9 @@ from pydantic import SecretStr
 
 from app.images.attachments import sniff_image_format
 
-DEFAULT_IMAGE_MODEL = "gpt-image-2"
+DEFAULT_IMAGE_MODEL = "gpt-image-2.6-sunburst"
 
-# gpt-image-2 accepts custom WIDTHxHEIGHT sizes where both dimensions are
+# GPT Image models accept custom WIDTHxHEIGHT sizes where both dimensions are
 # divisible by 16, within these bounds and at most _MAX_ASPECT:1 elongated
 # (the API rejects e.g. 2560x832 with "maximum supported aspect ratio is 3:1").
 _MAX_GEN_W, _MAX_GEN_H = 2560, 1440

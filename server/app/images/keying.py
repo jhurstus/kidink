@@ -1,14 +1,16 @@
 """Background-keying for generated images (spec §7.2).
 
-``gpt-image-2`` has no transparent-background mode, so images are generated on a
-flat pure-green (#00FF00) key background and the alpha is derived here: starting
-from the image edges, background-connected pixels near the key color are flood-
-filled to transparent (so key-colored regions *inside* the subject stay opaque),
-the green spill is removed at the subject's rim, and the result is cropped to
-its visible pixels. The PNG is stored at that native generation resolution —
-the record's width×height is a *display* size only, applied by CSS — so the
-browser always downscales (never upscales) at any device scale factor, and that
-downscale anti-aliases the hard keying edge at render time.
+Transparency is derived in code rather than requested from the API (the
+pipeline predates native transparency: ``gpt-image-2`` had no transparent-
+background mode), so images are generated on a flat pure-green (#00FF00) key
+background and the alpha is derived here: starting from the image edges,
+background-connected pixels near the key color are flood-filled to transparent
+(so key-colored regions *inside* the subject stay opaque), the green spill is
+removed at the subject's rim, and the result is cropped to its visible pixels.
+The PNG is stored at that native generation resolution — the record's
+width×height is a *display* size only, applied by CSS — so the browser always
+downscales (never upscales) at any device scale factor, and that downscale
+anti-aliases the hard keying edge at render time.
 """
 
 import io
