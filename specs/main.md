@@ -888,9 +888,14 @@ down-left at the kid.
 
 - **Source:** a `captions` table in the shared `sqlite.db` (the joke store's shape,
   §15), managed on **`/admin/captions`**: bulk add one per line (blank and `#` lines
-  skipped), per-row edit (an empty save deletes), delete, and a rotation reset
-  (forgetting every date's pin and the pointer). Rotation order is insertion order
-  (stable across edits).
+  skipped), per-row edit (an empty save deletes), delete, a per-row **Show today**
+  (below), and a rotation reset (forgetting every date's pin and the pointer).
+  Rotation order is insertion order (stable across edits).
+- **Show today:** re-pins the current date to the chosen caption (replacing any pin it
+  already has), forgets every later date's pin (e.g. from warm-up prerenders, §3.6),
+  and moves the pointer to it, so the next eligible day continues with the caption
+  after it. Earlier dates keep their pins. The bubble still only appears if today is
+  caption-eligible.
 - **Eligibility:** only layouts that leave the bubble room - **at most two visual
   rows in total** across the visible buckets (§10.2 two-across): up to two buckets of
   one row each (1-2 events apiece), or a single bucket of up to two rows (3-4

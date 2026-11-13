@@ -1,8 +1,8 @@
 <!doctype html>
 {#- Admin: the weather kid's speech-bubble captions (see app/captions/admin.py).
-One row per caption: the editable text (an empty save deletes it) and a delete
-button; the highlighted row is the caption the next unpinned day will show
-(§10.5 rotation). A textarea bulk-adds more captions (one per line), and the
+One row per caption: the editable text (an empty save deletes it), and
+show-today and delete buttons; ▶ marks the caption today is pinned to and the
+highlighted ★ row the one the next unpinned day will show (§10.5 rotation). A textarea bulk-adds more captions (one per line), and the
 rotation's latest date pin is shown with a reset action. -#}
 <html lang="en">
 <head>
@@ -22,6 +22,7 @@ rotation's latest date pin is shown with a reset action. -#}
     td.num { font-family: monospace; color: #666; white-space: nowrap; }
     td form { display: inline-flex; gap: 6px; margin: 0; }
     td form.edit { display: flex; }
+    td.actions { white-space: nowrap; }
     input[name="text"] { flex: 1; width: 100%; }
     textarea { width: 100%; max-width: 70em; box-sizing: border-box; margin-bottom: 6px; }
     .empty { color: #999; }
@@ -43,14 +44,17 @@ rotation's latest date pin is shown with a reset action. -#}
     </tr>
     {% for row in rows %}
     <tr{% if row.is_next %} class="next"{% endif %}>
-      <td class="num">{{ loop.index }}{% if row.is_next %} ★{% endif %}</td>
+      <td class="num">{{ loop.index }}{% if row.is_today %} ▶{% endif %}{% if row.is_next %} ★{% endif %}</td>
       <td>
         <form class="edit" method="post" action="{{ url_for('captions_admin.admin_caption_edit', caption_id=row.id) }}">
           <input name="text" value="{{ row.text }}">
           <button>Save</button>
         </form>
       </td>
-      <td>
+      <td class="actions">
+        <form method="post" action="{{ url_for('captions_admin.admin_caption_make_today', caption_id=row.id) }}">
+          <button{% if row.is_today %} disabled{% endif %}>Show today</button>
+        </form>
         <form method="post" action="{{ url_for('captions_admin.admin_caption_delete', caption_id=row.id) }}">
           <button>Delete</button>
         </form>
@@ -58,7 +62,7 @@ rotation's latest date pin is shown with a reset action. -#}
     </tr>
     {% endfor %}
   </table>
-  <p class="muted">★ marks the caption the next unpinned day will show ({{ rows | length }} caption(s) total).</p>
+  <p class="muted">▶ marks today's caption; ★ marks the caption the next unpinned day will show ({{ rows | length }} caption(s) total).</p>
   {% else %}
   <p class="empty">No captions yet. Add some below.</p>
   {% endif %}

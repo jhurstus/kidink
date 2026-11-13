@@ -1,11 +1,13 @@
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from flask import Flask
+from flask.testing import FlaskClient
 
 from app import create_app
 from app.captions.captions import (
     add_captions,
+    get_assignment,
     get_last_index,
     latest_assignment,
     list_captions,
@@ -13,9 +15,15 @@ from app.captions.captions import (
     record_assignment,
 )
 
+# 2026-06-03 20:00 UTC == 13:00 US/Pacific (the fake config's timezone) - a
+# fixed "today" for the Show today action, away from midnight.
+NOW = datetime(2026, 6, 3, 20, 0, tzinfo=UTC)
+TODAY = date(2026, 6, 3)
+
 
 def _app(tmp_path: Path) -> Flask:
     app = create_app()
+    app.config["NOW"] = NOW
     app.config["APP_STORAGE_PATH"] = tmp_path
     return app
 
@@ -166,3 +174,58 @@ def test_reset_clears_the_rotation(tmp_path: Path) -> None:
         assert latest_assignment(conn) is None
     finally:
         conn.close()
+
+
+def _ids(tmp_path: Path) -> list[int]:
+    conn = open_captions_db(tmp_path)
+    try:
+        return [c.id for c in list_captions(conn)]
+    finally:
+        conn.close()
+
+
+def _marked_row(client: FlaskClient, marker: str) -> str:
+    """The caption text of the row whose number cell carries ``marker``."""
+    page = client.get("/admin/captions").text
+    row = page.split(f" {marker}", 1)[1].split("</tr>", 1)[0]
+    return row.split('name="text" value="', 1)[1].split('"', 1)[0]
+
+
+def test_show_today_pins_today_and_continues_from_it(tmp_path: Path) -> None:
+    _seed(tmp_path, ["caption A", "caption B", "caption C"])
+    _record(tmp_path, TODAY, 0)  # already rendered today
+    _record(tmp_path, date(2026, 6, 4), 1)  # tomorrow prerendered
+    client = _app(tmp_path).test_client()
+
+    response = client.post(
+        f"/admin/captions/{_ids(tmp_path)[1]}/today", follow_redirects=True
+    )
+
+    assert "today&#39;s caption updated" in response.text
+    assert _marked_row(client, "▶") == "caption B"
+    assert _marked_row(client, "★") == "caption C"
+    conn = open_captions_db(tmp_path)
+    try:
+        assert get_assignment(conn, TODAY) == 1
+        assert get_assignment(conn, date(2026, 6, 4)) is None
+        assert get_last_index(conn) == 1
+    finally:
+        conn.close()
+
+
+def test_show_today_button_is_disabled_on_todays_row(tmp_path: Path) -> None:
+    _seed(tmp_path, ["caption A", "caption B"])
+    _record(tmp_path, TODAY, 1)
+
+    page = _app(tmp_path).test_client().get("/admin/captions").text
+
+    assert page.count("Show today") == 2
+    assert page.count("disabled>Show today") == 1
+
+
+def test_show_today_for_absent_caption_redirects_with_error(tmp_path: Path) -> None:
+    client = _app(tmp_path).test_client()
+
+    response = client.post("/admin/captions/999/today", follow_redirects=True)
+
+    assert "no such caption" in response.text

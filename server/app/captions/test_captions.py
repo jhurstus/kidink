@@ -12,6 +12,7 @@ from app.captions.captions import (
     list_captions,
     open_captions_db,
     record_assignment,
+    set_today_caption,
     update_caption,
 )
 
@@ -108,5 +109,25 @@ def test_clear_rotation_forgets_pins_and_pointer(tmp_path: Path) -> None:
         assert get_last_index(conn) is None
         assert latest_assignment(conn) is None
         clear_rotation(conn)  # clearing an empty rotation is a no-op
+    finally:
+        conn.close()
+
+
+def test_set_today_caption_repins_today_and_drops_later_pins(tmp_path: Path) -> None:
+    conn = open_captions_db(tmp_path)
+    try:
+        record_assignment(conn, date(2026, 7, 21), 0)  # history: kept
+        record_assignment(conn, date(2026, 7, 22), 1)  # today: replaced
+        record_assignment(conn, date(2026, 7, 23), 2)  # prerendered: dropped
+
+        set_today_caption(conn, date(2026, 7, 22), 4)
+
+        assert get_assignment(conn, date(2026, 7, 21)) == 0
+        assert get_assignment(conn, date(2026, 7, 22)) == 4
+        assert get_assignment(conn, date(2026, 7, 23)) is None
+        assert get_last_index(conn) == 4
+        assert latest_assignment(conn) == Assignment(
+            day=date(2026, 7, 22), caption_index=4
+        )
     finally:
         conn.close()

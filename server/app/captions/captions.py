@@ -188,6 +188,31 @@ def assign_caption(conn: sqlite3.Connection, day: date) -> SelectedCaption | Non
     return selected
 
 
+def set_today_caption(conn: sqlite3.Connection, day: date, index: int) -> None:
+    """Make caption ``index`` the one ``day`` shows, and continue from it.
+
+    The admin "Show today" action. Replaces ``day``'s pin (renders of it so
+    far may have pinned another caption), forgets every *later* date's pin
+    (warm-up prerenders pin ahead, §3.6, and those would otherwise keep their
+    pre-jump captions), and moves the rotation pointer to ``index`` so the
+    next eligible day takes the caption after it. Earlier dates keep their
+    pins - they're history.
+    """
+    with conn:
+        conn.execute(
+            "DELETE FROM caption_assignments WHERE day >= ?", (day.isoformat(),)
+        )
+        conn.execute(
+            "INSERT INTO caption_assignments (day, caption_index) VALUES (?, ?)",
+            (day.isoformat(), index),
+        )
+        conn.execute(
+            "INSERT INTO caption_rotation (id, last_index) VALUES (1, ?) "
+            "ON CONFLICT(id) DO UPDATE SET last_index = excluded.last_index",
+            (index,),
+        )
+
+
 def latest_assignment(conn: sqlite3.Connection) -> Assignment | None:
     """The most recently *recorded* pin (assignment order, not calendar order),
     or ``None`` before any caption has ever been assigned."""

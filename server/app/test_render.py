@@ -16,6 +16,7 @@ from app.captions.captions import (
     get_assignment,
     get_last_index,
     open_captions_db,
+    set_today_caption,
 )
 from app.config import get_settings
 from app.dinner.overrides import open_meals_db, set_override
@@ -1276,6 +1277,21 @@ def test_render_caption_pins_dates_in_render_order(tmp_path: Path) -> None:
     assert "Quack." in client.get("/render?date=2026-06-05").text
     assert "Honk." in client.get("/render?date=2026-06-04").text
     assert "Quack." in client.get("/render?date=2026-06-05").text
+
+
+def test_render_caption_follows_show_today(tmp_path: Path) -> None:
+    # The admin "Show today" re-pins a rendered date and re-aims the pointer,
+    # so the next unpinned date continues from the chosen caption (§10.5).
+    _seed_captions(tmp_path, ["Blorp.", "Quack.", "Honk."])
+    client = _app_with_ics(EMPTY_ICS, tmp_path).test_client()
+    assert "Blorp." in client.get("/render?date=2026-06-03").text
+
+    conn = open_captions_db(tmp_path)
+    set_today_caption(conn, date(2026, 6, 3), 2)
+    conn.close()
+
+    assert "Honk." in client.get("/render?date=2026-06-03").text
+    assert "Blorp." in client.get("/render?date=2026-06-04").text
 
 
 def test_render_caption_hides_on_a_busy_day(tmp_path: Path) -> None:
