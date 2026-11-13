@@ -136,7 +136,8 @@ class Settings(BaseSettings):
     """Base date for the daily joke index (§15): the joke shown on a date is
     ``jokes[(date - joke_start_date).days % N]``, so the curated list loops. The
     joke list itself lives in the DB (the ``jokes`` table), managed on
-    ``/admin/jokes``."""
+    ``/admin/jokes``, whose "Show today" anchor overrides this date
+    (:func:`app.joke.jokes.rotation_start`)."""
 
     # --- Inkplate firmware (specs/firmware.md) -------------------------------
     # Consumed only by `python -m app.firmware`, which bakes them into the

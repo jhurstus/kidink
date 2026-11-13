@@ -20,7 +20,7 @@ from app.captions.captions import (
 from app.config import get_settings
 from app.dinner.overrides import open_meals_db, set_override
 from app.images import ImageGenerationError
-from app.joke.jokes import add_jokes, open_jokes_db
+from app.joke.jokes import add_jokes, list_jokes, open_jokes_db, set_anchor
 from app.weather import DayForecast, WeatherFetchError
 
 DAY_NAMES = [
@@ -1189,6 +1189,24 @@ def test_render_joke_is_deterministic_for_a_date(tmp_path: Path) -> None:
     assert 'alt="joke B"' in first
     assert 'alt="joke B"' in second
     assert 'alt="joke A"' not in first
+
+
+def test_render_joke_follows_the_admin_anchor(tmp_path: Path) -> None:
+    # Anchoring the third joke to 2026-06-03 ("Show today" on /admin/jokes)
+    # shows it that day and advances one joke per day from there, looping.
+    conn = open_jokes_db(tmp_path)
+    add_jokes(conn, ["joke A", "joke B", "joke C", "joke D"])
+    set_anchor(conn, list_jokes(conn)[2].id, date(2026, 6, 3))
+    conn.close()
+    client = _app_with_ics(EMPTY_ICS, tmp_path, _generate_ok).test_client()
+
+    for day, expected in [
+        ("2026-06-02", "joke B"),
+        ("2026-06-03", "joke C"),
+        ("2026-06-04", "joke D"),
+        ("2026-06-05", "joke A"),
+    ]:
+        assert f'alt="{expected}"' in client.get(f"/render?date={day}").text
 
 
 # Five same-bucket events on Wed 2026-06-03: the Day bucket spans three visual

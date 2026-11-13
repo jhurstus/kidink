@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from flask import Flask
+from flask.testing import FlaskClient
 from PIL import Image
 from pydantic import SecretStr
 
@@ -204,3 +205,73 @@ def test_generate_failure_redirects_with_error(tmp_path: Path) -> None:
     response = client.post(f"/admin/jokes/{joke_id}/generate", follow_redirects=True)
 
     assert "generation failed" in response.text
+
+
+def _ids(tmp_path: Path) -> list[int]:
+    conn = open_jokes_db(tmp_path)
+    try:
+        return [j.id for j in list_jokes(conn)]
+    finally:
+        conn.close()
+
+
+def _today_text(client: FlaskClient) -> str:
+    """The text of the ★-flagged row."""
+    page = client.get("/admin/jokes").text
+    row = page.split('class="today"', 1)[1].split("</tr>", 1)[0]
+    return row.split('name="text" value="', 1)[1].split('"', 1)[0]
+
+
+def test_show_today_makes_the_joke_todays(tmp_path: Path) -> None:
+    _seed(tmp_path, ["joke A", "joke B", "joke C", "joke D"])
+    ids = _ids(tmp_path)
+    client = _app(tmp_path).test_client()
+
+    response = client.post(f"/admin/jokes/{ids[2]}/today", follow_redirects=True)
+
+    assert "today&#39;s joke updated" in response.text
+    assert _today_text(client) == "joke C"
+
+
+def test_show_today_button_is_disabled_on_todays_row(tmp_path: Path) -> None:
+    _seed(tmp_path, ["joke A", "joke B"])
+
+    page = _app(tmp_path).test_client().get("/admin/jokes").text
+
+    assert page.count("Show today") == 2
+    assert page.count("disabled>Show today") == 1
+
+
+def test_show_today_for_absent_joke_redirects_with_error(tmp_path: Path) -> None:
+    client = _app(tmp_path).test_client()
+
+    response = client.post("/admin/jokes/999/today", follow_redirects=True)
+
+    assert "no such joke" in response.text
+
+
+def test_anchor_survives_deleting_an_earlier_joke(tmp_path: Path) -> None:
+    _seed(tmp_path, ["joke A", "joke B", "joke C"])
+    ids = _ids(tmp_path)
+    client = _app(tmp_path).test_client()
+    client.post(f"/admin/jokes/{ids[1]}/today")
+
+    client.post(f"/admin/jokes/{ids[0]}/delete")
+
+    assert _today_text(client) == "joke B"
+
+
+def test_deleting_the_anchored_joke_hands_today_to_its_successor(
+    tmp_path: Path,
+) -> None:
+    _seed(tmp_path, ["joke A", "joke B", "joke C"])
+    ids = _ids(tmp_path)
+    client = _app(tmp_path).test_client()
+    client.post(f"/admin/jokes/{ids[1]}/today")
+
+    client.post(f"/admin/jokes/{ids[1]}/delete")
+    assert _today_text(client) == "joke C"
+
+    # Wraps to the first joke when the anchored one was last.
+    client.post(f"/admin/jokes/{ids[2]}/delete")
+    assert _today_text(client) == "joke A"

@@ -1,6 +1,6 @@
 <!doctype html>
 {#- Admin: the curated joke list (see app/joke/admin.py). One row per joke: the
-editable text (an empty save deletes it), a delete button, and the hero-image
+editable text (an empty save deletes it), delete and make-today buttons, and the hero-image
 link - or a generate action while the record doesn't exist yet. A textarea
 bulk-adds more jokes (one per line). -#}
 <html lang="en">
@@ -21,6 +21,7 @@ bulk-adds more jokes (one per line). -#}
     td.num { font-family: monospace; color: #666; white-space: nowrap; }
     td form { display: inline-flex; gap: 6px; margin: 0; }
     td form.edit { display: flex; }
+    td.actions { white-space: nowrap; }
     input[name="text"] { flex: 1; width: 100%; }
     textarea { width: 100%; max-width: 70em; box-sizing: border-box; margin-bottom: 6px; }
     .no-image { color: #999; }
@@ -58,7 +59,10 @@ bulk-adds more jokes (one per line). -#}
         </form>
         {%- endif %}
       </td>
-      <td>
+      <td class="actions">
+        <form method="post" action="{{ url_for('joke_admin.admin_joke_make_today', joke_id=row.id) }}">
+          <button{% if row.is_today %} disabled{% endif %}>Show today</button>
+        </form>
         <form method="post" action="{{ url_for('joke_admin.admin_joke_delete', joke_id=row.id) }}">
           <button>Delete</button>
         </form>

@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 from app.joke.jokes import (
@@ -7,7 +8,10 @@ from app.joke.jokes import (
     get_joke,
     list_jokes,
     open_jokes_db,
+    rotation_start,
+    set_anchor,
     stored_jokes,
+    stored_rotation_start,
     update_joke,
 )
 
@@ -79,3 +83,49 @@ def test_stored_jokes_without_a_db_creates_nothing(tmp_path: Path) -> None:
     missing = tmp_path / "never-created"
     assert stored_jokes(missing) == []
     assert not missing.exists()
+
+
+def test_rotation_start_defaults_without_an_anchor(tmp_path: Path) -> None:
+    conn = open_jokes_db(tmp_path)
+    try:
+        add_jokes(conn, ["joke A"])
+        assert rotation_start(conn, date(2026, 1, 1)) == date(2026, 1, 1)
+    finally:
+        conn.close()
+
+
+def test_rotation_start_maps_the_anchor_day_to_the_anchored_joke(
+    tmp_path: Path,
+) -> None:
+    conn = open_jokes_db(tmp_path)
+    try:
+        add_jokes(conn, ["joke A", "joke B", "joke C"])
+        third = list_jokes(conn)[2]
+        set_anchor(conn, third.id, date(2026, 6, 3))
+        # Position 2 on 06-03 -> position 0 on 06-01.
+        assert rotation_start(conn, date(2026, 1, 1)) == date(2026, 6, 1)
+        # Re-anchoring replaces the prior anchor.
+        set_anchor(conn, list_jokes(conn)[0].id, date(2026, 7, 1))
+        assert rotation_start(conn, date(2026, 1, 1)) == date(2026, 7, 1)
+    finally:
+        conn.close()
+
+
+def test_deleting_the_last_joke_drops_the_anchor(tmp_path: Path) -> None:
+    conn = open_jokes_db(tmp_path)
+    try:
+        add_jokes(conn, ["joke A"])
+        only = list_jokes(conn)[0]
+        set_anchor(conn, only.id, date(2026, 6, 3))
+        delete_joke(conn, only.id)
+        assert conn.execute("SELECT COUNT(*) FROM joke_anchor").fetchone()[0] == 0
+        # A re-added joke falls back to the configured start.
+        add_jokes(conn, ["joke B"])
+        assert rotation_start(conn, date(2026, 1, 1)) == date(2026, 1, 1)
+    finally:
+        conn.close()
+
+
+def test_stored_rotation_start_without_a_db_creates_nothing(tmp_path: Path) -> None:
+    assert stored_rotation_start(tmp_path, date(2026, 1, 1)) == date(2026, 1, 1)
+    assert not (tmp_path / "sqlite.db").exists()

@@ -13,11 +13,21 @@ connection convention) - the same pattern as :mod:`app.dinner.overrides`.
 
 Ordering is by ``id`` (insertion order): the daily index (§15) counts into the
 list in that order, and it is stable across edits (an edit keeps a row's id).
+
+The rotation's phase can be re-anchored from the admin page ("show this joke
+today"): a single-row ``joke_anchor`` table pins one joke id to one date, and
+:func:`rotation_start` folds that into an effective start date so the plain
+§15 modulo (``(target - start).days % N``) picks the anchored joke on its date
+and keeps advancing one joke per day from there. Anchoring by id (not by list
+position) keeps the anchored joke on its date when earlier jokes are added or
+removed; deleting the anchored joke itself hands the anchor to the joke that
+takes its place in the list (:func:`delete_joke`).
 """
 
 import sqlite3
 from collections.abc import Iterable
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 
 from app.images.db import open_db
@@ -26,6 +36,11 @@ _JOKES_SCHEMA = """
 CREATE TABLE IF NOT EXISTS jokes (
     id   INTEGER PRIMARY KEY,
     text TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS joke_anchor (
+    id      INTEGER PRIMARY KEY CHECK (id = 1),  -- at most one anchor
+    joke_id INTEGER NOT NULL,
+    day     TEXT NOT NULL                        -- ISO date, YYYY-MM-DD
 );
 """
 
@@ -98,9 +113,57 @@ def update_joke(conn: sqlite3.Connection, joke_id: int, text: str) -> None:
 
 
 def delete_joke(conn: sqlite3.Connection, joke_id: int) -> None:
-    """Remove one joke (a no-op when the id is absent)."""
+    """Remove one joke (a no-op when the id is absent).
+
+    When the deleted joke holds the rotation anchor, the anchor moves to the
+    joke that slides into its list position (the next id, wrapping to the
+    first), so the board's day-to-day progression keeps its place instead of
+    jumping back to the config start date. Deleting the last joke drops the
+    anchor.
+    """
     with conn:
         conn.execute("DELETE FROM jokes WHERE id = ?", (joke_id,))
+        row = conn.execute(
+            "SELECT 1 FROM joke_anchor WHERE joke_id = ?", (joke_id,)
+        ).fetchone()
+        if row is None:
+            return
+        successor = conn.execute(
+            "SELECT id FROM jokes ORDER BY id > ? DESC, id LIMIT 1", (joke_id,)
+        ).fetchone()
+        if successor is None:
+            conn.execute("DELETE FROM joke_anchor")
+        else:
+            conn.execute("UPDATE joke_anchor SET joke_id = ?", (successor["id"],))
+
+
+def set_anchor(conn: sqlite3.Connection, joke_id: int, day: date) -> None:
+    """Make ``joke_id`` the joke shown on ``day`` (replacing any prior anchor).
+
+    The rotation continues one joke per day forward (and backward) from there.
+    """
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO joke_anchor (id, joke_id, day) VALUES (1, ?, ?)",
+            (joke_id, day.isoformat()),
+        )
+
+
+def rotation_start(conn: sqlite3.Connection, default: date) -> date:
+    """The effective start date for the §15 index (``(target - start).days % N``).
+
+    With an anchor (joke ``J`` on day ``D``) whose joke still exists at list
+    position ``p``, this is ``D - p`` days, so ``D`` maps to ``J`` and later
+    days walk the list from there. Without one (or with a dangling one),
+    it's ``default`` (the configured ``joke_start_date``).
+    """
+    row = conn.execute("SELECT joke_id, day FROM joke_anchor").fetchone()
+    if row is None:
+        return default
+    ids = [joke.id for joke in list_jokes(conn)]
+    if row["joke_id"] not in ids:
+        return default
+    return date.fromisoformat(row["day"]) - timedelta(days=ids.index(row["joke_id"]))
 
 
 def stored_jokes(storage_root: Path) -> list[str]:
@@ -116,5 +179,19 @@ def stored_jokes(storage_root: Path) -> list[str]:
     conn = open_jokes_db(storage_root)
     try:
         return [joke.text for joke in list_jokes(conn)]
+    finally:
+        conn.close()
+
+
+def stored_rotation_start(storage_root: Path, default: date) -> date:
+    """:func:`rotation_start` for the render route; ``default`` without a DB.
+
+    Like :func:`stored_jokes`, never creates storage.
+    """
+    if not (storage_root / "sqlite.db").exists():  # the open_db filename
+        return default
+    conn = open_jokes_db(storage_root)
+    try:
+        return rotation_start(conn, default)
     finally:
         conn.close()

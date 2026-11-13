@@ -1119,6 +1119,13 @@ drawn inside the image).
 - **Selection:** index = (target date − `joke_start_date`, §18) in whole days, **modulo
   N**, so the list loops. The debug date arg selects a different joke. An empty table
   shows a friendly placeholder.
+- **Re-anchoring:** each admin row has a **Show today** button that makes that joke the
+  current day's; the rotation then advances one joke per day from it. It's stored as a
+  single (joke id, date) anchor in a `joke_anchor` table, which overrides
+  `joke_start_date` with an effective start of (anchor date − the joke's list position),
+  so the modulo above is unchanged. Anchoring by id keeps the anchored joke on its date
+  when other jokes are added or removed; deleting the anchored joke passes the anchor to
+  the joke that takes its list position (wrapping to the first).
 - **Image:** the whole line is handed to the prompt; the image is keyed by the joke line
   itself (its `item_description`, §7.1), generated once, and reused each cycle.
 - **Riddles:** the answer is shown alongside the question (there is no interactivity to
@@ -1212,7 +1219,7 @@ the per-event TOML fields in §6.3. The fields:
 | `app_storage_path` | Path, `.storage` | Root for all app-managed storage, created/written as needed: `sqlite.db` (image metadata §7.1, plus the joke §15, caption §10.5, meal-override §13, and `/display` request-log §3.1 tables), `gen_images/` (rendered `<id>.png` files, §7.6), and `prompt_images/` (prompt-attachment images, including each module's default style examples, §7.1). A relative path resolves against `server/`. |
 | `module_model_tiers` | dict[str, str], empty | Per-module image-model overrides, e.g. `{"Calendar": "gpt-image-2.6-flare"}`; modules absent from the map use the default model. |
 | `kids` | list of `{name, label}`, empty | The children shown on the board (§8), **in display order** — the order fixes each kid's badge color and label position, and indexes their clothing figures (`kid0`, `kid1`, … — § Weather). `label` is the initials; events' `kids` values (§6.4) match either field case-insensitively. |
-| `joke_start_date` | date, `2026-01-01` | Base date for the daily joke index (§15). The jokes themselves live in the DB, not in config. |
+| `joke_start_date` | date, `2026-01-01` | Base date for the daily joke index (§15), until an admin "Show today" anchor overrides it. The jokes themselves live in the DB, not in config. |
 | `device_wifi_ssid` | `SecretStr`, empty | Wi-Fi network the Inkplate joins ([firmware.md](firmware.md) §9). Required by the deploy CLI, not by the server. |
 | `device_wifi_password` | `SecretStr`, empty | Wi-Fi passphrase. Never logged, not even its length. |
 | `device_server_base_url` | str, empty | Origin the device fetches from, e.g. `192.168.1.20:5051`. Required by the deploy CLI: it must be a LAN address the board can reach, so there is no sane default. A bare `host:port` gains `http://`; `https://` is rejected (no TLS stack on the board). |

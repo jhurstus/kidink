@@ -32,6 +32,7 @@ from app.joke import (
     joke_admin_bp,
     make_joke_hero_resolver,
     stored_jokes,
+    stored_rotation_start,
 )
 from app.today import build_today, no_caption
 from app.tomorrow import build_tomorrow
@@ -233,7 +234,9 @@ def create_app() -> Flask:
         joke_panel = build_joke(
             target,
             stored_jokes(app.config["APP_STORAGE_PATH"]),
-            settings.joke_start_date,
+            stored_rotation_start(
+                app.config["APP_STORAGE_PATH"], settings.joke_start_date
+            ),
             hero_resolver=make_joke_hero_resolver(rendered_images),
         )
         # Chores get their own resolver (module "Chores", §14) - a separate icon

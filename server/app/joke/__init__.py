@@ -10,12 +10,14 @@ Public API:
   displayed as-is; logical key = the joke line, with its text drawn inside).
 - :func:`stored_jokes` - the curated joke list read by the render route
   (managed on ``/admin/jokes``, :mod:`app.joke.admin`).
+- :func:`stored_rotation_start` - the effective §15 start date, honoring an
+  admin-set "today's joke" anchor.
 - :data:`joke_admin_bp` - the ``/admin/jokes`` blueprint.
 """
 
 from app.joke.admin import joke_admin_bp
 from app.joke.hero import joke_hero_prompt, joke_image_spec, make_joke_hero_resolver
-from app.joke.jokes import stored_jokes
+from app.joke.jokes import stored_jokes, stored_rotation_start
 from app.joke.view import HeroResolver, JokePanel, build_joke, no_hero
 
 __all__ = [
@@ -28,4 +30,5 @@ __all__ = [
     "make_joke_hero_resolver",
     "no_hero",
     "stored_jokes",
+    "stored_rotation_start",
 ]

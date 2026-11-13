@@ -1,10 +1,11 @@
 """Jokes admin endpoint: the curated joke list with CRUD, images, seed import.
 
 ``GET /admin/jokes`` lists every joke (the live source of truth, §15). Each row
-can have its text edited or be deleted, and links to its hero image's §7.4 admin
-page - with a generate action for jokes whose image record doesn't exist yet
-(records are normally created at render/warm-up time when the daily index
-reaches that joke). A textarea bulk-adds more jokes (one per line).
+can have its text edited, be deleted, or be made today's joke (re-anchoring
+the daily rotation so it advances from that joke), and links to its hero
+image's §7.4 admin page - with a generate action for jokes whose image record
+doesn't exist yet (records are normally created at render/warm-up time when
+the daily index reaches that joke). A textarea bulk-adds more jokes (one per line).
 
 Unauthenticated by design, like the image admin (§7.4) - an accepted trade-off
 for a trusted home LAN that must not be exposed beyond it (the generate action
@@ -13,7 +14,7 @@ templates are bound by the no-JS rule (§3.3).
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from flask import (
@@ -38,6 +39,8 @@ from app.joke.jokes import (
     get_joke,
     list_jokes,
     open_jokes_db,
+    rotation_start,
+    set_anchor,
     update_joke,
 )
 
@@ -62,21 +65,24 @@ def _storage_root() -> Path:
     return Path(current_app.config["APP_STORAGE_PATH"])
 
 
-@joke_admin_bp.get("/admin/jokes")
-def admin_jokes() -> str:
-    """The joke list: per-row edit/delete/image, plus add and seed-import."""
+def _today() -> date:
+    """The board's current date (the same resolution ``/render`` uses)."""
     settings = get_settings()
     now = current_app.config.get("NOW") or datetime.now(UTC)
-    today = resolve_date(None, now=now, tz=settings.timezone)
+    return resolve_date(None, now=now, tz=settings.timezone)
 
+
+@joke_admin_bp.get("/admin/jokes")
+def admin_jokes() -> str:
+    """The joke list: per-row edit/delete/image/make-today, plus bulk add."""
+    today = _today()
     conn = open_jokes_db(_storage_root())
     try:
         jokes = list_jokes(conn)
+        start = rotation_start(conn, get_settings().joke_start_date)
         # The date's joke index (§15); -1 when the store is empty so no row
         # is flagged. Same modulo the render path uses (build_joke).
-        today_index = (
-            (today - settings.joke_start_date).days % len(jokes) if jokes else -1
-        )
+        today_index = (today - start).days % len(jokes) if jokes else -1
         rows = [
             JokeRow(
                 id=joke.id,
@@ -136,6 +142,19 @@ def admin_joke_delete(joke_id: int) -> WerkzeugResponse:
     finally:
         conn.close()
     return redirect(url_for("joke_admin.admin_jokes"))
+
+
+@joke_admin_bp.post("/admin/jokes/<int:joke_id>/today")
+def admin_joke_make_today(joke_id: int) -> WerkzeugResponse:
+    """Show this joke today; the rotation then advances daily from it."""
+    conn = open_jokes_db(_storage_root())
+    try:
+        if get_joke(conn, joke_id) is None:
+            return redirect(url_for("joke_admin.admin_jokes", error="no such joke"))
+        set_anchor(conn, joke_id, _today())
+    finally:
+        conn.close()
+    return redirect(url_for("joke_admin.admin_jokes", status="today's joke updated"))
 
 
 @joke_admin_bp.post("/admin/jokes/<int:joke_id>/generate")
